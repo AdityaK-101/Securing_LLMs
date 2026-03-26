@@ -23,6 +23,7 @@ warnings.filterwarnings("ignore", message=".*unauthenticated requests.*HF Hub.*"
 
 import os
 os.environ.setdefault("HF_HUB_DISABLE_IMPLICIT_TOKEN", "1")  # silence HF token nag
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 MODEL_NAME = "microsoft/phi-2"
 
@@ -38,7 +39,11 @@ def _load_model():
         return _pipeline
 
     from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
+    from transformers import logging as hf_logging
     import torch
+
+    # Supress transformers verbose generation warnings
+    hf_logging.set_verbosity_error()
 
     print(f"[LLMRunner] Loading {MODEL_NAME}...")
     print("[LLMRunner] First run: downloading model (~5.5 GB). Please wait...")
@@ -69,6 +74,7 @@ def _load_model():
         tokenizer=tokenizer,
         device=device,
         pad_token_id=tokenizer.eos_token_id,
+        return_full_text=False,
     )
 
     print(f"[LLMRunner] {MODEL_NAME} ready.")
@@ -105,7 +111,7 @@ class LLMRunner:
                 formatted,
                 max_new_tokens=150,
                 do_sample=False,
-                return_full_text=False,
+                pad_token_id=self._pipe.tokenizer.eos_token_id,
             )
             generated = result[0]["generated_text"].strip()
             # Return only the response part (stop at next ### if present)
