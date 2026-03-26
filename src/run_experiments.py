@@ -293,6 +293,8 @@ def _write_robustness_note(metrics_df, para_df, edge_df, out_path):
 
 def main():
     parser = argparse.ArgumentParser(description="Milestone 3 experiment runner")
+    parser.add_argument("--no-llm", action="store_true",
+                        help="Skip phi-2 inference (sanitizer-only, fast mode)")
     parser.add_argument("--classifier", action="store_true",
                         help="Run stretch-goal LR+TF-IDF classifier")
     args = parser.parse_args()
@@ -300,11 +302,10 @@ def main():
     RESULTS_DIR.mkdir(exist_ok=True)
     FIGURES_DIR.mkdir(exist_ok=True)
 
-    skip_llm = os.environ.get("SKIP_LLM", "0").strip() == "1"
-    use_llm  = not skip_llm
+    use_llm = not args.no_llm
 
     _banner("Milestone 3 — Prompt Injection Defense Evaluation")
-    print(f"  Model  : {'microsoft/phi-2' if use_llm else 'MOCK (SKIP_LLM=1)'}")
+    print(f"  Model  : {'microsoft/phi-2' if use_llm else 'SKIP (--no-llm flag)'}")
     print(f"  Seed   : 42 (fixed for reproducibility)")
     print(f"  Test   : {TEST_CSV}")
     print(f"  Train  : {TRAIN_CSV}")

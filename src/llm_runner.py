@@ -12,6 +12,17 @@ By default, phi-2 is loaded and used for real inference.
 """
 
 import os
+import warnings
+
+# Suppress noisy but harmless phi-2 deprecation warnings that fire on every call
+warnings.filterwarnings("ignore", message=".*Both.*max_new_tokens.*max_length.*")
+warnings.filterwarnings("ignore", message=".*Passing.*generation_config.*generation-related.*")
+warnings.filterwarnings("ignore", message=".*generation flags are not valid.*temperature.*")
+warnings.filterwarnings("ignore", message=".*torch_dtype.*deprecated.*")
+warnings.filterwarnings("ignore", message=".*unauthenticated requests.*HF Hub.*")
+
+import os
+os.environ.setdefault("HF_HUB_DISABLE_IMPLICIT_TOKEN", "1")  # silence HF token nag
 
 MODEL_NAME = "microsoft/phi-2"
 
