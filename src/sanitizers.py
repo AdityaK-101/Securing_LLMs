@@ -134,12 +134,12 @@ KEYWORD_WEIGHTS = {
     "override":     0.3,
 
     # --- High-signal injection vocabulary from dataset ---
-    "act as":       0.35,
+    "act as":       0.40,
     "roleplay":     0.35,
     "role play":    0.35,
-    "pretend":      0.30,
-    "from now on":  0.35,
-    "you are now":  0.40,
+    "pretend":      0.35,
+    "from now on":  0.40,
+    "you are now":  0.45,
     "new task":     0.35,
     "forget all":   0.40,
     "forget everything": 0.40,
@@ -218,13 +218,17 @@ INTENT_PATTERNS = [
     re.compile(r"(behave|respond)\s+as\s+(a\s+|an\s+)?\S+\s+(without|with\s+no)", re.IGNORECASE),
 ]
 
-# Scoring weights (exact from spec §4.3)
-W1 = 0.35  # regex signal
-W2 = 0.20  # keyword score
-W3 = 0.25  # semantic similarity
-W4 = 0.20  # intent detection
+# Scoring weights — 7-signal formula
+W1 = 0.15  # regex
+W2 = 0.15  # keyword
+W3 = 0.20  # semantic
+W4 = 0.20  # intent
+W5 = 0.10  # roleplay
+W6 = 0.10  # instruction_shift
+W7 = 0.10  # objective_conflict
+# total = 1.00
 
-CONTEXT_THRESHOLD = 0.5
+CONTEXT_THRESHOLD = 0.40  # Fix 3 — lower to catch borderline cases
 
 _TRAIN_CSV = os.path.join(
     os.path.dirname(__file__), "..", "data", "splits", "train.csv"
@@ -244,7 +248,7 @@ class ContextAwareSanitizer:
         self._regex_san  = RegexSanitizer()
         self._kw_san     = KeywordHeuristicSanitizer()
         self._tfidf      = TfidfVectorizer(ngram_range=(1, 3), max_features=8000, stop_words="english")
-        self._centroid   = None
+        self._train_vecs  = None  # store all injection vectors for max-sim
         self._train(train_csv)
 
     def _train(self, train_csv: str):
@@ -254,12 +258,11 @@ class ContextAwareSanitizer:
             if not injections:
                 raise ValueError("No injection rows found.")
             self._tfidf.fit(injections)
-            vecs = self._tfidf.transform(injections)
-            self._centroid = np.asarray(vecs.mean(axis=0))
+            self._train_vecs = self._tfidf.transform(injections)  # shape: (n_injections, vocab)
             print(f"[ContextAwareSanitizer] TF-IDF trained on {len(injections)} injection examples.")
         except Exception as e:
             print(f"[ContextAwareSanitizer] Warning: TF-IDF training failed — {e}")
-            self._centroid = None
+            self._train_vecs = None
 
     def _regex_signal(self, prompt: str) -> float:
         _, blocked = self._regex_san.sanitize(prompt)
@@ -269,10 +272,24 @@ class ContextAwareSanitizer:
         return min(self._kw_san.score(prompt), 1.0)
 
     def _semantic_signal(self, prompt: str) -> float:
-        if self._centroid is None:
+        """Stepped cosine similarity — decisive buckets instead of linear.
+        High sim (>0.5) = definite injection vocabulary  → 1.0
+        Mid  sim (>0.3) = probable injection vocabulary  → 0.7
+        Low  sim (>0.2) = ambiguous                      → 0.5
+        Below 0.2       = likely benign                  → 0.0
+        """
+        if self._train_vecs is None:
             return 0.0
         vec = self._tfidf.transform([prompt])
-        return float(cosine_similarity(vec, self._centroid)[0][0])
+        sim = float(cosine_similarity(vec, self._train_vecs).max())
+        if sim > 0.5:
+            return 1.0
+        elif sim > 0.3:
+            return 0.7
+        elif sim > 0.2:
+            return 0.5
+        else:
+            return 0.0
 
     def _intent_signal(self, prompt: str) -> float:
         for pattern in INTENT_PATTERNS:
@@ -280,17 +297,87 @@ class ContextAwareSanitizer:
                 return 1.0
         return 0.0
 
+    # -- Step 1: Instruction shift (multi-step attack detection) --
+    _SHIFT_PATTERNS = [
+        re.compile(r"first.{1,60}then",          re.IGNORECASE | re.DOTALL),
+        re.compile(r"second.{1,60}without",       re.IGNORECASE | re.DOTALL),
+        re.compile(r"now.{1,60}instead",          re.IGNORECASE | re.DOTALL),
+        re.compile(r"but.{1,60}actually",         re.IGNORECASE | re.DOTALL),
+        re.compile(r"do not.{1,60}but",           re.IGNORECASE | re.DOTALL),
+    ]
+
+    def _instruction_shift_signal(self, prompt: str) -> float:
+        """Detects multi-step attacks and hidden intent switching."""
+        lowered = prompt.lower()
+        return 1.0 if any(p.search(lowered) for p in self._SHIFT_PATTERNS) else 0.0
+
+    # -- Step 2: Roleplay attack detection --
+    _ROLEPLAY_PATTERNS = [
+        re.compile(r"you\s+are\b",               re.IGNORECASE),
+        re.compile(r"imagine\s+you",              re.IGNORECASE),
+        re.compile(r"in\s+this\s+scenario",       re.IGNORECASE),
+        re.compile(r"role\s+as\b",               re.IGNORECASE),
+        re.compile(r"pretend\s+to\s+be",          re.IGNORECASE),
+    ]
+
+    def _roleplay_signal(self, prompt: str) -> float:
+        """Detects roleplay/persona hijacking attacks."""
+        return 1.0 if any(p.search(prompt) for p in self._ROLEPLAY_PATTERNS) else 0.0
+
+    # -- Step 3: Masked intent / coded harmful objective --
+    _MASKED_PATTERNS = [
+        re.compile(r"not\s*\[.{1,80}\]",          re.IGNORECASE),
+        re.compile(r"without\s+the\s+word",        re.IGNORECASE),
+        re.compile(r"avoid\s+saying",              re.IGNORECASE),
+    ]
+
+    def _masked_intent_signal(self, prompt: str) -> float:
+        """Detects coded/masked harmful objectives (e.g. 'not [how to make X]')."""
+        return 1.0 if any(p.search(prompt) for p in self._MASKED_PATTERNS) else 0.0
+
+    # -- Step: Instruction objective conflict (write X but actually mean Y) --
+    _CONFLICT_PATTERNS = [
+        re.compile(r"but\s+actually",          re.IGNORECASE),
+        re.compile(r"instead\s+of",            re.IGNORECASE),
+        re.compile(r"do\s+something\s+else",   re.IGNORECASE),
+        re.compile(r"hidden\s+meaning",        re.IGNORECASE),
+        re.compile(r"real\s+task\s+is",        re.IGNORECASE),
+        re.compile(r"ignore\s+the\s+above",    re.IGNORECASE),
+    ]
+
+    def _objective_conflict_signal(self, prompt: str) -> float:
+        """Catches 'write X but actually do Y' and hidden intent switching."""
+        lowered = prompt.lower()
+        return 1.0 if any(p.search(lowered) for p in self._CONFLICT_PATTERNS) else 0.0
+
     def score(self, prompt: str) -> dict:
-        r = self._regex_signal(prompt)
-        k = self._keyword_signal(prompt)
-        s = self._semantic_signal(prompt)
-        i = self._intent_signal(prompt)
-        total = W1 * r + W2 * k + W3 * s + W4 * i
-        return {"regex": r, "keyword": k, "semantic": s, "intent": i, "total": total}
+        r   = self._regex_signal(prompt)
+        k   = self._keyword_signal(prompt)
+        s   = self._semantic_signal(prompt)
+        i   = self._intent_signal(prompt)
+        rp  = self._roleplay_signal(prompt)
+        sh  = self._instruction_shift_signal(prompt)
+        obj = self._objective_conflict_signal(prompt)
+        total = W1*r + W2*k + W3*s + W4*i + W5*rp + W6*sh + W7*obj
+        return {
+            "regex": r, "keyword": k, "semantic": s,
+            "intent": i, "roleplay": rp, "shift": sh,
+            "objective_conflict": obj, "total": total,
+        }
 
     def sanitize(self, prompt: str):
         signals = self.score(prompt)
-        blocked = signals["total"] >= self.threshold
+
+        # Fix 2 — Hard triggers: strong individual signals bypass soft total
+        if signals["semantic"] > 0.6:
+            blocked = True   # vocabulary clearly matches known injections
+        elif signals["intent"] == 1.0:
+            blocked = True   # structural injection pattern found
+        elif signals["roleplay"] == 1.0 and signals["keyword"] > 0.3:
+            blocked = True   # roleplay frame + suspicious keyword combo
+        else:
+            blocked = signals["total"] >= self.threshold  # soft weighted score
+
         sanitized = "[PROMPT BLOCKED — CONTEXT ANALYSIS]" if blocked else prompt
         return sanitized, blocked
 

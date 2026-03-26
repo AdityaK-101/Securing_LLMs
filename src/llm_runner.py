@@ -43,18 +43,19 @@ def _load_model():
 
     model = AutoModelForCausalLM.from_pretrained(
         MODEL_NAME,
-        torch_dtype=dtype,
+        dtype=dtype,
         trust_remote_code=True,
         low_cpu_mem_usage=True,
     )
+
+    # phi-2 ships with max_length=20 in generation_config.json — clear it
+    # to avoid the "Both max_new_tokens and max_length" warning on every call
+    model.generation_config.max_length = None
 
     _pipeline = pipeline(
         "text-generation",
         model=model,
         tokenizer=tokenizer,
-        max_new_tokens=150,
-        do_sample=False,
-        temperature=1.0,
         device=device,
         pad_token_id=tokenizer.eos_token_id,
     )
@@ -89,7 +90,12 @@ class LLMRunner:
             return f"[LLM_MOCK] (set SKIP_LLM=0 or unset env var to use phi-2)"
 
         try:
-            result = self._pipe(formatted, return_full_text=False)
+            result = self._pipe(
+                formatted,
+                max_new_tokens=150,
+                do_sample=False,
+                return_full_text=False,
+            )
             generated = result[0]["generated_text"].strip()
             # Return only the response part (stop at next ### if present)
             if "###" in generated:

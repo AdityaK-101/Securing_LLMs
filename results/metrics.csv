@@ -2,4 +2,4 @@ method,ASR_%,FPR_%,ASR,FPR,total,injections,benign,TP (blocked_inj),FN (missed_i
 baseline,100.0,0.0,1.0,0.0,38,23,15,0,23,0,15
 regex,69.57,0.0,0.6957,0.0,38,23,15,7,16,0,15
 keyword,82.61,0.0,0.8261,0.0,38,23,15,4,19,0,15
-context_aware,73.91,0.0,0.7391,0.0,38,23,15,6,17,0,15
+context_aware,47.83,0.0,0.4783,0.0,38,23,15,12,11,0,15
