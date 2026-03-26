@@ -1,6 +1,10 @@
-pandas 
-numpy 
-tqdm 
-scikit-learn 
-matplotlib 
+pandas
+numpy
+tqdm
+scikit-learn
+matplotlib
 nltk
+transformers
+torch
+scipy
+huggingface_hub

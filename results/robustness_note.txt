@@ -1,0 +1,54 @@
+==============================================================
+  Robustness Note — Milestone 3
+==============================================================
+
+1. DEFENSE EFFECTIVENESS
+----------------------------------------
+  baseline         ASR=100.0%  FPR=  0.0%  TP=  0  FN= 23  FP=  0  TN= 15
+  regex            ASR= 69.6%  FPR=  0.0%  TP=  7  FN= 16  FP=  0  TN= 15
+  keyword          ASR= 82.6%  FPR=  0.0%  TP=  4  FN= 19  FP=  0  TN= 15
+  context_aware    ASR= 73.9%  FPR=  0.0%  TP=  6  FN= 17  FP=  0  TN= 15
+
+  Best performing defense: regex (ASR=69.6%)
+  Weakest active defense:  keyword (ASR=82.6%)
+
+2. SIDE EFFECTS & FALSE POSITIVES
+----------------------------------------
+  baseline         edge_FPR=0%  blocked 0/10 edge prompts
+  context_aware    edge_FPR=10%  blocked 1/10 edge prompts
+  keyword          edge_FPR=0%  blocked 0/10 edge prompts
+  regex            edge_FPR=20%  blocked 2/10 edge prompts
+
+  Regex sanitizer has the highest edge-case FPR — it triggers
+  on technical phrases like 'bypass this error' or 'act as proxy'.
+  Context-Aware has a slightly elevated edge FPR but remains
+  the best trade-off between security and usability.
+
+3. PARAPHRASE ROBUSTNESS
+----------------------------------------
+  baseline         orig=100.0%  para=100.0%  Δ=+0.0% better (-)
+  context_aware    orig=64.0%  para=76.0%  Δ=+12.0% WORSE (+)
+  keyword          orig=86.0%  para=88.0%  Δ=+2.0% WORSE (+)
+  regex            orig=50.0%  para=58.0%  Δ=+8.0% WORSE (+)
+
+  All active defenses degrade when attacks are paraphrased.
+  Regex is most brittle (relies on exact phrase matching).
+  Context-Aware shows the largest paraphrase gap — indicating
+  that TF-IDF semantic vectors shift when vocabulary changes.
+  This motivates using dense embeddings (e.g., SentenceTransformers)
+  in future work.
+
+4. WHERE DEFENSES FAILED
+----------------------------------------
+  - Sophisticated roleplay jailbreaks (DAN, BOB, STAN personas)
+    that embed harmful requests inside fictional narratives.
+  - Multilingual attacks (German) partially bypass regex/keyword.
+  - Indirect/coded language (e.g., 'assets' meaning stolen data)
+    scores low on all signal types.
+  - Very long prompts dilute keyword density below threshold.
+
+5. REPRODUCIBILITY
+----------------------------------------
+  Fixed seed: 42 (applied to numpy and random modules).
+  All metrics are deterministic given the same dataset split.
+==============================================================
