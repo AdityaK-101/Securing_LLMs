@@ -1,6 +1,5 @@
 # Securing Large Language Models Against Prompt Injection
 ### Towards Robust, Context-Aware Input Sanitization
-**Vizuara Research Team** · 8-Week Research Roadmap
 
 > **Scope Note:** This project uses a synthetic/toy-sized dataset curated for learning and demonstration.
 > Results are proof-of-concept insights, not production-grade security evaluations.
@@ -20,7 +19,6 @@
 6. [Results](#6-results)
 7. [How to Run](#7-how-to-run)
 8. [Output Files](#8-output-files)
-9. [Milestone 4 — Next Steps](#9-milestone-4--next-steps-weeks-78)
 
 ---
 
