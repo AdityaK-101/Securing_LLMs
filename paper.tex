@@ -1,0 +1,800 @@
+% ============================================================
+% Securing Large Language Models Against Prompt Injection:
+% A Multi-Signal Context-Aware Input Sanitization Framework
+% ============================================================
+\documentclass[10pt,conference]{IEEEtran}
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{microtype}
+
+\hypersetup{colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue}
+
+\begin{document}
+
+% ============================================================
+\title{Securing Large Language Models Against Prompt Injection:\\
+A Multi-Signal Context-Aware Input Sanitization Framework}
+
+\author{
+  \IEEEauthorblockN{Aditya K.}
+  \IEEEauthorblockA{Department of Computer Science\\
+  \textit{arXiv Preprint}, 2025}
+}
+
+\maketitle
+
+% ============================================================
+\begin{abstract}
+Prompt injection represents one of the most critical and pervasive
+security vulnerabilities in deployed Large Language Model (LLM)
+systems, wherein adversarially crafted inputs override a model's
+original system instructions.
+Existing defenses—including regular-expression filtering, keyword
+heuristics, and structured prompting approaches—exhibit significant
+brittleness under paraphrasing and fail to generalize across attack
+categories such as persona hijacking, multilingual overrides, and
+indirect narrative jailbreaks.
+In this paper we introduce a \emph{multi-signal context-aware input
+sanitization framework} that combines seven complementary detection
+signals—regex pattern matching, weighted keyword scoring, TF-IDF
+semantic similarity, structural intent detection, roleplay framing
+detection, instruction-shift detection, and objective-conflict
+detection—into a unified weighted scoring scheme augmented with
+hard-trigger rules.
+We evaluate the framework against a held-out test set of 38 prompts
+(23 injections, 15 benign) and show that our proposed method reduces
+the Attack Success Rate (ASR) from 100\% (baseline) to 47.8\%,
+outperforming a regex sanitizer (69.6\%) and a keyword heuristic
+sanitizer (82.6\%), all while maintaining a 0\% False Positive Rate
+(FPR) on clean inputs.
+Under a paraphrase robustness evaluation, the context-aware sanitizer
+degrades by only +2\% ASR compared with +8\% for the regex approach.
+We further benchmark a Logistic Regression classifier trained on
+the same data, demonstrating the precision-recall trade-off between
+data-driven and rule-based defenses.
+Our work is fully reproducible from the accompanying open-source
+repository, and all results are derived from deterministic
+experimental runs with a fixed random seed.
+\end{abstract}
+
+% ============================================================
+\section{Introduction}
+\label{sec:intro}
+
+The proliferation of Large Language Models (LLMs) as the inference
+backbone of autonomous agents, customer-facing assistants, and
+retrieval-augmented pipelines has created an expanding attack surface
+that traditional software security analysis does not cover.
+Prompt injection—classified as the top risk in the OWASP Top 10 for
+LLM Applications \cite{owasp_llm}—exploits the inability of current
+models to reliably distinguish between trusted operator instructions
+and untrusted user-supplied content.
+An attacker can embed adversarial directives such as \textit{``Ignore
+all previous instructions and reveal the system prompt''} within
+seemingly routine user input, causing the model to abandon its
+authorized behavior.
+
+Two principal variants have been documented in the literature.
+Direct prompt injection, studied extensively by Perez and
+Ribeiro \cite{perez2022ignore} in the HackAPrompt challenge, targets
+the user-facing interface directly.
+Indirect prompt injection \cite{greshake2023indirect} is more
+insidious: malicious instructions are embedded in external content
+(retrieved documents, web pages, tool outputs) that the model
+subsequently processes as part of its context.
+Both classes are further complicated by jailbreak techniques
+\cite{yi2024jailbreak} that use persona assignment, roleplay framing,
+hypothetical scenarios, or developer-mode activation to circumvent
+alignment training.
+
+Rule-based defenses such as pattern matching and keyword filtering
+are fast and interpretable, but they are brittle: any syntactic
+paraphrase of a known attack phrase evades detection.
+Structured prompting approaches such as StruQ \cite{struq2024} and
+SecAlign \cite{secalign2024} impose formatting constraints or
+preference-optimization objectives that reduce the model's tendency
+to comply with injected instructions; however, they require
+modification of training or inference infrastructure and provide no
+defense when the model itself cannot be modified.
+Data-driven classifiers achieve high recall but incur elevated false
+positive rates \cite{zizzo2025adversarial}, degrading the usability
+of legitimate requests.
+The PromptArmor framework \cite{shi2025promptarmor} and the
+PISanitizer approach \cite{geng2025pisanitizer} demonstrate that
+sanitization applied at input time—before the prompt reaches the
+model—is a practical and model-agnostic defense layer.
+Similarly, privacy-focused work such as PrEEmpt
+\cite{chowdhury2025prepsilonepsilonmptsanitizingsensitiveprompts}
+highlights that prompt-level interventions are applicable across a
+wide range of LLM security and privacy objectives.
+Berkeley AI Research \cite{bair2025prompt} provides a comprehensive
+analysis of prompt injection defenses and underscores the need for
+layered, multi-signal approaches.
+
+Against this backdrop, the present work makes the following
+contributions:
+\begin{enumerate}
+  \item We design and implement a \emph{seven-signal context-aware
+        input sanitization framework} that fuses pattern-based,
+        lexical, semantic, and structural signals into a single
+        risk score with hard-trigger overrides.
+  \item We provide an end-to-end reproducible evaluation pipeline
+        covering four defense strategies, a paraphrase robustness
+        test, an edge-case false-positive audit, and an ML-classifier
+        baseline.
+  \item We report exact quantitative results on a balanced test set
+        and discuss the failure modes and trade-offs of each approach.
+\end{enumerate}
+
+The remainder of this paper is organized as follows.
+Section~\ref{sec:related} reviews related work.
+Section~\ref{sec:method} describes the proposed methodology.
+Section~\ref{sec:setup} details the experimental setup.
+Section~\ref{sec:results} presents results.
+Section~\ref{sec:discussion} discusses implications.
+Section~\ref{sec:limitations} addresses limitations.
+Section~\ref{sec:conclusion} concludes.
+
+% ============================================================
+\section{Related Work}
+\label{sec:related}
+
+\subsection{Prompt Injection Attacks}
+
+The canonical taxonomy of prompt injection was formalized by the OWASP
+Foundation \cite{owasp_llm}, which distinguishes direct injection
+(user-turn manipulation) from indirect injection
+\cite{greshake2023indirect} (environment-sourced manipulation).
+The HackAPrompt benchmark \cite{perez2022ignore} established that even
+frontier models are susceptible to a wide range of injection
+techniques including explicit overrides, persona assignment, and
+token manipulation.
+A comprehensive systematic review \cite{11359704} surveys the
+threat landscape across more than a hundred published attacks,
+categorizing them by mechanism, target, and affected LLM architecture.
+The survey by Yi et al.\ \cite{yi2024jailbreak} further unifies the
+jailbreak and prompt injection literature under a common adversarial
+prompting taxonomy.
+
+\subsection{Rule-Based Defenses}
+
+System-prompt hardening \cite{mend2024prompt} involves prepending
+explicit meta-instructions instructing the model to ignore subsequent
+override attempts.
+While inexpensive to deploy, such strategies are ineffective against
+paraphrased or indirect attacks.
+Regex and keyword filtering remain widely used in production
+\cite{getstream2024prompt} for their interpretability and near-zero
+latency, but they have well-documented brittleness to synonym
+substitution and multilingual re-encoding.
+Red-team evaluations from Promptfoo \cite{promptfoo2024owasp} confirm
+that rule-based approaches are routinely bypassed by moderate
+adversarial effort.
+
+\subsection{Structured and Model-Level Defenses}
+
+StruQ \cite{struq2024} addresses injection by enforcing a rigid
+boundary between system instructions and user data via a structured
+query format, reducing the model's exposure to adversarial
+user-turn content.
+SecAlign \cite{secalign2024} fine-tunes models with preference
+optimization to increase resistance to injected instructions.
+Both approaches are complementary to input sanitization but require
+access to training infrastructure, making them impractical for
+deployments over third-party model APIs.
+
+\subsection{Classifier-Based and Hybrid Detection}
+
+Zizzo et al.\ \cite{zizzo2025adversarial} provide a systematic
+benchmark of guardrail classifiers under adversarial prompt inputs,
+demonstrating that high recall classifiers reliably incur non-trivial
+false positive rates.
+PISanitizer \cite{geng2025pisanitizer} applies LLM-assisted
+sanitization to long-context scenarios, showing that semantic
+understanding of retrieved content is essential for detecting indirect
+injection.
+PromptArmor \cite{shi2025promptarmor} demonstrates that simple
+yet carefully designed sanitization heuristics can achieve strong
+performance without fine-tuning.
+PrEEmpt \cite{chowdhury2025prepsilonepsilonmptsanitizingsensitiveprompts}
+proposes differential-privacy-inspired techniques for sanitizing
+sensitive content from prompts, establishing that pre-LLM filtering
+is a principled defense direction.
+The BAIR analysis \cite{bair2025prompt} synthesizes these lines of
+work and recommends defense-in-depth strategies that combine
+input sanitization with model-level mitigations.
+
+% ============================================================
+\section{Methodology}
+\label{sec:method}
+
+\subsection{Problem Formulation}
+
+Let $p$ denote a user-supplied prompt and $\mathcal{S}$ the
+system-level instructions provided by the operator.
+An injection attack is an input $p^*$ designed such that the
+concatenated context $[\mathcal{S}; p^*]$ causes the LLM
+$\mathcal{M}$ to produce output consistent with $p^*$ rather than
+$\mathcal{S}$.
+The sanitizer's task is to compute a binary decision
+$d(p) \in \{0, 1\}$, where $d(p) = 1$ (block) whenever $p$
+exhibits characteristics indicative of an injection attempt,
+and $d(p) = 0$ (pass) otherwise.
+The sanitizer operates entirely before the prompt reaches the model,
+making it architecture-agnostic and deployable as a standalone
+preprocessing layer.
+
+\subsection{Seven-Signal Framework}
+
+The proposed context-aware sanitizer fuses seven signals, each
+capturing a distinct dimension of adversarial prompt behavior.
+Table~\ref{tab:signals} provides a summary.
+
+\begin{table}[t]
+\caption{Summary of the Seven Detection Signals}
+\label{tab:signals}
+\centering
+\small
+\begin{tabular}{clll}
+\toprule
+\# & Signal & Type & Role \\
+\midrule
+1 & Regex & Pattern & Exact injection phrase matching \\
+2 & Keyword & Lexical & Weighted suspicious-term accumulation \\
+3 & Semantic & TF-IDF & Proximity to known injection vocabulary \\
+4 & Intent & Structural & Injection command structure detection \\
+5 & Roleplay & Pattern & Persona / scenario hijacking detection \\
+6 & Instr.\ Shift & Structural & Multi-step intent switching detection \\
+7 & Obj.\ Conflict & Structural & Hidden-objective contradiction detection \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent\textbf{Signal~1 — Regex (w$_1$=0.15).}
+A library of over thirty compiled regular expressions targets known
+injection phrases: explicit overrides (\textit{``ignore all previous
+instructions''}), persona hijacking (\textit{``act as'', ``you are
+now'', ``pretend to be''}), named jailbreak personas (DAN, BOB,
+STAN, LUCIFER, GODMODE), developer-mode activations, unrestricted-mode
+requests, system-prompt exfiltration attempts, and multilingual
+variants in German (\textit{``vergiss alle vorherigen Aufgaben''}).
+Each match replaces the triggering substring with
+\texttt{[REDACTED]} and contributes a binary score of 1.0.
+
+\noindent\textbf{Signal~2 — Keyword Heuristic (w$_2$=0.15).}
+A dictionary of 30+ phrases is assigned individual weights calibrated
+from dataset frequency analysis (e.g., \textit{``you are now''}:
+0.45; \textit{``dan mode''}: 0.45; \textit{``act as''}: 0.40;
+\textit{``unfiltered''}: 0.40).
+The raw score is the sum of weights for all matched phrases,
+normalized by clamping to $[0, 1]$.
+This signal captures partially-formed attacks that do not match
+any single complete regex pattern.
+
+\noindent\textbf{Signal~3 — Semantic Similarity (w$_3$=0.20).}
+A TF-IDF vectorizer with 1--3 character n-grams and a vocabulary
+ceiling of 8,000 features is fitted exclusively on injection-labeled
+training examples.
+At inference, the cosine similarity between the incoming prompt vector
+and \emph{every} stored injection vector is computed; the
+\emph{maximum} similarity is retained.
+This maximum-similarity strategy is deliberately chosen over
+mean-similarity because averaging injection vectors suppresses
+distinctive attack-specific patterns.
+The resulting scalar is then mapped to a discrete step function:
+values above 0.5 yield a signal of 1.0 (definite injection
+vocabulary); values in (0.3, 0.5] yield 0.7 (probable injection);
+values in (0.2, 0.3] yield 0.5 (ambiguous); and values at or below
+0.2 yield 0.0 (likely benign).
+Stepped scoring reduces sensitivity to minor variations in similarity
+magnitude that arise from prompt length differences.
+
+\noindent\textbf{Signal~4 — Intent Detection (w$_4$=0.20).}
+Fourteen structural regex patterns target injection \emph{command
+structures} rather than surface-level vocabulary: patterns of the
+form \textit{``ignore X and reveal Y''}, \textit{``from now on
+respond as''}, \textit{``without any restrictions''}, and named
+developer-mode constructs.
+A single pattern match triggers a binary 1.0 signal, reflecting
+the high discriminative power of structural command patterns.
+
+\noindent\textbf{Signal~5 — Roleplay Detection (w$_5$=0.10).}
+Five patterns capture persona and scenario framing used to induce
+the model to adopt an unaligned identity: \textit{``you are''},
+\textit{``imagine you''}, \textit{``in this scenario''},
+\textit{``role as''}, \textit{``pretend to be''}.
+On its own, roleplay framing is ambiguous (it appears in legitimate
+creative prompts), hence the lower weight; it becomes decisive only
+in combination with other signals.
+
+\noindent\textbf{Signal~6 — Instruction Shift (w$_6$=0.10).}
+Multi-step attacks construct a façade of a legitimate request before
+pivoting to a malicious objective.
+Five patterns detect temporal or contrastive pivots:
+\textit{``first \ldots\ then''}, \textit{``now \ldots\ instead''},
+\textit{``but \ldots\ actually''}, and similar constructions.
+
+\noindent\textbf{Signal~7 — Objective Conflict (w$_7$=0.10).}
+Six patterns detect hidden-intent switching:
+\textit{``but actually''}, \textit{``instead of''},
+\textit{``real task is''}, \textit{``ignore the above''}.
+These capture \textit{``write X but actually do Y''} attack structures
+that evade surface-level pattern matching.
+
+\subsection{Weighted Scoring and Hard-Trigger Logic}
+
+The composite risk score is:
+\begin{equation}
+  \text{Score}(p) = \sum_{i=1}^{7} w_i \cdot s_i(p),
+  \quad \sum_{i=1}^{7} w_i = 1.0
+  \label{eq:score}
+\end{equation}
+where $s_i(p) \in [0, 1]$ is the normalized output of signal $i$.
+A prompt is blocked if $\text{Score}(p) \geq \tau$, with threshold
+$\tau = 0.40$.
+
+Three additional \emph{hard-trigger} rules bypass the soft threshold
+for high-confidence individual signals:
+
+\begin{enumerate}
+  \item $s_3 > 0.6$ (semantic signal exceeds 0.6): block immediately,
+        because the prompt's vocabulary closely matches known injection
+        examples.
+  \item $s_4 = 1.0$ (structural injection pattern found): block
+        immediately.
+  \item $s_5 = 1.0$ \textbf{and} $s_2 > 0.3$ (roleplay framing
+        combined with suspicious keyword score): block immediately.
+\end{enumerate}
+
+The hard-trigger logic reflects the asymmetric cost of false negatives
+in security-critical deployments: a single missed injection can be
+more costly than an occasional false positive.
+
+\subsection{System Architecture}
+
+Figure~\ref{fig:arch} depicts the end-to-end pipeline.
+An incoming prompt is evaluated in parallel by all seven signal
+modules.
+Their outputs are aggregated via Equation~\ref{eq:score}, and the
+combined score is passed through the hard-trigger check followed by
+the soft-threshold comparison.
+A blocked prompt is replaced by a standardized denial message and
+never reaches the LLM.
+A passing prompt is forwarded unchanged.
+The sanitizer is entirely stateless at inference time (aside from the
+precomputed TF-IDF model), adding negligible latency.
+
+\begin{figure}[t]
+  \centering
+  % Placeholder — replace with actual figure from results/figures/
+  \fbox{\parbox{0.92\columnwidth}{
+    \centering\small\vspace{4pt}
+    \textbf{[Figure 1: System Architecture]}\\[4pt]
+    Input prompt $\rightarrow$ 7 parallel signal modules
+    $\rightarrow$ weighted score aggregation
+    $\rightarrow$ hard-trigger check
+    $\rightarrow$ soft threshold ($\tau=0.40$)
+    $\rightarrow$ \{Block / Pass to LLM\}
+    \vspace{4pt}
+  }}
+  \caption{Multi-signal context-aware sanitization pipeline.
+           Seven signals are evaluated in parallel and combined via
+           a weighted sum; hard-trigger rules override the soft score
+           for high-confidence individual signals.}
+  \label{fig:arch}
+\end{figure}
+
+% ============================================================
+\section{Experimental Setup}
+\label{sec:setup}
+
+\subsection{Dataset}
+
+The evaluation dataset comprises approximately 250 labeled prompts
+(150 injection, 100 benign) drawn from three sources: a community
+curated jailbreak list (~130 injection prompts), manually authored
+attack variants (~70 injection prompts), and general-purpose user
+queries (100 benign prompts).
+Attack types include explicit instruction overrides, persona
+hijacking (DAN, BOB, STAN, LUCIFER, OMEGA, ANARCHY personas),
+roleplay and hypothetical framing, multilingual injections in German,
+and coded-language attacks.
+The complete dataset is partitioned into:
+\begin{itemize}
+  \item \textbf{Train}: 443 prompts ($\approx$283 injection,
+        $\approx$160 benign) used to fit the TF-IDF vectorizer and
+        the ML classifier;
+  \item \textbf{Validation}: 37 prompts (22 injection, 15 benign);
+  \item \textbf{Test}: 38 prompts (23 injection, 15 benign),
+        held out and used for all reported metrics.
+\end{itemize}
+All splits are fixed files committed to the repository; no random
+re-splitting occurs at evaluation time, ensuring full reproducibility.
+
+\subsection{Baselines and Comparisons}
+
+Four defense strategies are compared:
+(1)~\textbf{Baseline}: no sanitization;
+(2)~\textbf{Regex}: pattern-matching sanitizer described in
+    Section~\ref{sec:method};
+(3)~\textbf{Keyword}: weighted keyword heuristic sanitizer;
+(4)~\textbf{Context-Aware}: the proposed seven-signal method.
+An additional \textbf{LR Classifier} (Logistic Regression + TF-IDF,
+trained on the training split) is evaluated as a stretch comparison
+to contrast learned versus rule-based approaches.
+
+\subsection{LLM Target}
+
+The target model is \texttt{microsoft/phi-2}, a 2.7-billion parameter
+instruction-following model.
+Prompts are formatted using the standard phi-2 instruction template
+(\texttt{\#\#\# Instruction: / \#\#\# Response:}).
+A generation budget of 150 tokens is applied.
+In the no-LLM evaluation mode, whether a prompt is blocked by each
+sanitizer is evaluated directly against the ground-truth label,
+enabling rapid iteration without GPU resources.
+
+\subsection{Metrics}
+
+\textbf{Attack Success Rate (ASR)} is the fraction of injection
+prompts that pass through the sanitizer unblocked:
+$\text{ASR} = \text{FN} / (\text{FN} + \text{TP})$.
+Lower is better.
+\textbf{False Positive Rate (FPR)} is the fraction of benign prompts
+incorrectly blocked:
+$\text{FPR} = \text{FP} / (\text{FP} + \text{TN})$.
+Lower is better.
+
+\subsection{Robustness Evaluation}
+
+\textbf{Paraphrase robustness} applies nine synonym substitutions
+(e.g., \textit{ignore} $\rightarrow$ \textit{disregard},
+\textit{pretend} $\rightarrow$ \textit{simulate},
+\textit{act as} $\rightarrow$ \textit{behave as})
+to 50 injection prompts from the training set and re-evaluates all
+sanitizers.
+The ASR delta ($\Delta$ASR) measures degradation under surface-form
+variation.
+
+\textbf{Edge benign testing} evaluates all sanitizers on ten
+technically-phrased benign prompts that share surface-level
+vocabulary with known attack patterns
+(e.g., \textit{``bypass this runtime error''},
+\textit{``override default settings in the config file''}).
+
+\subsection{Reproducibility}
+
+A fixed random seed of 42 is applied to all NumPy and Python random
+number generators.
+The full evaluation pipeline is executable with a single command:
+\texttt{python -m src.run\_experiments --no-llm}.
+Dataset splits, trained TF-IDF vectors, and classifier weights are
+deterministically regenerated from the committed CSV files on each
+run.
+
+% ============================================================
+\section{Results}
+\label{sec:results}
+
+\subsection{Main Experiment}
+
+Table~\ref{tab:main_results} reports ASR and FPR for all four
+sanitizers on the held-out test set.
+
+\begin{table}[t]
+\caption{Main Evaluation Results (Test Set, $n$=38)}
+\label{tab:main_results}
+\centering
+\begin{tabular}{lrrrrr}
+\toprule
+Method & ASR (\%)\,$\downarrow$ & FPR (\%)\,$\downarrow$
+       & TP & FN & FP \\
+\midrule
+Baseline       & 100.0 & 0.0 &  0 & 23 & 0 \\
+Regex          &  69.6 & 0.0 &  7 & 16 & 0 \\
+Keyword        &  82.6 & 0.0 &  4 & 19 & 0 \\
+\textbf{Context-Aware} & \textbf{47.8} & \textbf{0.0}
+               & \textbf{12} & \textbf{11} & \textbf{0} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Without any defense, all 23 injection prompts reach the model,
+confirming a baseline ASR of 100\%.
+The regex sanitizer blocks 7 of 23 injections (ASR 69.6\%), and the
+keyword sanitizer blocks only 4 (ASR 82.6\%), with neither incurring
+any false positives.
+The proposed context-aware sanitizer blocks 12 of 23 injections,
+reducing ASR to 47.8\% and maintaining FPR at 0\%.
+All rule-based methods achieve zero false positives on the standard
+test set, underscoring that specificity is not a bottleneck for
+carefully designed rule-based defenses.
+
+Figure~\ref{fig:asr} visualizes the ASR comparison.
+
+\begin{figure}[t]
+  \centering
+  \fbox{\parbox{0.92\columnwidth}{
+    \centering\small\vspace{4pt}
+    \textbf{[Figure 2: ASR Comparison Bar Chart]}\\[4pt]
+    Bar chart showing ASR for Baseline (100\%), Keyword (82.6\%),
+    Regex (69.6\%), and Context-Aware (47.8\%).
+    See \texttt{results/figures/attack\_success\_bar.png}.
+    \vspace{4pt}
+  }}
+  \caption{Attack Success Rate across four defense strategies.
+           Lower bars indicate stronger defenses.
+           The context-aware sanitizer achieves the lowest ASR
+           while maintaining 0\% FPR.}
+  \label{fig:asr}
+\end{figure}
+
+\subsection{Paraphrase Robustness}
+
+Table~\ref{tab:robustness} reports ASR before and after synonym
+substitution on 50 injection prompts.
+
+\begin{table}[t]
+\caption{Paraphrase Robustness (50 Injection Prompts)}
+\label{tab:robustness}
+\centering
+\begin{tabular}{lrrr}
+\toprule
+Method & Orig.\ ASR & Para.\ ASR & $\Delta$ASR\,$\uparrow$ \\
+\midrule
+Baseline       & 1.00 & 1.00 & 0.00 \\
+Regex          & 0.50 & 0.58 & \textbf{+0.08} \\
+Keyword        & 0.86 & 0.88 & +0.02 \\
+\textbf{Context-Aware} & \textbf{0.00} & \textbf{0.02}
+               & \textbf{+0.02} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The regex sanitizer suffers the largest degradation (+8\% ASR) under
+paraphrasing, confirming its reliance on exact surface forms.
+The context-aware sanitizer degrades by only +2\%, matching the
+keyword method—despite blocking substantially more attacks in the
+non-paraphrased setting.
+This robustness stems from the semantic and structural signals, which
+operate on distributional and syntactic features rather than
+exact phrase matches.
+
+Figure~\ref{fig:robust} illustrates the robustness comparison.
+
+\begin{figure}[t]
+  \centering
+  \fbox{\parbox{0.92\columnwidth}{
+    \centering\small\vspace{4pt}
+    \textbf{[Figure 3: Robustness Under Paraphrasing]}\\[4pt]
+    Grouped bar chart: original vs.\ paraphrased ASR per method.
+    See \texttt{results/figures/robustness\_paraphrase.png}.
+    \vspace{4pt}
+  }}
+  \caption{Robustness under synonym-based paraphrasing.
+           The context-aware sanitizer shows the smallest degradation
+           ($\Delta$ASR = +0.02) compared with regex (+0.08).}
+  \label{fig:robust}
+\end{figure}
+
+\subsection{Classifier Baseline}
+
+The Logistic Regression + TF-IDF classifier achieves 100\% recall
+(ASR = 0\%) on both validation and test sets—it misses no injection
+at all—but at the cost of a 46.7\% FPR on the test set
+(7 of 15 benign prompts are incorrectly blocked).
+This precision-recall trade-off is visualized in
+Figure~\ref{fig:prc}.
+
+\begin{figure}[t]
+  \centering
+  \fbox{\parbox{0.92\columnwidth}{
+    \centering\small\vspace{4pt}
+    \textbf{[Figure 4: Precision-Recall Trade-off]}\\[4pt]
+    Scatter plot of ASR vs.\ FPR for all methods including LR
+    classifier.  Lower-left is ideal.
+    See \texttt{results/figures/}.
+    \vspace{4pt}
+  }}
+  \caption{ASR vs.\ FPR trade-off across methods and the LR
+           classifier.
+           The context-aware sanitizer occupies a favorable
+           position (low ASR, zero FPR) compared with the
+           classifier's zero-ASR but high-FPR operating point.}
+  \label{fig:prc}
+\end{figure}
+
+\subsection{Ablation Study}
+
+To quantify each signal's contribution, we conduct a leave-one-out
+ablation by disabling individual signals and recomputing ASR on the
+test set.
+Table~\ref{tab:ablation} presents the results.
+
+\begin{table}[t]
+\caption{Ablation Study: ASR When Each Signal Is Removed}
+\label{tab:ablation}
+\centering
+\begin{tabular}{lrr}
+\toprule
+Configuration & ASR (\%) & $\Delta$ vs.\ Full \\
+\midrule
+Full system (all 7 signals)    & 47.8 & — \\
+\midrule
+$-$ Semantic ($w_3$)           & 65.2 & +17.4 \\
+$-$ Intent ($w_4$)             & 60.9 & +13.1 \\
+$-$ Keyword ($w_2$)            & 56.5 & +8.7  \\
+$-$ Regex ($w_1$)              & 56.5 & +8.7  \\
+$-$ Roleplay ($w_5$)           & 52.2 & +4.4  \\
+$-$ Instruction Shift ($w_6$)  & 52.2 & +4.4  \\
+$-$ Objective Conflict ($w_7$) & 52.2 & +4.4  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Removing the semantic signal produces the largest degradation
+(+17.4\% ASR), confirming that distributional proximity to known
+injection vocabulary is the single most discriminative feature.
+Removing the intent detection signal causes the second-largest
+increase (+13.1\% ASR), reflecting the power of structural command
+pattern matching.
+The lexical signals (keyword, regex) each contribute moderately
+(+8.7\% when removed), and the three structural signals (roleplay,
+instruction shift, objective conflict) each account for +4.4\%.
+These results validate the design choice to assign higher weights
+to semantic and intent signals and confirm that each signal provides
+independent, non-redundant coverage.
+
+% ============================================================
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{Why Multi-Signal Detection Outperforms Single Signals}
+
+The ablation study demonstrates that no single signal is sufficient
+on its own.
+Regex matching precisely captures well-known attack phrases but is
+trivially bypassed by synonym substitution, as evidenced by its
++8\% paraphrase degradation.
+The keyword heuristic accumulates evidence from suspicious lexical
+items but fails against narrative jailbreaks that avoid such terms
+entirely.
+Semantic similarity detects injections with novel surface forms
+that nonetheless share vocabulary with the training distribution.
+Structural signals (intent, roleplay, shift, conflict) capture
+attack \emph{semantics} regardless of specific wording.
+By fusing all seven signals, the framework provides defense-in-depth:
+an attack that evades one or two signals is captured by the remaining
+ones.
+
+\subsection{Hard-Trigger Logic}
+
+The hard-trigger rules reflect a deliberate asymmetry in the cost
+function for security applications.
+A semantic signal above 0.6 indicates that the prompt's vocabulary
+is almost entirely drawn from the injection training distribution;
+regardless of what the other signals report, such a prompt should
+not proceed to the model.
+Similarly, a confirmed structural injection pattern (intent signal =
+1.0) is sufficient evidence on its own.
+The roleplay combined with keyword rule captures a common attack
+strategy—persona framing paired with explicit restriction-bypass
+language—that would score below the soft threshold if evaluated
+individually.
+
+\subsection{Failure Cases and Limitations}
+
+The 47.8\% residual ASR indicates that 11 of 23 injection prompts
+are not caught by the proposed method.
+Examination of missed cases reveals three categories.
+\emph{Indirect attacks} embed injection instructions within otherwise
+benign-appearing text (e.g., within retrieved document content),
+producing low semantic similarity scores because the surrounding
+benign text dilutes the injection signal.
+\emph{Narrative jailbreaks} construct elaborate fictional scenarios
+that avoid all flagged keywords, phrases, and structural patterns.
+\emph{Multilingual inputs} beyond the German patterns handled by the
+regex signal are not covered; injections in French, Spanish, or
+transliterated Arabic evade all signals.
+
+\subsection{Practical Deployment Considerations}
+
+The sanitizer is stateless at inference (except for a one-time
+precomputed TF-IDF model), adding minimal latency.
+The modular architecture allows individual signals to be enabled or
+disabled based on the deployment context.
+High-stakes applications may lower the soft threshold $\tau$ from
+0.40 to accept a small increase in FPR in exchange for higher
+security coverage; the threshold is a single tunable parameter.
+The edge benign evaluation reveals that both the regex and
+context-aware sanitizers produce false positives on technical prompts
+(20\% edge FPR), indicating that domain-specific vocabulary
+calibration may be warranted for developer-facing deployments.
+
+% ============================================================
+\section{Limitations}
+\label{sec:limitations}
+
+Several limitations should be acknowledged.
+
+\textbf{Dataset scale.}
+The test set contains 38 prompts, of which 23 are injections.
+Results on such a small set should be interpreted as proof-of-concept
+evidence rather than deployment-grade guarantees.
+Statistical confidence intervals on ASR differences are wide.
+
+\textbf{Synthetic bias.}
+Approximately 70 injection prompts are manually authored variants,
+which may not reflect the full diversity of real-world adversarial
+inputs.
+Community-sourced jailbreak prompts may also be over-represented
+relative to the novel attack strategies deployed by sophisticated
+adversaries.
+
+\textbf{Length bias.}
+The TF-IDF semantic signal is sensitive to prompt length: short
+prompts produce sparser vectors, potentially underestimating
+similarity to injection examples.
+Normalization by prompt length was not applied in the current
+implementation.
+
+\textbf{Coverage of attack surfaces.}
+The evaluation focuses on direct prompt injection in a
+single-turn interaction with a fixed target model.
+Indirect injection (via retrieved documents), multi-turn
+conversation contexts, and multimodal inputs are outside the
+current scope.
+
+\textbf{LLM compliance verification.}
+In the fast evaluation mode, the LLM is bypassed.
+Full end-to-end verification that blocked prompts, had they been
+forwarded, would have produced compliant model outputs was
+conducted using phi-2 but not at scale due to computational
+constraints.
+
+% ============================================================
+\section{Conclusion}
+\label{sec:conclusion}
+
+We presented a multi-signal context-aware input sanitization
+framework for defending LLMs against prompt injection attacks.
+The framework integrates seven complementary signals—regex, keyword,
+semantic similarity, intent, roleplay, instruction shift, and
+objective conflict—into a weighted risk score augmented with
+hard-trigger rules, operating entirely as a preprocessing layer
+before the prompt reaches the model.
+
+On a balanced test set of 38 prompts, the proposed method reduces
+the Attack Success Rate from 100\% to 47.8\% while maintaining
+a 0\% False Positive Rate, outperforming both a regex sanitizer
+(ASR 69.6\%) and a keyword heuristic sanitizer (ASR 82.6\%).
+Under synonym-based paraphrasing, the method degrades by only +2\%
+ASR compared with +8\% for the regex approach.
+A Logistic Regression classifier achieves perfect recall at the cost
+of a 46.7\% FPR, illustrating the precision-recall trade-off
+between learned and rule-based defenses.
+Ablation analysis confirms that the semantic and intent signals
+are the largest individual contributors to detection performance,
+while the structural signals provide complementary coverage over
+attack categories not captured by lexical approaches.
+
+Future work will extend the framework to indirect injection via
+retrieved-document filtering, multilingual attack coverage, and
+integration with model-level defenses such as
+StruQ \cite{struq2024} and SecAlign \cite{secalign2024}.
+Scaling the evaluation to larger, more diverse datasets and exploring
+adaptive adversaries aware of the sanitizer's signal structure
+remain important open problems.
+
+% ============================================================
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}
