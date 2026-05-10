@@ -218,18 +218,19 @@ If total score ≥ 0.5 > blocked.
 
 #### Sanitizer 4 — Context-Aware (Proposed Method)
 
-This is the core contribution. Uses **7 signals** combined into a weighted score, plus **hard-trigger overrides**.
+This is the core contribution. Uses **8 signals** combined into a weighted score, plus **hard-trigger overrides**.
 
 ```
 Prompt
   │
-  ├──> Signal 1: Regex         (w=0.15) ──> binary 0/1
-  ├──> Signal 2: Keyword       (w=0.15) ──> normalized score
-  ├──> Signal 3: Semantic      (w=0.20) ──> stepped similarity to known injections
-  ├──> Signal 4: Intent        (w=0.20) ──> structural injection pattern detected
+  ├──> Signal 1: Regex         (w=0.12) ──> binary 0/1
+  ├──> Signal 2: Keyword       (w=0.12) ──> normalized score
+  ├──> Signal 3: Semantic      (w=0.18) ──> MiniLM embedding similarity to known injections
+  ├──> Signal 4: Intent        (w=0.18) ──> structural injection pattern detected
   ├──> Signal 5: Roleplay      (w=0.10) ──> "you are", "in this scenario", etc.
   ├──> Signal 6: Instr. Shift  (w=0.10) ──> "first...then", "but...actually"
-  └──> Signal 7: Obj. Conflict (w=0.10) ──> "real task is", "ignore the above"
+  ├──> Signal 7: Obj. Conflict (w=0.10) ──> "real task is", "ignore the above"
+  └──> Signal 8: Perplexity    (w=0.10) ──> low-likelihood imperative structure
                                             ─────────────────────────────────
                                 total = Σ(w_i × signal_i)   [sums to 1.0]
 ```
@@ -240,16 +241,18 @@ if semantic > 0.6:              > BLOCKED  (clearly injection vocabulary)
 elif intent == 1.0:             > BLOCKED  (structural injection found)
 elif roleplay == 1.0 and
      keyword > 0.3:             > BLOCKED  (roleplay + suspicious keyword)
+elif perplexity >= 0.7 and
+     keyword > 0.2:             > BLOCKED  (unnatural + suspicious wording)
 else:
     total >= 0.40               > BLOCKED  (soft weighted threshold)
 ```
 
 **Semantic signal — how it works:**
-1. At startup, trains a TF-IDF vectorizer on all 105 injection prompts from `train.csv`
-2. Stores all training vectors (not the average — max-similarity approach)
-3. For each new prompt, computes cosine similarity against every stored injection vector
+1. At startup, encodes all injection prompts from `train.csv` using `all-MiniLM-L6-v2`
+2. Stores normalized sentence embeddings for max-similarity matching
+3. For each new prompt, computes embedding cosine similarity to all stored injection vectors
 4. Takes the **maximum** similarity (closest known injection)
-5. Converts to a stepped score: >0.5>1.0, >0.3>0.7, >0.2>0.5, else>0.0
+5. Converts to a stepped score: >0.75>1.0, >0.60>0.7, >0.50>0.5, else>0.0
 
 **Why max instead of mean?** Averaging vectors cancels out distinctive patterns. Max-similarity asks "does this prompt look like ANY known injection?" — much more discriminative for paraphrased attacks.
 
@@ -454,6 +457,7 @@ jupyter notebook notebooks/experiments.ipynb
 pandas, numpy, scikit-learn     ← data & ML
 torch, transformers             ← phi-2
 huggingface_hub                 ← model download
+sentence-transformers           ← MiniLM sentence embeddings
 matplotlib                      ← figures
 scipy                           ← statistics
 tqdm                            ← progress bars

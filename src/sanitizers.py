@@ -15,8 +15,9 @@ import re
 import os
 import pandas as pd
 import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+import torch
+from sentence_transformers import SentenceTransformer
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
 # ---------------------------------------------------------------------------
@@ -218,14 +219,15 @@ INTENT_PATTERNS = [
     re.compile(r"(behave|respond)\s+as\s+(a\s+|an\s+)?\S+\s+(without|with\s+no)", re.IGNORECASE),
 ]
 
-# Scoring weights — 7-signal formula
-W1 = 0.15  # regex
-W2 = 0.15  # keyword
-W3 = 0.20  # semantic
-W4 = 0.20  # intent
+# Scoring weights — 8-signal formula
+W1 = 0.12  # regex
+W2 = 0.12  # keyword
+W3 = 0.18  # semantic (MiniLM)
+W4 = 0.18  # intent
 W5 = 0.10  # roleplay
 W6 = 0.10  # instruction_shift
 W7 = 0.10  # objective_conflict
+W8 = 0.10  # perplexity
 # total = 1.00
 
 CONTEXT_THRESHOLD = 0.40  # Fix 3 — lower to catch borderline cases
@@ -238,7 +240,7 @@ _TRAIN_CSV = os.path.join(
 class ContextAwareSanitizer:
     """
     Multi-signal context-aware sanitizer.
-    Score = w1*regex + w2*keyword + w3*semantic + w4*intent
+    Score = w1*regex + w2*keyword + w3*semantic + w4*intent + ...
     Blocks if Score >= 0.5
     """
     name = "context_aware"
@@ -247,22 +249,48 @@ class ContextAwareSanitizer:
         self.threshold = threshold
         self._regex_san  = RegexSanitizer()
         self._kw_san     = KeywordHeuristicSanitizer()
-        self._tfidf      = TfidfVectorizer(ngram_range=(1, 3), max_features=8000, stop_words="english")
-        self._train_vecs  = None  # store all injection vectors for max-sim
+        self._embedder_name = "sentence-transformers/all-MiniLM-L6-v2"
+        self._embedder = None
+        self._train_vecs = None  # normalized dense embeddings for injection prompts
+        self._lm_name = "distilgpt2"
+        self._ppl_tokenizer = None
+        self._ppl_model = None
+        self._ppl_quantiles = None
         self._train(train_csv)
 
     def _train(self, train_csv: str):
         try:
             df = pd.read_csv(train_csv)
             injections = df[df["label"] == "injection"]["prompt"].dropna().tolist()
+            benign = df[df["label"] == "benign"]["prompt"].dropna().tolist()
             if not injections:
                 raise ValueError("No injection rows found.")
-            self._tfidf.fit(injections)
-            self._train_vecs = self._tfidf.transform(injections)  # shape: (n_injections, vocab)
-            print(f"[ContextAwareSanitizer] TF-IDF trained on {len(injections)} injection examples.")
+
+            self._embedder = SentenceTransformer(self._embedder_name)
+            self._train_vecs = self._embedder.encode(
+                injections,
+                convert_to_numpy=True,
+                normalize_embeddings=True,
+                show_progress_bar=False,
+            )
+            print(
+                f"[ContextAwareSanitizer] MiniLM embeddings built for {len(injections)} injection examples."
+            )
+
+            self._init_perplexity_model()
+            self._fit_perplexity_baseline(benign)
         except Exception as e:
-            print(f"[ContextAwareSanitizer] Warning: TF-IDF training failed — {e}")
+            print(f"[ContextAwareSanitizer] Warning: signal setup failed — {e}")
             self._train_vecs = None
+            self._embedder = None
+            self._ppl_model = None
+            self._ppl_tokenizer = None
+            self._ppl_quantiles = None
+
+    def _init_perplexity_model(self):
+        self._ppl_tokenizer = AutoTokenizer.from_pretrained(self._lm_name)
+        self._ppl_model = AutoModelForCausalLM.from_pretrained(self._lm_name)
+        self._ppl_model.eval()
 
     def _regex_signal(self, prompt: str) -> float:
         _, blocked = self._regex_san.sanitize(prompt)
@@ -272,24 +300,85 @@ class ContextAwareSanitizer:
         return min(self._kw_san.score(prompt), 1.0)
 
     def _semantic_signal(self, prompt: str) -> float:
-        """Stepped cosine similarity — decisive buckets instead of linear.
-        High sim (>0.5) = definite injection vocabulary  → 1.0
-        Mid  sim (>0.3) = probable injection vocabulary  → 0.7
-        Low  sim (>0.2) = ambiguous                      → 0.5
-        Below 0.2       = likely benign                  → 0.0
+        """Stepped cosine similarity using MiniLM sentence embeddings.
+        High sim (>0.75) = strong semantic match         → 1.0
+        Mid  sim (>0.60) = probable semantic match       → 0.7
+        Low  sim (>0.50) = weak semantic match           → 0.5
+        Below 0.50       = likely benign                 → 0.0
         """
-        if self._train_vecs is None:
+        if self._train_vecs is None or self._embedder is None:
             return 0.0
-        vec = self._tfidf.transform([prompt])
-        sim = float(cosine_similarity(vec, self._train_vecs).max())
-        if sim > 0.5:
+        vec = self._embedder.encode(
+            [prompt],
+            convert_to_numpy=True,
+            normalize_embeddings=True,
+            show_progress_bar=False,
+        )
+        sim = float(np.max(vec @ self._train_vecs.T))
+        if sim > 0.75:
             return 1.0
-        elif sim > 0.3:
+        elif sim > 0.60:
             return 0.7
-        elif sim > 0.2:
+        elif sim > 0.50:
             return 0.5
         else:
             return 0.0
+
+    def _perplexity(self, prompt: str):
+        if self._ppl_model is None or self._ppl_tokenizer is None:
+            return None
+        encoded = self._ppl_tokenizer(
+            prompt,
+            return_tensors="pt",
+            truncation=True,
+            max_length=128,
+        )
+        with torch.no_grad():
+            out = self._ppl_model(**encoded, labels=encoded["input_ids"])
+        ppl = float(torch.exp(out.loss).item())
+        if not np.isfinite(ppl):
+            return None
+        return ppl
+
+    def _fit_perplexity_baseline(self, benign_prompts):
+        if self._ppl_model is None or self._ppl_tokenizer is None:
+            return
+        sample = benign_prompts[: min(len(benign_prompts), 120)]
+        ppls = [self._perplexity(p) for p in sample if isinstance(p, str) and p.strip()]
+        ppls = [p for p in ppls if p is not None]
+        if len(ppls) < 5:
+            return
+        self._ppl_quantiles = {
+            "q10": float(np.quantile(ppls, 0.10)),
+            "q25": float(np.quantile(ppls, 0.25)),
+            "q40": float(np.quantile(ppls, 0.40)),
+        }
+        print(
+            "[ContextAwareSanitizer] Perplexity baseline ready "
+            f"(q10={self._ppl_quantiles['q10']:.2f}, q25={self._ppl_quantiles['q25']:.2f}, q40={self._ppl_quantiles['q40']:.2f})."
+        )
+
+    def _perplexity_signal(self, prompt: str) -> float:
+        ppl = self._perplexity(prompt)
+        if ppl is None:
+            return 0.0
+
+        if self._ppl_quantiles is None:
+            if ppl < 20:
+                return 1.0
+            elif ppl < 30:
+                return 0.7
+            elif ppl < 40:
+                return 0.4
+            return 0.0
+
+        if ppl <= self._ppl_quantiles["q10"]:
+            return 1.0
+        elif ppl <= self._ppl_quantiles["q25"]:
+            return 0.7
+        elif ppl <= self._ppl_quantiles["q40"]:
+            return 0.4
+        return 0.0
 
     def _intent_signal(self, prompt: str) -> float:
         for pattern in INTENT_PATTERNS:
@@ -358,11 +447,12 @@ class ContextAwareSanitizer:
         rp  = self._roleplay_signal(prompt)
         sh  = self._instruction_shift_signal(prompt)
         obj = self._objective_conflict_signal(prompt)
-        total = W1*r + W2*k + W3*s + W4*i + W5*rp + W6*sh + W7*obj
+        pp  = self._perplexity_signal(prompt)
+        total = W1*r + W2*k + W3*s + W4*i + W5*rp + W6*sh + W7*obj + W8*pp
         return {
             "regex": r, "keyword": k, "semantic": s,
             "intent": i, "roleplay": rp, "shift": sh,
-            "objective_conflict": obj, "total": total,
+            "objective_conflict": obj, "perplexity": pp, "total": total,
         }
 
     def sanitize(self, prompt: str):
@@ -375,6 +465,8 @@ class ContextAwareSanitizer:
             blocked = True   # structural injection pattern found
         elif signals["roleplay"] == 1.0 and signals["keyword"] > 0.3:
             blocked = True   # roleplay frame + suspicious keyword combo
+        elif signals["perplexity"] >= 0.7 and signals["keyword"] > 0.2:
+            blocked = True   # low-likelihood imperative phrasing + suspicious terms
         else:
             blocked = signals["total"] >= self.threshold  # soft weighted score
 
