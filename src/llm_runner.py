@@ -54,15 +54,21 @@ def _load_model():
     )
 
     # Use float16 on GPU, float32 on CPU
-    dtype = torch.float16 if torch.cuda.is_available() else torch.float32
-    device = 0 if torch.cuda.is_available() else -1
+    use_gpu = torch.cuda.is_available()
+    dtype = torch.float16 if use_gpu else torch.float32
+    device = 0 if use_gpu else -1
 
     model = AutoModelForCausalLM.from_pretrained(
         MODEL_NAME,
-        dtype=dtype,
+        torch_dtype=dtype,
         trust_remote_code=True,
         low_cpu_mem_usage=True,
     )
+
+    # Move model to GPU if available
+    if use_gpu:
+        model = model.cuda()
+        print(f"[LLMRunner] Using GPU: {torch.cuda.get_device_name(0)}")
 
     # phi-2 ships with max_length=20 in generation_config.json — clear it
     # to avoid the "Both max_new_tokens and max_length" warning on every call
