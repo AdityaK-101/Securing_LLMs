@@ -15,8 +15,6 @@ import re
 import os
 import pandas as pd
 import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
 
 
 # ---------------------------------------------------------------------------
@@ -218,14 +216,16 @@ INTENT_PATTERNS = [
     re.compile(r"(behave|respond)\s+as\s+(a\s+|an\s+)?\S+\s+(without|with\s+no)", re.IGNORECASE),
 ]
 
-# Scoring weights — 7-signal formula
-W1 = 0.15  # regex
-W2 = 0.15  # keyword
-W3 = 0.20  # semantic
-W4 = 0.20  # intent
+# Scoring weights — 8-signal formula (upgraded from 7 signals)
+# Changed: TF-IDF semantic → MiniLM embeddings; added perplexity signal.
+W1 = 0.12  # regex
+W2 = 0.12  # keyword
+W3 = 0.20  # semantic (MiniLM embeddings — upgraded from TF-IDF)
+W4 = 0.18  # intent
 W5 = 0.10  # roleplay
-W6 = 0.10  # instruction_shift
-W7 = 0.10  # objective_conflict
+W6 = 0.08  # instruction_shift
+W7 = 0.08  # objective_conflict
+W8 = 0.12  # perplexity (NEW — language-model naturalness signal)
 # total = 1.00
 
 CONTEXT_THRESHOLD = 0.40  # Fix 3 — lower to catch borderline cases
@@ -237,9 +237,23 @@ _TRAIN_CSV = os.path.join(
 
 class ContextAwareSanitizer:
     """
-    Multi-signal context-aware sanitizer.
+    Multi-signal context-aware sanitizer (8 signals).
+
     Score = w1*regex + w2*keyword + w3*semantic + w4*intent
-    Blocks if Score >= 0.5
+          + w5*roleplay + w6*shift + w7*obj_conflict + w8*perplexity
+
+    Signals:
+      1. regex           — binary, matches known injection regex patterns
+      2. keyword         — normalized keyword heuristic score
+      3. semantic        — MiniLM cosine similarity to known injection embeddings
+      4. intent          — structural injection pattern detection
+      5. roleplay        — roleplay/persona hijacking detection
+      6. shift           — multi-step instruction shift detection
+      7. obj_conflict    — instruction objective conflict detection
+      8. perplexity      — language-model naturalness (distilgpt2)
+
+    Blocks if Score >= threshold, with hard-trigger overrides for strong
+    individual signals.
     """
     name = "context_aware"
 
@@ -247,22 +261,122 @@ class ContextAwareSanitizer:
         self.threshold = threshold
         self._regex_san  = RegexSanitizer()
         self._kw_san     = KeywordHeuristicSanitizer()
-        self._tfidf      = TfidfVectorizer(ngram_range=(1, 3), max_features=8000, stop_words="english")
-        self._train_vecs  = None  # store all injection vectors for max-sim
+
+        # --- MiniLM sentence embeddings (replaces TF-IDF) ---
+        self._embed_model = None
+        self._injection_embeddings = None  # numpy array of cached injection embeddings
+
+        # --- Perplexity model (distilgpt2 — lightweight causal LM) ---
+        self._ppl_model = None
+        self._ppl_tokenizer = None
+        self._ppl_low = None   # 5th percentile of train perplexities (calibration)
+        self._ppl_high = None  # 95th percentile of train perplexities (calibration)
+
         self._train(train_csv)
 
     def _train(self, train_csv: str):
+        """Load models, encode injection prompts, and calibrate perplexity."""
         try:
             df = pd.read_csv(train_csv)
             injections = df[df["label"] == "injection"]["prompt"].dropna().tolist()
+            benign = df[df["label"] == "benign"]["prompt"].dropna().tolist()
             if not injections:
                 raise ValueError("No injection rows found.")
-            self._tfidf.fit(injections)
-            self._train_vecs = self._tfidf.transform(injections)  # shape: (n_injections, vocab)
-            print(f"[ContextAwareSanitizer] TF-IDF trained on {len(injections)} injection examples.")
         except Exception as e:
-            print(f"[ContextAwareSanitizer] Warning: TF-IDF training failed — {e}")
-            self._train_vecs = None
+            print(f"[ContextAwareSanitizer] Warning: Could not read train data — {e}")
+            return
+
+        # -- A) Load MiniLM and encode injection embeddings --
+        self._init_embedding_model(injections)
+
+        # -- B) Load perplexity model and calibrate on train set --
+        self._init_perplexity_model(injections, benign)
+
+    def _init_embedding_model(self, injections: list):
+        """Load sentence-transformers MiniLM and cache injection embeddings."""
+        try:
+            from sentence_transformers import SentenceTransformer
+            self._embed_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+            # Encode all injection prompts once and cache as numpy array
+            self._injection_embeddings = self._embed_model.encode(
+                injections, convert_to_numpy=True, show_progress_bar=False
+            )
+            print(f"[ContextAwareSanitizer] MiniLM loaded — encoded {len(injections)} injection embeddings.")
+        except Exception as e:
+            print(f"[ContextAwareSanitizer] Warning: MiniLM loading failed — {e}")
+            print(f"[ContextAwareSanitizer] Semantic signal will degrade to 0.0.")
+            self._embed_model = None
+            self._injection_embeddings = None
+
+    def _init_perplexity_model(self, injections: list, benign: list):
+        """Load distilgpt2 and calibrate perplexity normalization on train set."""
+        try:
+            import torch
+            from transformers import AutoModelForCausalLM, AutoTokenizer
+
+            model_name = "distilgpt2"
+            self._ppl_tokenizer = AutoTokenizer.from_pretrained(model_name)
+            
+            # Use GPU if available to significantly speed up calibration
+            self._device = "cuda" if torch.cuda.is_available() else "cpu"
+            self._ppl_model = AutoModelForCausalLM.from_pretrained(model_name).to(self._device)
+            self._ppl_model.eval()
+
+            # Calibrate: compute perplexity on a sample of train prompts
+            # Use all available prompts (both injection and benign) for calibration
+            all_prompts = injections + benign
+            ppls = []
+            for prompt in all_prompts:
+                ppl = self._compute_perplexity(prompt)
+                if ppl is not None:
+                    ppls.append(ppl)
+
+            if ppls:
+                # Use 5th and 95th percentile for robust normalization
+                self._ppl_low = float(np.percentile(ppls, 5))
+                self._ppl_high = float(np.percentile(ppls, 95))
+                # Guard against degenerate case where low == high
+                if self._ppl_high <= self._ppl_low:
+                    self._ppl_high = self._ppl_low + 1.0
+                print(
+                    f"[ContextAwareSanitizer] Perplexity model (distilgpt2) loaded — "
+                    f"calibrated on {len(ppls)} prompts "
+                    f"(p5={self._ppl_low:.1f}, p95={self._ppl_high:.1f})."
+                )
+            else:
+                print("[ContextAwareSanitizer] Warning: Perplexity calibration got no valid values.")
+                self._ppl_model = None
+                self._ppl_tokenizer = None
+
+        except Exception as e:
+            print(f"[ContextAwareSanitizer] Warning: Perplexity model loading failed — {e}")
+            print(f"[ContextAwareSanitizer] Perplexity signal will degrade to 0.0.")
+            self._ppl_model = None
+            self._ppl_tokenizer = None
+
+    def _compute_perplexity(self, text: str):
+        """Compute perplexity of text using distilgpt2.
+
+        Returns float perplexity value, or None if computation fails.
+        Truncates input to 512 tokens to keep inference fast on CPU.
+        """
+        if self._ppl_model is None or self._ppl_tokenizer is None:
+            return None
+        try:
+            import torch
+            encodings = self._ppl_tokenizer(
+                text, return_tensors="pt", truncation=True, max_length=512
+            ).to(self._device)
+            input_ids = encodings["input_ids"]
+            if input_ids.size(1) < 2:
+                # Need at least 2 tokens for meaningful perplexity
+                return None
+            with torch.no_grad():
+                outputs = self._ppl_model(input_ids, labels=input_ids)
+                loss = outputs.loss
+            return float(torch.exp(loss))
+        except Exception:
+            return None
 
     def _regex_signal(self, prompt: str) -> float:
         _, blocked = self._regex_san.sanitize(prompt)
@@ -272,24 +386,70 @@ class ContextAwareSanitizer:
         return min(self._kw_san.score(prompt), 1.0)
 
     def _semantic_signal(self, prompt: str) -> float:
-        """Stepped cosine similarity — decisive buckets instead of linear.
+        """Stepped cosine similarity using MiniLM embeddings.
+
+        Encodes the input prompt with the same MiniLM model used at init,
+        then computes cosine similarity against all cached injection embeddings.
+        Uses the max similarity (closest known injection) and maps to stepped
+        risk buckets:
+
         High sim (>0.5) = definite injection vocabulary  → 1.0
         Mid  sim (>0.3) = probable injection vocabulary  → 0.7
         Low  sim (>0.2) = ambiguous                      → 0.5
         Below 0.2       = likely benign                  → 0.0
+
+        Falls back to 0.0 if embedding model is unavailable.
         """
-        if self._train_vecs is None:
+        if self._embed_model is None or self._injection_embeddings is None:
             return 0.0
-        vec = self._tfidf.transform([prompt])
-        sim = float(cosine_similarity(vec, self._train_vecs).max())
-        if sim > 0.5:
-            return 1.0
-        elif sim > 0.3:
-            return 0.7
-        elif sim > 0.2:
-            return 0.5
-        else:
+        try:
+            # Encode new prompt (returns numpy array of shape (1, dim))
+            prompt_emb = self._embed_model.encode(
+                [prompt], convert_to_numpy=True, show_progress_bar=False
+            )
+            # Cosine similarity: dot product of normalized vectors
+            # MiniLM outputs are already L2-normalized by default
+            from numpy.linalg import norm
+            # Normalize to be safe (in case model config changes)
+            prompt_norm = prompt_emb / (norm(prompt_emb, axis=1, keepdims=True) + 1e-10)
+            inj_norm = self._injection_embeddings / (
+                norm(self._injection_embeddings, axis=1, keepdims=True) + 1e-10
+            )
+            similarities = np.dot(inj_norm, prompt_norm.T).flatten()
+            sim = float(similarities.max())
+
+            if sim > 0.5:
+                return 1.0
+            elif sim > 0.3:
+                return 0.7
+            elif sim > 0.2:
+                return 0.5
+            else:
+                return 0.0
+        except Exception:
             return 0.0
+
+    def _perplexity_signal(self, prompt: str) -> float:
+        """Perplexity-based naturalness signal using distilgpt2.
+
+        Maps raw perplexity to a [0, 1] risk score using percentile-based
+        calibration from the training set. Higher perplexity (more surprising
+        text) maps to higher risk.
+
+        Calibration: Uses the 5th and 95th percentile of train-set perplexities
+        as bounds, with linear interpolation and clipping. This avoids
+        hardcoded fragile thresholds.
+
+        Falls back to 0.0 if perplexity model is unavailable.
+        """
+        if self._ppl_model is None or self._ppl_low is None:
+            return 0.0
+        ppl = self._compute_perplexity(prompt)
+        if ppl is None:
+            return 0.0
+        # Linear normalization with clipping to [0, 1]
+        score = (ppl - self._ppl_low) / (self._ppl_high - self._ppl_low)
+        return float(np.clip(score, 0.0, 1.0))
 
     def _intent_signal(self, prompt: str) -> float:
         for pattern in INTENT_PATTERNS:
@@ -358,17 +518,23 @@ class ContextAwareSanitizer:
         rp  = self._roleplay_signal(prompt)
         sh  = self._instruction_shift_signal(prompt)
         obj = self._objective_conflict_signal(prompt)
-        total = W1*r + W2*k + W3*s + W4*i + W5*rp + W6*sh + W7*obj
+        ppl = self._perplexity_signal(prompt)
+        total = (W1*r + W2*k + W3*s + W4*i + W5*rp + W6*sh + W7*obj + W8*ppl)
         return {
             "regex": r, "keyword": k, "semantic": s,
             "intent": i, "roleplay": rp, "shift": sh,
-            "objective_conflict": obj, "total": total,
+            "objective_conflict": obj, "perplexity": ppl, "total": total,
         }
 
     def sanitize(self, prompt: str):
         signals = self.score(prompt)
 
-        # Fix 2 — Hard triggers: strong individual signals bypass soft total
+        # Hard triggers: strong individual signals bypass soft total.
+        # semantic > 0.6: MiniLM cosine similarity clearly matches known injections.
+        # intent == 1.0: structural injection pattern found by regex.
+        # roleplay + keyword combo: roleplay frame with suspicious keywords.
+        # No hard trigger for perplexity — it is a supplementary naturalness
+        # signal, not discriminative enough alone for hard blocking.
         if signals["semantic"] > 0.6:
             blocked = True   # vocabulary clearly matches known injections
         elif signals["intent"] == 1.0:
