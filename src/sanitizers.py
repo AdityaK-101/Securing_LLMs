@@ -231,6 +231,10 @@ W8 = 0.10  # perplexity
 # total = 1.00
 
 CONTEXT_THRESHOLD = 0.40  # Fix 3 — lower to catch borderline cases
+PERPLEXITY_BASELINE_SAMPLE_SIZE = 120
+PERPLEXITY_FALLBACK_Q10 = 20.0
+PERPLEXITY_FALLBACK_Q25 = 30.0
+PERPLEXITY_FALLBACK_Q40 = 40.0
 
 _TRAIN_CSV = os.path.join(
     os.path.dirname(__file__), "..", "data", "splits", "train.csv"
@@ -288,9 +292,15 @@ class ContextAwareSanitizer:
             self._ppl_quantiles = None
 
     def _init_perplexity_model(self):
-        self._ppl_tokenizer = AutoTokenizer.from_pretrained(self._lm_name)
-        self._ppl_model = AutoModelForCausalLM.from_pretrained(self._lm_name)
-        self._ppl_model.eval()
+        try:
+            self._ppl_tokenizer = AutoTokenizer.from_pretrained(self._lm_name)
+            self._ppl_model = AutoModelForCausalLM.from_pretrained(
+                self._lm_name,
+                low_cpu_mem_usage=True,
+            )
+            self._ppl_model.eval()
+        except Exception as exc:
+            raise RuntimeError(f"Perplexity model initialization failed for {self._lm_name}") from exc
 
     def _regex_signal(self, prompt: str) -> float:
         _, blocked = self._regex_san.sanitize(prompt)
@@ -314,7 +324,7 @@ class ContextAwareSanitizer:
             normalize_embeddings=True,
             show_progress_bar=False,
         )
-        sim = float(np.max(vec @ self._train_vecs.T))
+        sim = float(np.max(vec @ self._train_vecs.T, axis=1)[0])
         if sim > 0.75:
             return 1.0
         elif sim > 0.60:
@@ -343,7 +353,7 @@ class ContextAwareSanitizer:
     def _fit_perplexity_baseline(self, benign_prompts):
         if self._ppl_model is None or self._ppl_tokenizer is None:
             return
-        sample = benign_prompts[: min(len(benign_prompts), 120)]
+        sample = benign_prompts[: min(len(benign_prompts), PERPLEXITY_BASELINE_SAMPLE_SIZE)]
         ppls = [self._perplexity(p) for p in sample if isinstance(p, str) and p.strip()]
         ppls = [p for p in ppls if p is not None]
         if len(ppls) < 5:
@@ -364,11 +374,11 @@ class ContextAwareSanitizer:
             return 0.0
 
         if self._ppl_quantiles is None:
-            if ppl < 20:
+            if ppl < PERPLEXITY_FALLBACK_Q10:
                 return 1.0
-            elif ppl < 30:
+            elif ppl < PERPLEXITY_FALLBACK_Q25:
                 return 0.7
-            elif ppl < 40:
+            elif ppl < PERPLEXITY_FALLBACK_Q40:
                 return 0.4
             return 0.0
 
