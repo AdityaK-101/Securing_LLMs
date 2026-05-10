@@ -232,9 +232,10 @@ W8 = 0.10  # perplexity
 
 CONTEXT_THRESHOLD = 0.40  # Fix 3 — lower to catch borderline cases
 PERPLEXITY_BASELINE_SAMPLE_SIZE = 120
-PERPLEXITY_FALLBACK_Q10 = 20.0
-PERPLEXITY_FALLBACK_Q25 = 30.0
-PERPLEXITY_FALLBACK_Q40 = 40.0
+PERPLEXITY_MAX_LOSS = 20.0
+PERPLEXITY_FALLBACK_THRESHOLD_Q60 = 30.0
+PERPLEXITY_FALLBACK_THRESHOLD_Q75 = 40.0
+PERPLEXITY_FALLBACK_THRESHOLD_Q90 = 50.0
 
 _TRAIN_CSV = os.path.join(
     os.path.dirname(__file__), "..", "data", "splits", "train.csv"
@@ -334,7 +335,7 @@ class ContextAwareSanitizer:
         else:
             return 0.0
 
-    def _perplexity(self, prompt: str):
+    def _compute_perplexity(self, prompt: str):
         if self._ppl_model is None or self._ppl_tokenizer is None:
             return None
         encoded = self._ppl_tokenizer(
@@ -345,7 +346,7 @@ class ContextAwareSanitizer:
         )
         with torch.no_grad():
             out = self._ppl_model(**encoded, labels=encoded["input_ids"])
-        safe_loss = torch.clamp(out.loss, max=20.0)
+        safe_loss = torch.clamp(out.loss, max=PERPLEXITY_MAX_LOSS)
         ppl = float(torch.exp(safe_loss).item())
         if not np.isfinite(ppl):
             return None
@@ -355,39 +356,39 @@ class ContextAwareSanitizer:
         if self._ppl_model is None or self._ppl_tokenizer is None:
             return
         sample = benign_prompts[: min(len(benign_prompts), PERPLEXITY_BASELINE_SAMPLE_SIZE)]
-        ppls = [self._perplexity(p) for p in sample if isinstance(p, str) and p.strip()]
+        ppls = [self._compute_perplexity(p) for p in sample if isinstance(p, str) and p.strip()]
         ppls = [p for p in ppls if p is not None]
         if len(ppls) < 5:
             return
         self._ppl_quantiles = {
-            "q10": float(np.quantile(ppls, 0.10)),
-            "q25": float(np.quantile(ppls, 0.25)),
-            "q40": float(np.quantile(ppls, 0.40)),
+            "q60": float(np.quantile(ppls, 0.60)),
+            "q75": float(np.quantile(ppls, 0.75)),
+            "q90": float(np.quantile(ppls, 0.90)),
         }
         print(
             "[ContextAwareSanitizer] Perplexity baseline ready "
-            f"(q10={self._ppl_quantiles['q10']:.2f}, q25={self._ppl_quantiles['q25']:.2f}, q40={self._ppl_quantiles['q40']:.2f})."
+            f"(q60={self._ppl_quantiles['q60']:.2f}, q75={self._ppl_quantiles['q75']:.2f}, q90={self._ppl_quantiles['q90']:.2f})."
         )
 
     def _perplexity_signal(self, prompt: str) -> float:
-        ppl = self._perplexity(prompt)
+        ppl = self._compute_perplexity(prompt)
         if ppl is None:
             return 0.0
 
         if self._ppl_quantiles is None:
-            if ppl < PERPLEXITY_FALLBACK_Q10:
+            if ppl >= PERPLEXITY_FALLBACK_THRESHOLD_Q90:
                 return 1.0
-            elif ppl < PERPLEXITY_FALLBACK_Q25:
+            elif ppl >= PERPLEXITY_FALLBACK_THRESHOLD_Q75:
                 return 0.7
-            elif ppl < PERPLEXITY_FALLBACK_Q40:
+            elif ppl >= PERPLEXITY_FALLBACK_THRESHOLD_Q60:
                 return 0.4
             return 0.0
 
-        if ppl <= self._ppl_quantiles["q10"]:
+        if ppl >= self._ppl_quantiles["q90"]:
             return 1.0
-        elif ppl <= self._ppl_quantiles["q25"]:
+        elif ppl >= self._ppl_quantiles["q75"]:
             return 0.7
-        elif ppl <= self._ppl_quantiles["q40"]:
+        elif ppl >= self._ppl_quantiles["q60"]:
             return 0.4
         return 0.0
 
