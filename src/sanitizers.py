@@ -324,7 +324,7 @@ class ContextAwareSanitizer:
             normalize_embeddings=True,
             show_progress_bar=False,
         )
-        sim = float(np.max(vec @ self._train_vecs.T, axis=1)[0])
+        sim = float((vec @ self._train_vecs.T).max())
         if sim > 0.75:
             return 1.0
         elif sim > 0.60:
@@ -345,7 +345,8 @@ class ContextAwareSanitizer:
         )
         with torch.no_grad():
             out = self._ppl_model(**encoded, labels=encoded["input_ids"])
-        ppl = float(torch.exp(out.loss).item())
+        safe_loss = torch.clamp(out.loss, max=20.0)
+        ppl = float(torch.exp(safe_loss).item())
         if not np.isfinite(ppl):
             return None
         return ppl
