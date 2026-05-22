@@ -1,13 +1,5 @@
-<<<<<<< Updated upstream
 method,orig_ASR,para_ASR,ASR_delta
 baseline,1.0,1.0,0.0
 context_aware,0.0,0.0,0.0
 keyword,0.86,0.88,0.02
 regex,0.5,0.58,0.08
-=======
-method,orig_ASR,para_ASR,ASR_delta
-baseline,1.0,1.0,0.0
-context_aware,0.0,0.0,0.0
-keyword,0.86,0.88,0.02
-regex,0.5,0.58,0.08
->>>>>>> Stashed changes
