@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 *.csv filter=lfs diff=lfs merge=lfs -text
 data/cleaned/combined_dataset.csv !text !filter !merge !diff
 data/raw/SimsonsunJailbreakPrompts.csv !text !filter !merge !diff
@@ -10,3 +11,6 @@ results/classifier_metrics.csv !text !filter !merge !diff
 results/metrics.csv !text !filter !merge !diff
 results/robustness_edge_benign.csv !text !filter !merge !diff
 results/robustness_paraphrase.csv !text !filter !merge !diff
+=======
+data/raw/Bravanskycompact-jailbreaks.csv filter=lfs diff=lfs merge=lfs -text
+>>>>>>> Stashed changes
