@@ -313,7 +313,7 @@ def main():
     # -----------------------------------------------------------------------
     # Main Evaluation
     # -----------------------------------------------------------------------
-    _banner("§4.5  Main Experiment")
+    _banner("4.5  Main Experiment")
     logs_df, metrics_df, cm_dict = evaluate(
         test_csv=TEST_CSV, train_csv=TRAIN_CSV, use_llm=use_llm,
     )
@@ -342,7 +342,7 @@ def main():
     # -----------------------------------------------------------------------
     # Robustness Testing
     # -----------------------------------------------------------------------
-    _banner("§4.6  Robustness — Paraphrase Test")
+    _banner("4.6  Robustness — Paraphrase Test")
     para_df = robustness_paraphrase(train_csv=TRAIN_CSV, n=50)
     print("\n--- Paraphrase ASR Delta ---")
     print(para_df.to_string(index=False))
@@ -350,7 +350,7 @@ def main():
     _plot_paraphrase_robustness(para_df)
     print(f"[✓] Saved: results/robustness_paraphrase.csv")
 
-    _banner("§4.6  Robustness — Edge Benign Cases")
+    _banner("4.6  Robustness — Edge Benign Cases")
     edge_df = robustness_edge_benign()
     print("\n--- Edge Benign FPR ---")
     print(edge_df.to_string(index=False))
