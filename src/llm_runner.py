@@ -25,12 +25,32 @@ import os
 os.environ.setdefault("HF_HUB_DISABLE_IMPLICIT_TOKEN", "1")  # silence HF token nag
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-MODEL_NAME = "microsoft/phi-2"
+from .gpu_utils import empty_cuda_cache
+
+MODEL_NAME = "Qwen/Qwen2.5-3B-Instruct"
 
 # Instruction template per spec §4.2
 INSTRUCTION_TEMPLATE = "### Instruction:\n{prompt}\n\n### Response:\n"
 
 _pipeline = None
+
+
+def release_model():
+    """Unload Phi-2 to free memory before loading the judge model."""
+    global _pipeline
+    if _pipeline is None:
+        return
+    try:
+        if hasattr(_pipeline, "model"):
+            del _pipeline.model
+        if hasattr(_pipeline, "tokenizer"):
+            del _pipeline.tokenizer
+    except Exception:
+        pass
+    del _pipeline
+    _pipeline = None
+    empty_cuda_cache()
+    print("[LLMRunner] Phi-2 released from memory.")
 
 
 def _load_model():
@@ -47,6 +67,8 @@ def _load_model():
 
     print(f"[LLMRunner] Loading {MODEL_NAME}...")
     print("[LLMRunner] First run: downloading model (~5.5 GB). Please wait...")
+    import sys
+    sys.stdout.flush()
 
     tokenizer = AutoTokenizer.from_pretrained(
         MODEL_NAME,
@@ -59,7 +81,7 @@ def _load_model():
 
     model = AutoModelForCausalLM.from_pretrained(
         MODEL_NAME,
-        dtype=dtype,
+        torch_dtype=dtype,
         trust_remote_code=True,
         low_cpu_mem_usage=True,
     )
@@ -94,6 +116,10 @@ class LLMRunner:
         if not self.mock:
             try:
                 self._pipe = _load_model()
+            except MemoryError as e:
+                print(f"[LLMRunner] OUT OF MEMORY loading phi-2: {e}")
+                print("[LLMRunner] Close other apps or set SKIP_LLM=1 for sanitizer-only mode.")
+                raise
             except Exception as e:
                 print(f"[LLMRunner] ERROR loading phi-2: {e}")
                 print("[LLMRunner] Falling back to mock. Set SKIP_LLM=1 to suppress this.")
@@ -123,3 +149,9 @@ class LLMRunner:
 
     def is_mock(self) -> bool:
         return self.mock
+
+    def release(self):
+        """Free Phi-2 weights from memory."""
+        self._pipe = None
+        if not self.mock:
+            release_model()

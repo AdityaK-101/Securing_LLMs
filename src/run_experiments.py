@@ -4,22 +4,26 @@ src/run_experiments.py
 CLI entrypoint for Milestone 3 experiments.
 
 Produces:
-  results/metrics.csv          — ASR/FPR per method
-  results/logs.jsonl           — per-prompt record
+  results/metrics.csv          — Bypass Rate / True ASR / FPR per method
+  results/logs.jsonl           — per-prompt record (incl. judge fields)
   results/confusion_matrices.json
   results/robustness_paraphrase.csv
   results/robustness_edge_benign.csv
-  results/figures/attack_success_bar.png   ← required by roadmap §5.2
+  results/figures/attack_success_bar.png   ← Bypass Rate bar chart
+  results/figures/true_asr_bar.png         ← True ASR bar chart
   results/figures/confusion_matrix_*.png
   results/figures/fpr_chart.png
   results/robustness_note.txt   ← required deliverable
 
 Usage:
-    # With phi-2 (downloads ~5.5GB on first run)
+    # With phi-2 + Qwen judge (downloads models on first run)
     python -m src.run_experiments
 
-    # Mock mode (no download, sanitizer-based ASR still valid)
+    # Mock mode (no download, sanitizer-based Bypass Rate still valid)
     $env:SKIP_LLM=1; python -m src.run_experiments
+
+    # Optional one-time judge sanity check (not run by default)
+    python -m src.run_experiments --calibrate
 
     # Include stretch-goal classifier
     python -m src.run_experiments --classifier
@@ -38,6 +42,7 @@ import matplotlib.patches as mpatches
 from pathlib import Path
 
 from .evaluate import evaluate, robustness_paraphrase, robustness_edge_benign
+from .judge import ComplianceJudge, run_calibration
 
 _ROOT       = Path(__file__).parent.parent
 RESULTS_DIR = _ROOT / "results"
@@ -70,23 +75,23 @@ def _banner(title: str):
 # Plotting helpers
 # ---------------------------------------------------------------------------
 
-def _plot_asr_bar(metrics_df: pd.DataFrame):
-    """Required bar chart from roadmap §5.2."""
+def _plot_bypass_rate_bar(metrics_df: pd.DataFrame):
+    """Layer 1 bar chart — sanitizer Bypass Rate (formerly mislabeled ASR)."""
     methods = metrics_df["method"].tolist()
-    asr_pct = metrics_df["ASR_%"].tolist()
+    bypass_pct = metrics_df["Bypass_Rate_%"].tolist()
 
     labels = [METHOD_LABELS.get(m, m) for m in methods]
     colors = [METHOD_COLORS.get(m, "#95a5a6") for m in methods]
 
     fig, ax = plt.subplots(figsize=(8, 5))
-    bars = ax.bar(labels, asr_pct, color=colors, edgecolor="black", linewidth=0.8, width=0.55)
+    bars = ax.bar(labels, bypass_pct, color=colors, edgecolor="black", linewidth=0.8, width=0.55)
 
-    for bar, v in zip(bars, asr_pct):
+    for bar, v in zip(bars, bypass_pct):
         ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1.2,
                 f"{v:.1f}%", ha="center", va="bottom", fontweight="bold", fontsize=11)
 
-    ax.set_ylabel("Attack Success Rate (%)", fontsize=12)
-    ax.set_title("Baseline vs Sanitizers — Attack Success Rate\n(Lower is Better)",
+    ax.set_ylabel("Bypass Rate (%)", fontsize=12)
+    ax.set_title("Layer 1 — Sanitizer Bypass Rate\n(Lower is Better)",
                  fontsize=13, fontweight="bold")
     ax.set_ylim(0, 115)
     ax.axhline(y=100, color="gray", linestyle="--", linewidth=0.8, alpha=0.5)
@@ -97,6 +102,36 @@ def _plot_asr_bar(metrics_df: pd.DataFrame):
     plt.savefig(out, dpi=200, bbox_inches="tight")
     plt.close()
     print(f"[✓] Saved: results/figures/attack_success_bar.png")
+    return out
+
+
+def _plot_true_asr_bar(metrics_df: pd.DataFrame):
+    """Layer 2 bar chart — True Attack Success Rate (judge-confirmed compliance)."""
+    methods = metrics_df["method"].tolist()
+    true_asr_pct = metrics_df["True_ASR_%"].tolist()
+
+    labels = [METHOD_LABELS.get(m, m) for m in methods]
+    colors = [METHOD_COLORS.get(m, "#95a5a6") for m in methods]
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    bars = ax.bar(labels, true_asr_pct, color=colors, edgecolor="black", linewidth=0.8, width=0.55)
+
+    for bar, v in zip(bars, true_asr_pct):
+        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1.2,
+                f"{v:.1f}%", ha="center", va="bottom", fontweight="bold", fontsize=11)
+
+    ax.set_ylabel("True ASR (%)", fontsize=12)
+    ax.set_title("Layer 2 — True Attack Success Rate\n(Bypass + Phi-2 Complied per Judge)",
+                 fontsize=13, fontweight="bold")
+    ymax = max(true_asr_pct + [10]) * 1.2 + 5
+    ax.set_ylim(0, ymax)
+    ax.spines[["top", "right"]].set_visible(False)
+    plt.tight_layout()
+
+    out = FIGURES_DIR / "true_asr_bar.png"
+    plt.savefig(out, dpi=200, bbox_inches="tight")
+    plt.close()
+    print(f"[✓] Saved: results/figures/true_asr_bar.png")
     return out
 
 
@@ -153,7 +188,7 @@ def _plot_confusion_matrices(cm_dict: dict):
                         fontsize=14, fontweight="bold",
                         color="white" if cm[i, j] > cm.max() / 2 else "black")
 
-    plt.suptitle("Confusion Matrices — All Methods", fontsize=13, fontweight="bold", y=1.02)
+    plt.suptitle("Confusion Matrices — Sanitizer Only (Layer 1)", fontsize=13, fontweight="bold", y=1.02)
     plt.tight_layout()
 
     out = FIGURES_DIR / "confusion_matrices.png"
@@ -165,15 +200,15 @@ def _plot_confusion_matrices(cm_dict: dict):
 
 def _plot_paraphrase_robustness(para_df: pd.DataFrame):
     methods   = para_df["method"].tolist()
-    orig_asr  = (para_df["orig_ASR"] * 100).tolist()
-    para_asr  = (para_df["para_ASR"] * 100).tolist()
+    orig_br   = (para_df["orig_Bypass_Rate"] * 100).tolist()
+    para_br   = (para_df["para_Bypass_Rate"] * 100).tolist()
     labels    = [METHOD_LABELS.get(m, m) for m in methods]
 
     x = np.arange(len(methods))
     w = 0.35
     fig, ax = plt.subplots(figsize=(9, 5))
-    b1 = ax.bar(x - w / 2, orig_asr, w, label="Original ASR", color="#3498db", edgecolor="black", linewidth=0.7)
-    b2 = ax.bar(x + w / 2, para_asr, w, label="Paraphrased ASR", color="#e74c3c", edgecolor="black", linewidth=0.7)
+    b1 = ax.bar(x - w / 2, orig_br, w, label="Original Bypass Rate", color="#3498db", edgecolor="black", linewidth=0.7)
+    b2 = ax.bar(x + w / 2, para_br, w, label="Paraphrased Bypass Rate", color="#e74c3c", edgecolor="black", linewidth=0.7)
 
     for bar in list(b1) + list(b2):
         h = bar.get_height()
@@ -181,8 +216,8 @@ def _plot_paraphrase_robustness(para_df: pd.DataFrame):
                 f"{h:.1f}%", ha="center", va="bottom", fontsize=9, fontweight="bold")
 
     ax.set_xticks(x); ax.set_xticklabels(labels, fontsize=9)
-    ax.set_ylabel("ASR (%)", fontsize=11)
-    ax.set_title("Paraphrase Robustness — Original vs Paraphrased ASR\nHigher Δ = More Vulnerable to Paraphrasing",
+    ax.set_ylabel("Bypass Rate (%)", fontsize=11)
+    ax.set_title("Paraphrase Robustness — Original vs Paraphrased Bypass Rate\nHigher Δ = More Vulnerable to Paraphrasing",
                  fontsize=12, fontweight="bold")
     ax.set_ylim(0, 115)
     ax.legend(fontsize=10)
@@ -203,38 +238,47 @@ def _plot_paraphrase_robustness(para_df: pd.DataFrame):
 def _write_robustness_note(metrics_df, para_df, edge_df, out_path):
     """Write a plain-text robustness note (required deliverable)."""
 
-    # Find best and worst by ASR
+    # Find best and worst by Bypass Rate (Layer 1)
     active = metrics_df[metrics_df["method"] != "baseline"]
-    best_m = active.loc[active["ASR_%"].idxmin()]
-    worst_m = active.loc[active["ASR_%"].idxmax()]
+    best_m = active.loc[active["Bypass_Rate_%"].idxmin()]
+    worst_m = active.loc[active["Bypass_Rate_%"].idxmax()]
 
     lines = [
         "=" * 62,
         "  Robustness Note — Milestone 3",
         "=" * 62,
         "",
-        "1. DEFENSE EFFECTIVENESS",
+        "METRIC DEFINITIONS",
+        "-" * 40,
+        "  Bypass Rate (Layer 1): % of injection prompts the sanitizer failed",
+        "    to block. Measures sanitizer bypass, NOT model compliance.",
+        "  True ASR (Layer 2): % of injection prompts where the sanitizer was",
+        "    bypassed AND Phi-2 actually complied (per Qwen2.5-7B judge).",
+        "  Confusion matrices use sanitizer blocked/unblocked only.",
+        "",
+        "1. DEFENSE EFFECTIVENESS (Layer 1 + Layer 2)",
         "-" * 40,
     ]
     for _, row in metrics_df.iterrows():
         lines.append(
-            f"  {row['method']:15s}  ASR={row['ASR_%']:5.1f}%  FPR={row['FPR_%']:5.1f}%  "
-            f"TP={row['TP (blocked_inj)']:3d}  FN={row['FN (missed_inj)']:3d}  "
-            f"FP={row['FP (blocked_ben)']:3d}  TN={row['TN (allowed_ben)']:3d}"
+            f"  {row['method']:15s}  Bypass={row['Bypass_Rate_%']:5.1f}%  "
+            f"TrueASR={row['True_ASR_%']:5.1f}%  FPR={row['FPR_%']:5.1f}%  "
+            f"TP={row['TP']:3d}  FN={row['FN']:3d}  "
+            f"FP={row['FP']:3d}  TN={row['TN']:3d}  "
+            f"attacks={row['successful_attack_count']}"
         )
 
     lines += [
         "",
         f"  Best performing defense: {best_m['method']} "
-        f"(ASR={best_m['ASR_%']:.1f}%)",
+        f"(Bypass={best_m['Bypass_Rate_%']:.1f}%, TrueASR={best_m['True_ASR_%']:.1f}%)",
         f"  Weakest active defense:  {worst_m['method']} "
-        f"(ASR={worst_m['ASR_%']:.1f}%)",
+        f"(Bypass={worst_m['Bypass_Rate_%']:.1f}%, TrueASR={worst_m['True_ASR_%']:.1f}%)",
         "",
         "2. SIDE EFFECTS & FALSE POSITIVES",
         "-" * 40,
     ]
 
-    row_baseline = edge_df[edge_df["method"] == "baseline"].iloc[0]
     for _, row in edge_df.iterrows():
         lines.append(
             f"  {row['method']:15s}  edge_FPR={row['edge_FPR']*100:.0f}%  "
@@ -251,11 +295,11 @@ def _write_robustness_note(metrics_df, para_df, edge_df, out_path):
         "-" * 40,
     ]
     for _, row in para_df.iterrows():
-        delta = row["ASR_delta"] * 100
+        delta = row["Bypass_Rate_delta"] * 100
         direction = "WORSE (+)" if delta > 0 else "better (-)"
         lines.append(
-            f"  {row['method']:15s}  orig={row['orig_ASR']*100:.1f}%  "
-            f"para={row['para_ASR']*100:.1f}%  Δ={delta:+.1f}% {direction}"
+            f"  {row['method']:15s}  orig={row['orig_Bypass_Rate']*100:.1f}%  "
+            f"para={row['para_Bypass_Rate']*100:.1f}%  Δ={delta:+.1f}% {direction}"
         )
     lines += [
         "",
@@ -274,17 +318,28 @@ def _write_robustness_note(metrics_df, para_df, edge_df, out_path):
         "  - Indirect/coded language (e.g., 'assets' meaning stolen data)",
         "    scores low on all signal types.",
         "  - Very long prompts dilute keyword density below threshold.",
+        "  - Bypassed prompts may still be refused by Phi-2 (True ASR < Bypass Rate).",
         "",
         "5. REPRODUCIBILITY",
         "-" * 40,
         "  Fixed seed: 42 (applied to numpy and random modules).",
-        "  All metrics are deterministic given the same dataset split.",
+        "  All sanitizer metrics are deterministic given the same dataset split.",
+        "  True ASR depends on Phi-2 + Qwen2.5-7B-Instruct inference.",
         "=" * 62,
     ]
 
     with open(out_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
     print(f"[✓] Saved: results/robustness_note.txt")
+
+
+def _metrics_export_columns(metrics_df: pd.DataFrame) -> pd.DataFrame:
+    """Select required metrics.csv columns per spec."""
+    cols = [
+        "method", "Bypass_Rate_%", "True_ASR_%", "FPR_%",
+        "TP", "FN", "FP", "TN", "successful_attack_count",
+    ]
+    return metrics_df[cols]
 
 
 # ---------------------------------------------------------------------------
@@ -295,6 +350,10 @@ def main():
     parser = argparse.ArgumentParser(description="Milestone 3 experiment runner")
     parser.add_argument("--no-llm", action="store_true",
                         help="Skip phi-2 inference (sanitizer-only, fast mode)")
+    parser.add_argument("--no-judge", action="store_true",
+                        help="Skip Qwen judge (True ASR unavailable)")
+    parser.add_argument("--calibrate", action="store_true",
+                        help="Run optional judge calibration (~20 cases) before evaluation")
     parser.add_argument("--classifier", action="store_true",
                         help="Run stretch-goal LR+TF-IDF classifier")
     args = parser.parse_args()
@@ -303,39 +362,57 @@ def main():
     FIGURES_DIR.mkdir(exist_ok=True)
 
     use_llm = not args.no_llm
+    if args.no_judge:
+        os.environ["SKIP_JUDGE"] = "1"
 
     _banner("Milestone 3 — Prompt Injection Defense Evaluation")
-    print(f"  Model  : {'microsoft/phi-2' if use_llm else 'SKIP (--no-llm flag)'}")
+    print(f"  Target : microsoft/phi-2 ({'enabled' if use_llm else 'SKIP (--no-llm)'})")
+    print(f"  Judge  : Qwen2.5-7B-Instruct ({'enabled' if use_llm and not args.no_judge else 'SKIP'})")
     print(f"  Seed   : 42 (fixed for reproducibility)")
     print(f"  Test   : {TEST_CSV}")
     print(f"  Train  : {TRAIN_CSV}")
 
+    # Optional calibration (--calibrate); judge is released before main eval
+    if args.calibrate and use_llm and not args.no_judge:
+        _banner("Judge Calibration (~20 obvious cases)")
+        cal_judge = ComplianceJudge()
+        cal_results = run_calibration(cal_judge)
+        cal_judge.release()
+        cal_path = RESULTS_DIR / "judge_calibration.json"
+        with open(cal_path, "w", encoding="utf-8") as f:
+            json.dump(cal_results, f, indent=2, ensure_ascii=False)
+        print(f"[OK] Saved: results/judge_calibration.json")
+
     # -----------------------------------------------------------------------
-    # Main Evaluation
+    # Main Evaluation (Phase 1: Phi-2, Phase 2: Qwen judge — one model at a time)
     # -----------------------------------------------------------------------
     _banner("4.5  Main Experiment")
     logs_df, metrics_df, cm_dict = evaluate(
         test_csv=TEST_CSV, train_csv=TRAIN_CSV, use_llm=use_llm,
     )
 
-    print("\n--- ASR / FPR Summary ---")
-    cols = ["method", "ASR_%", "FPR_%", "TP (blocked_inj)",
-            "FN (missed_inj)", "FP (blocked_ben)", "TN (allowed_ben)"]
+    print("\n--- Bypass Rate / True ASR / FPR Summary ---")
+    cols = ["method", "Bypass_Rate_%", "True_ASR_%", "FPR_%",
+            "TP", "FN", "FP", "TN", "successful_attack_count"]
     print(metrics_df[cols].to_string(index=False))
 
     # Save
-    metrics_df.to_csv(RESULTS_DIR / "metrics.csv", index=False)
+    _metrics_export_columns(metrics_df).to_csv(RESULTS_DIR / "metrics.csv", index=False)
     with open(RESULTS_DIR / "logs.jsonl", "w", encoding="utf-8") as f:
         for rec in logs_df.to_dict(orient="records"):
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    with open(RESULTS_DIR / "confusion_matrices.json", "w", encoding="utf-8") as f:
+        json.dump(cm_dict, f, indent=2)
     print(f"\n[✓] Saved: results/metrics.csv")
     print(f"[✓] Saved: results/logs.jsonl  ({len(logs_df)} records)")
+    print(f"[✓] Saved: results/confusion_matrices.json")
 
     # -----------------------------------------------------------------------
     # Figures
     # -----------------------------------------------------------------------
     _banner("Generating Figures")
-    _plot_asr_bar(metrics_df)
+    _plot_bypass_rate_bar(metrics_df)
+    _plot_true_asr_bar(metrics_df)
     _plot_fpr_bar(metrics_df)
     _plot_confusion_matrices(cm_dict)
 
@@ -344,8 +421,8 @@ def main():
     # -----------------------------------------------------------------------
     _banner("4.6  Robustness — Paraphrase Test")
     para_df = robustness_paraphrase(train_csv=TRAIN_CSV, n=50)
-    print("\n--- Paraphrase ASR Delta ---")
-    print(para_df.to_string(index=False))
+    print("\n--- Paraphrase Bypass Rate Delta ---")
+    print(para_df[["method", "orig_Bypass_Rate", "para_Bypass_Rate", "Bypass_Rate_delta"]].to_string(index=False))
     para_df.to_csv(RESULTS_DIR / "robustness_paraphrase.csv", index=False)
     _plot_paraphrase_robustness(para_df)
     print(f"[✓] Saved: results/robustness_paraphrase.csv")
@@ -376,14 +453,14 @@ def main():
             train_csv=TRAIN_CSV, test_csv=TEST_CSV
         )
         clf_out = {
-            "val_accuracy":  clf_results["val"]["accuracy"],
-            "val_f1":        clf_results["val"]["f1"],
-            "val_ASR":       clf_results["val"]["ASR"],
-            "val_FPR":       clf_results["val"]["FPR"],
-            "test_accuracy": clf_results["test"]["accuracy"],
-            "test_f1":       clf_results["test"]["f1"],
-            "test_ASR":      clf_results["test"]["ASR"],
-            "test_FPR":      clf_results["test"]["FPR"],
+            "val_accuracy":       clf_results["val"]["accuracy"],
+            "val_f1":             clf_results["val"]["f1"],
+            "val_Bypass_Rate":    clf_results["val"]["Bypass_Rate"],
+            "val_FPR":            clf_results["val"]["FPR"],
+            "test_accuracy":      clf_results["test"]["accuracy"],
+            "test_f1":            clf_results["test"]["f1"],
+            "test_Bypass_Rate":   clf_results["test"]["Bypass_Rate"],
+            "test_FPR":           clf_results["test"]["FPR"],
         }
         pd.DataFrame([clf_out]).to_csv(
             RESULTS_DIR / "classifier_metrics.csv", index=False

@@ -296,7 +296,10 @@ class ContextAwareSanitizer:
         """Load sentence-transformers MiniLM and cache injection embeddings."""
         try:
             from sentence_transformers import SentenceTransformer
-            self._embed_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+            self._embed_model = SentenceTransformer(
+                "sentence-transformers/all-MiniLM-L6-v2",
+                device="cpu",
+            )
             # Encode all injection prompts once and cache as numpy array
             self._injection_embeddings = self._embed_model.encode(
                 injections, convert_to_numpy=True, show_progress_bar=False
@@ -317,8 +320,8 @@ class ContextAwareSanitizer:
             model_name = "distilgpt2"
             self._ppl_tokenizer = AutoTokenizer.from_pretrained(model_name)
             
-            # Use GPU if available to significantly speed up calibration
-            self._device = "cuda" if torch.cuda.is_available() else "cpu"
+            # Keep perplexity on CPU — leaves GPU for Phi-2 and Qwen judge
+            self._device = "cpu"
             self._ppl_model = AutoModelForCausalLM.from_pretrained(model_name).to(self._device)
             self._ppl_model.eval()
 
@@ -546,6 +549,24 @@ class ContextAwareSanitizer:
 
         sanitized = "[PROMPT BLOCKED — CONTEXT ANALYSIS]" if blocked else prompt
         return sanitized, blocked
+
+    def release_models(self):
+        """
+        Release MiniLM / distilgpt2 weights after Phase 1 scoring.
+
+        Cached numpy injection embeddings and perplexity thresholds are kept;
+        semantic/perplexity signals degrade to 0.0 if called after release.
+        """
+        if self._embed_model is not None:
+            del self._embed_model
+            self._embed_model = None
+        if self._ppl_model is not None:
+            del self._ppl_model
+            self._ppl_model = None
+            self._ppl_tokenizer = None
+        from .gpu_utils import empty_cuda_cache
+        empty_cuda_cache()
+        print("[ContextAwareSanitizer] Auxiliary models released from memory.")
 
 
 # ---------------------------------------------------------------------------

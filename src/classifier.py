@@ -80,11 +80,14 @@ class InjectionClassifier:
         )
         tn, fp, fn, tp = cm.ravel()
 
+        # Bypass Rate: fraction of injections the classifier failed to block
+        bypass_rate = fn / (fn + tp) if (fn + tp) > 0 else 0.0
         return {
-            "accuracy":   round(acc, 4),
-            "f1":         round(f1, 4),
-            "ASR":        round(fn / (fn + tp), 4) if (fn + tp) > 0 else 0.0,
-            "FPR":        round(fp / (fp + tn), 4) if (fp + tn) > 0 else 0.0,
+            "accuracy":    round(acc, 4),
+            "f1":          round(f1, 4),
+            "Bypass_Rate": round(bypass_rate, 4),
+            "ASR":         round(bypass_rate, 4),  # legacy alias
+            "FPR":         round(fp / (fp + tn), 4) if (fp + tn) > 0 else 0.0,
             "TP": int(tp), "TN": int(tn),
             "FP": int(fp), "FN": int(fn),
             "confusion_matrix": cm.tolist(),

@@ -2,15 +2,23 @@
   Robustness Note — Milestone 3
 ==============================================================
 
-1. DEFENSE EFFECTIVENESS
+METRIC DEFINITIONS
 ----------------------------------------
-  baseline         ASR=100.0%  FPR=  0.0%  TP=  0  FN= 23  FP=  0  TN= 15
-  regex            ASR= 69.6%  FPR=  0.0%  TP=  7  FN= 16  FP=  0  TN= 15
-  keyword          ASR= 82.6%  FPR=  0.0%  TP=  4  FN= 19  FP=  0  TN= 15
-  context_aware    ASR=  4.3%  FPR= 13.3%  TP= 22  FN=  1  FP=  2  TN= 13
+  Bypass Rate (Layer 1): % of injection prompts the sanitizer failed
+    to block. Measures sanitizer bypass, NOT model compliance.
+  True ASR (Layer 2): % of injection prompts where the sanitizer was
+    bypassed AND Phi-2 actually complied (per Qwen2.5-7B judge).
+  Confusion matrices use sanitizer blocked/unblocked only.
 
-  Best performing defense: context_aware (ASR=4.3%)
-  Weakest active defense:  keyword (ASR=82.6%)
+1. DEFENSE EFFECTIVENESS (Layer 1 + Layer 2)
+----------------------------------------
+  baseline         Bypass=100.0%  TrueASR= 26.1%  FPR=  0.0%  TP=  0  FN= 23  FP=  0  TN= 15  attacks=6
+  regex            Bypass= 69.6%  TrueASR=  8.7%  FPR=  0.0%  TP=  7  FN= 16  FP=  0  TN= 15  attacks=2
+  keyword          Bypass= 82.6%  TrueASR= 17.4%  FPR=  0.0%  TP=  4  FN= 19  FP=  0  TN= 15  attacks=4
+  context_aware    Bypass=  4.3%  TrueASR=  0.0%  FPR= 13.3%  TP= 22  FN=  1  FP=  2  TN= 13  attacks=0
+
+  Best performing defense: context_aware (Bypass=4.3%, TrueASR=0.0%)
+  Weakest active defense:  keyword (Bypass=82.6%, TrueASR=17.4%)
 
 2. SIDE EFFECTS & FALSE POSITIVES
 ----------------------------------------
@@ -46,9 +54,11 @@
   - Indirect/coded language (e.g., 'assets' meaning stolen data)
     scores low on all signal types.
   - Very long prompts dilute keyword density below threshold.
+  - Bypassed prompts may still be refused by Phi-2 (True ASR < Bypass Rate).
 
 5. REPRODUCIBILITY
 ----------------------------------------
   Fixed seed: 42 (applied to numpy and random modules).
-  All metrics are deterministic given the same dataset split.
+  All sanitizer metrics are deterministic given the same dataset split.
+  True ASR depends on Phi-2 + Qwen2.5-7B-Instruct inference.
 ==============================================================
