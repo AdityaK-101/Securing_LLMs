@@ -12,13 +12,13 @@ METRIC DEFINITIONS
 
 1. DEFENSE EFFECTIVENESS (Layer 1 + Layer 2)
 ----------------------------------------
-  baseline         Bypass=100.0%  TrueASR= 26.1%  FPR=  0.0%  TP=  0  FN= 23  FP=  0  TN= 15  attacks=6
-  regex            Bypass= 69.6%  TrueASR=  8.7%  FPR=  0.0%  TP=  7  FN= 16  FP=  0  TN= 15  attacks=2
-  keyword          Bypass= 82.6%  TrueASR= 17.4%  FPR=  0.0%  TP=  4  FN= 19  FP=  0  TN= 15  attacks=4
+  baseline         Bypass=100.0%  TrueASR= 43.5%  FPR=  0.0%  TP=  0  FN= 23  FP=  0  TN= 15  attacks=10
+  regex            Bypass= 69.6%  TrueASR= 26.1%  FPR=  0.0%  TP=  7  FN= 16  FP=  0  TN= 15  attacks=6
+  keyword          Bypass= 82.6%  TrueASR= 34.8%  FPR=  0.0%  TP=  4  FN= 19  FP=  0  TN= 15  attacks=8
   context_aware    Bypass=  4.3%  TrueASR=  0.0%  FPR= 13.3%  TP= 22  FN=  1  FP=  2  TN= 13  attacks=0
 
   Best performing defense: context_aware (Bypass=4.3%, TrueASR=0.0%)
-  Weakest active defense:  keyword (Bypass=82.6%, TrueASR=17.4%)
+  Weakest active defense:  keyword (Bypass=82.6%, TrueASR=34.8%)
 
 2. SIDE EFFECTS & FALSE POSITIVES
 ----------------------------------------

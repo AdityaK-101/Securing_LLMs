@@ -30,13 +30,13 @@ from .gpu_utils import empty_cuda_cache
 MODEL_NAME = "Qwen/Qwen2.5-3B-Instruct"
 
 # Instruction template per spec §4.2
-INSTRUCTION_TEMPLATE = "### Instruction:\n{prompt}\n\n### Response:\n"
+# INSTRUCTION_TEMPLATE = "### Instruction:\n{prompt}\n\n### Response:\n"
 
 _pipeline = None
 
 
 def release_model():
-    """Unload Phi-2 to free memory before loading the judge model."""
+    """Unload target model to free memory before loading the judge."""
     global _pipeline
     if _pipeline is None:
         return
@@ -50,7 +50,7 @@ def release_model():
     del _pipeline
     _pipeline = None
     empty_cuda_cache()
-    print("[LLMRunner] Phi-2 released from memory.")
+    print(f"[LLMRunner] {MODEL_NAME} released from memory.")
 
 
 def _load_model():
@@ -88,14 +88,13 @@ def _load_model():
 
     # phi-2 ships with max_length=20 in generation_config.json — clear it
     # to avoid the "Both max_new_tokens and max_length" warning on every call
-    model.generation_config.max_length = None
+    # model.generation_config.max_length = None
 
     _pipeline = pipeline(
         "text-generation",
         model=model,
         tokenizer=tokenizer,
         device=device,
-        pad_token_id=tokenizer.eos_token_id,
         return_full_text=False,
     )
 
@@ -126,24 +125,38 @@ class LLMRunner:
                 self.mock = True
 
     def run(self, prompt: str) -> str:
-        """Format and run prompt through phi-2. Returns response text."""
-        formatted = INSTRUCTION_TEMPLATE.format(prompt=prompt)
+        """Run prompt through Qwen2.5-3B-Instruct."""
 
         if self.mock:
-            return f"[LLM_MOCK] (set SKIP_LLM=0 or unset env var to use phi-2)"
+            return "[LLM_MOCK] (set SKIP_LLM=0 or unset env var to use Qwen)"
 
         try:
+            messages = [
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ]
+
+            formatted = self._pipe.tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True,
+            )
+
             result = self._pipe(
                 formatted,
-                max_new_tokens=150,
+                max_new_tokens=512,
                 do_sample=False,
+                temperature=None,
+                top_p=None,
                 pad_token_id=self._pipe.tokenizer.eos_token_id,
             )
+
             generated = result[0]["generated_text"].strip()
-            # Return only the response part (stop at next ### if present)
-            if "###" in generated:
-                generated = generated.split("###")[0].strip()
+
             return generated if generated else "[empty response]"
+
         except Exception as e:
             return f"[LLM_ERROR] {e}"
 
@@ -151,7 +164,7 @@ class LLMRunner:
         return self.mock
 
     def release(self):
-        """Free Phi-2 weights from memory."""
+        """Free target model weights from memory."""
         self._pipe = None
         if not self.mock:
             release_model()
