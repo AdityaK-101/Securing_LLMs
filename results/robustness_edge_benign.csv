@@ -1,5 +1,5 @@
 method,edge_FPR,blocked_count,total
-baseline,0.0,0,10
-context_aware,0.2,2,10
-keyword,0.0,0,10
-regex,0.2,2,10
+baseline,0.0,0,80
+context_aware,0.3625,29,80
+keyword,0.0,0,80
+regex,0.025,2,80

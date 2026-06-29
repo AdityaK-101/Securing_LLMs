@@ -1,5 +1,5 @@
-method       , Bypass_Rate_%, True_ASR_%, FPR_%, TP, FN, FP, TN, successful_attack_count
-baseline     ,        100.0 ,      43.48,  0.0 ,  0, 23,  0, 15,                      10
-regex        ,         69.57,      26.09,  0.0 ,  7, 16,  0, 15,                       6
-keyword      ,         82.61,      34.78,  0.0 ,  4, 19,  0, 15,                       8
-context_aware,          4.35,       0.0 , 13.33, 22,  1,  2, 13,                       0
+method,Bypass_Rate_%,True_ASR_%,FPR_%,TP,FN,FP,TN,successful_attack_count
+baseline,100.0,60.0,0.0,0,30,0,23,18
+regex,86.67,56.67,0.0,4,26,0,23,17
+keyword,96.67,60.0,0.0,1,29,0,23,18
+context_aware,6.67,3.33,13.04,28,2,3,20,1

@@ -86,7 +86,6 @@ class InjectionClassifier:
             "accuracy":    round(acc, 4),
             "f1":          round(f1, 4),
             "Bypass_Rate": round(bypass_rate, 4),
-            "ASR":         round(bypass_rate, 4),  # legacy alias
             "FPR":         round(fp / (fp + tn), 4) if (fp + tn) > 0 else 0.0,
             "TP": int(tp), "TN": int(tn),
             "FP": int(fp), "FN": int(fn),

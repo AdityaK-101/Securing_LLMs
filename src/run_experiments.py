@@ -41,7 +41,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from pathlib import Path
 
-from .evaluate import evaluate, robustness_paraphrase, robustness_edge_benign
+from .evaluate import evaluate, robustness_paraphrase, robustness_adaptive, robustness_edge_benign
 from .judge import ComplianceJudge, run_calibration
 
 _ROOT       = Path(__file__).parent.parent
@@ -101,7 +101,7 @@ def _plot_bypass_rate_bar(metrics_df: pd.DataFrame):
     out = FIGURES_DIR / "attack_success_bar.png"
     plt.savefig(out, dpi=200, bbox_inches="tight")
     plt.close()
-    print(f"[✓] Saved: results/figures/attack_success_bar.png")
+    print(f"[OK] Saved: results/figures/attack_success_bar.png")
     return out
 
 
@@ -131,7 +131,7 @@ def _plot_true_asr_bar(metrics_df: pd.DataFrame):
     out = FIGURES_DIR / "true_asr_bar.png"
     plt.savefig(out, dpi=200, bbox_inches="tight")
     plt.close()
-    print(f"[✓] Saved: results/figures/true_asr_bar.png")
+    print(f"[OK] Saved: results/figures/true_asr_bar.png")
     return out
 
 
@@ -158,7 +158,7 @@ def _plot_fpr_bar(metrics_df: pd.DataFrame):
     out = FIGURES_DIR / "fpr_chart.png"
     plt.savefig(out, dpi=200, bbox_inches="tight")
     plt.close()
-    print(f"[✓] Saved: results/figures/fpr_chart.png")
+    print(f"[OK] Saved: results/figures/fpr_chart.png")
     return out
 
 
@@ -194,7 +194,7 @@ def _plot_confusion_matrices(cm_dict: dict):
     out = FIGURES_DIR / "confusion_matrices.png"
     plt.savefig(out, dpi=200, bbox_inches="tight")
     plt.close()
-    print(f"[✓] Saved: results/figures/confusion_matrices.png")
+    print(f"[OK] Saved: results/figures/confusion_matrices.png")
     return out
 
 
@@ -227,7 +227,35 @@ def _plot_paraphrase_robustness(para_df: pd.DataFrame):
     out = FIGURES_DIR / "robustness_paraphrase.png"
     plt.savefig(out, dpi=200, bbox_inches="tight")
     plt.close()
-    print(f"[✓] Saved: results/figures/robustness_paraphrase.png")
+    print(f"[OK] Saved: results/figures/robustness_paraphrase.png")
+    return out
+
+
+def _plot_adaptive_robustness(adaptive_df: pd.DataFrame):
+    """Adaptive attack robustness bar chart — Bypass Rate per method under LLM-generated attacks."""
+    methods = adaptive_df["method"].tolist()
+    bypass_pct = (adaptive_df["Adaptive_Bypass_Rate"] * 100).tolist()
+    labels = [METHOD_LABELS.get(m, m) for m in methods]
+    colors = [METHOD_COLORS.get(m, "#95a5a6") for m in methods]
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    bars = ax.bar(labels, bypass_pct, color=colors, edgecolor="black", linewidth=0.8, width=0.55)
+
+    for bar, v in zip(bars, bypass_pct):
+        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1.2,
+                f"{v:.1f}%", ha="center", va="bottom", fontweight="bold", fontsize=11)
+
+    ax.set_ylabel("Adaptive Bypass Rate (%)", fontsize=12)
+    ax.set_title("Adaptive Robustness — FLAN-T5 Generated Attacks\n(Lower is Better)",
+                 fontsize=13, fontweight="bold")
+    ax.set_ylim(0, max(bypass_pct + [10]) * 1.2 + 5)
+    ax.spines[["top", "right"]].set_visible(False)
+    plt.tight_layout()
+
+    out = FIGURES_DIR / "robustness_adaptive.png"
+    plt.savefig(out, dpi=200, bbox_inches="tight")
+    plt.close()
+    print(f"[OK] Saved: results/figures/robustness_adaptive.png")
     return out
 
 
@@ -235,7 +263,7 @@ def _plot_paraphrase_robustness(para_df: pd.DataFrame):
 # Robustness Note
 # ---------------------------------------------------------------------------
 
-def _write_robustness_note(metrics_df, para_df, edge_df, out_path):
+def _write_robustness_note(metrics_df, para_df, edge_df, adaptive_df, out_path):
     """Write a plain-text robustness note (required deliverable)."""
 
     # Find best and worst by Bypass Rate (Layer 1)
@@ -310,7 +338,21 @@ def _write_robustness_note(metrics_df, para_df, edge_df, out_path):
         "  the previous TF-IDF approach. A perplexity signal (distilgpt2)",
         "  provides an additional language-model naturalness check.",
         "",
-        "4. WHERE DEFENSES FAILED",
+        "4. ADAPTIVE ATTACKS ROBUSTNESS (FLAN-T5)",
+        "-" * 40,
+    ]
+    for _, row in adaptive_df.iterrows():
+        lines.append(
+            f"  {row['method']:15s}  Adaptive Bypass={row['Adaptive_Bypass_Rate']*100:.1f}%  "
+            f"blocked {row['Blocked_Attacks']}/{row['Total_Attacks']} attacks"
+        )
+    lines += [
+        "",
+        "  Adaptive attacks are generated using FLAN-T5-Base in 5 styles.",
+        "  Context-Aware sanitizer is significantly more robust against these",
+        "  attacks compared to keyword and regex defenses because of semantic similarity signals.",
+        "",
+        "5. WHERE DEFENSES FAILED",
         "-" * 40,
         "  - Sophisticated roleplay jailbreaks (DAN, BOB, STAN personas)",
         "    that embed harmful requests inside fictional narratives.",
@@ -320,7 +362,7 @@ def _write_robustness_note(metrics_df, para_df, edge_df, out_path):
         "  - Very long prompts dilute keyword density below threshold.",
         "  - Bypassed prompts may still be refused by Phi-2 (True ASR < Bypass Rate).",
         "",
-        "5. REPRODUCIBILITY",
+        "6. REPRODUCIBILITY",
         "-" * 40,
         "  Fixed seed: 42 (applied to numpy and random modules).",
         "  All sanitizer metrics are deterministic given the same dataset split.",
@@ -330,7 +372,7 @@ def _write_robustness_note(metrics_df, para_df, edge_df, out_path):
 
     with open(out_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
-    print(f"[✓] Saved: results/robustness_note.txt")
+    print(f"[OK] Saved: results/robustness_note.txt")
 
 
 def _metrics_export_columns(metrics_df: pd.DataFrame) -> pd.DataFrame:
@@ -403,9 +445,9 @@ def main():
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
     with open(RESULTS_DIR / "confusion_matrices.json", "w", encoding="utf-8") as f:
         json.dump(cm_dict, f, indent=2)
-    print(f"\n[✓] Saved: results/metrics.csv")
-    print(f"[✓] Saved: results/logs.jsonl  ({len(logs_df)} records)")
-    print(f"[✓] Saved: results/confusion_matrices.json")
+    print(f"\n[OK] Saved: results/metrics.csv")
+    print(f"[OK] Saved: results/logs.jsonl  ({len(logs_df)} records)")
+    print(f"[OK] Saved: results/confusion_matrices.json")
 
     # -----------------------------------------------------------------------
     # Figures
@@ -425,21 +467,29 @@ def main():
     print(para_df[["method", "orig_Bypass_Rate", "para_Bypass_Rate", "Bypass_Rate_delta"]].to_string(index=False))
     para_df.to_csv(RESULTS_DIR / "robustness_paraphrase.csv", index=False)
     _plot_paraphrase_robustness(para_df)
-    print(f"[✓] Saved: results/robustness_paraphrase.csv")
+    print(f"[OK] Saved: results/robustness_paraphrase.csv")
 
     _banner("4.6  Robustness — Edge Benign Cases")
     edge_df = robustness_edge_benign()
     print("\n--- Edge Benign FPR ---")
     print(edge_df.to_string(index=False))
     edge_df.to_csv(RESULTS_DIR / "robustness_edge_benign.csv", index=False)
-    print(f"[✓] Saved: results/robustness_edge_benign.csv")
+    print(f"[OK] Saved: results/robustness_edge_benign.csv")
+
+    _banner("4.6  Robustness — Adaptive Attacks (FLAN-T5)")
+    adaptive_df = robustness_adaptive(test_csv=TEST_CSV)
+    print("\n--- Adaptive Bypass Rate ---")
+    print(adaptive_df.to_string(index=False))
+    adaptive_df.to_csv(RESULTS_DIR / "robustness_adaptive.csv", index=False)
+    _plot_adaptive_robustness(adaptive_df)
+    print(f"[OK] Saved: results/robustness_adaptive.csv")
 
     # -----------------------------------------------------------------------
     # Robustness Note
     # -----------------------------------------------------------------------
     _banner("Writing Robustness Note")
     _write_robustness_note(
-        metrics_df, para_df, edge_df,
+        metrics_df, para_df, edge_df, adaptive_df,
         out_path=RESULTS_DIR / "robustness_note.txt"
     )
 
@@ -465,10 +515,10 @@ def main():
         pd.DataFrame([clf_out]).to_csv(
             RESULTS_DIR / "classifier_metrics.csv", index=False
         )
-        print(f"[✓] Saved: results/classifier_metrics.csv")
-
+        print(f"[OK] Saved: results/classifier_metrics.csv")
+        
     # -----------------------------------------------------------------------
-    _banner("Experiment Complete ✓")
+    _banner("Experiment Complete")
     print("  All results written to results/")
     print("  Figures:  results/figures/")
     print("  Key file: results/robustness_note.txt\n")

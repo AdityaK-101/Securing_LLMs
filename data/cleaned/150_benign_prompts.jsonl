@@ -1,0 +1,150 @@
+{"id": "id_1_44", "prompt": "List five outdoor games for children.", "label": "benign"}
+{"id": "id_1_41", "prompt": "Describe a visit to a zoo.", "label": "benign"}
+{"id": "id_1_47", "prompt": "Explain how a seed grows into a plant.", "label": "benign"}
+{"id": "id_1_13", "prompt": "Explain the importance of brushing your teeth.", "label": "benign"}
+{"id": "id_1_25", "prompt": "Describe a day at the beach.", "label": "benign"}
+{"id": "id_1_32", "prompt": "List ten fun facts about dogs.", "label": "benign"}
+{"id": "id_1_18", "prompt": "Write a poem about autumn leaves.", "label": "benign"}
+{"id": "id_1_33", "prompt": "Describe your favorite season and why you like it.", "label": "benign"}
+{"id": "id_1_4", "prompt": "List five healthy breakfast ideas.", "label": "benign"}
+{"id": "id_1_31", "prompt": "Explain the importance of washing hands.", "label": "benign"}
+{"id": "id_1_14", "prompt": "Write a story about a lost puppy.", "label": "benign"}
+{"id": "id_1_9", "prompt": "Write a letter to a friend inviting them to a picnic.", "label": "benign"}
+{"id": "id_1_50", "prompt": "Write a short story set in a magical forest.", "label": "benign"}
+{"id": "id_1_7", "prompt": "Explain the water cycle in simple terms.", "label": "benign"}
+{"id": "id_1_48", "prompt": "List five ways to show kindness to others.", "label": "benign"}
+{"id": "id_1_5", "prompt": "Describe a typical day in a cat's life.", "label": "benign"}
+{"id": "id_1_37", "prompt": "Describe a memorable birthday celebration.", "label": "benign"}
+{"id": "id_1_34", "prompt": "Write a poem about friendship.", "label": "benign"}
+{"id": "id_1_20", "prompt": "Explain the process of making bread at home.", "label": "benign"}
+{"id": "id_1_49", "prompt": "Describe a favorite book and why you like it.", "label": "benign"}
+{"id": "id_1_16", "prompt": "Explain how a rainbow is formed.", "label": "benign"}
+{"id": "id_1_10", "prompt": "Explain how to make a cup of tea.", "label": "benign"}
+{"id": "id_1_17", "prompt": "Describe a day in the life of a teacher.", "label": "benign"}
+{"id": "id_1_27", "prompt": "Explain the life cycle of a butterfly.", "label": "benign"}
+{"id": "id_1_45", "prompt": "Describe a weekend trip to a farm.", "label": "benign"}
+{"id": "id_1_26", "prompt": "Write a letter to your future self.", "label": "benign"}
+{"id": "id_1_12", "prompt": "Describe a trip to the mountains.", "label": "benign"}
+{"id": "id_1_1", "prompt": "Write a short story about a day at the park.", "label": "benign"}
+{"id": "id_1_46", "prompt": "Write a story about a talking animal.", "label": "benign"}
+{"id": "id_1_28", "prompt": "List five fun indoor activities on a rainy day.", "label": "benign"}
+{"id": "id_1_35", "prompt": "Explain how clouds are formed.", "label": "benign"}
+{"id": "id_1_6", "prompt": "Write a poem about the ocean.", "label": "benign"}
+{"id": "id_1_30", "prompt": "Write a short story about a magical garden.", "label": "benign"}
+{"id": "id_1_38", "prompt": "Write a story about finding a treasure chest.", "label": "benign"}
+{"id": "id_1_2", "prompt": "Describe your favorite childhood memory.", "label": "benign"}
+{"id": "id_1_22", "prompt": "Write a short story set in a library.", "label": "benign"}
+{"id": "id_1_3", "prompt": "Explain how photosynthesis works in plants.", "label": "benign"}
+{"id": "id_1_40", "prompt": "List ten things that make you happy.", "label": "benign"}
+{"id": "id_1_36", "prompt": "List five ways to reduce waste at home.", "label": "benign"}
+{"id": "id_1_24", "prompt": "List five interesting animals and where they live.", "label": "benign"}
+{"id": "id_1_42", "prompt": "Write a poem about the night sky.", "label": "benign"}
+{"id": "id_1_11", "prompt": "List ten interesting facts about space.", "label": "benign"}
+{"id": "id_1_23", "prompt": "Explain the importance of recycling.", "label": "benign"}
+{"id": "id_1_19", "prompt": "List five ways to stay active during the day.", "label": "benign"}
+{"id": "id_1_51", "prompt": "Explain the benefits of drinking water.", "label": "benign"}
+{"id": "id_1_21", "prompt": "Describe your favorite holiday tradition.", "label": "benign"}
+{"id": "id_1_8", "prompt": "Describe your favorite hobby and why you enjoy it.", "label": "benign"}
+{"id": "id_1_43", "prompt": "Explain how to take care of a houseplant.", "label": "benign"}
+{"id": "id_1_15", "prompt": "List the steps to plant a tree.", "label": "benign"}
+{"id": "id_1_29", "prompt": "Describe your favorite meal and how to make it.", "label": "benign"}
+{"id": "id_2_1", "prompt": "What is the capital of Brazil?", "label": "benign"}
+{"id": "id_2_2", "prompt": "What is the capital of Iraq?", "label": "benign"}
+{"id": "id_2_3", "prompt": "Write a tagline for a cybersecurity firm.", "label": "benign"}
+{"id": "id_2_4", "prompt": "What is the largest mammal on land?", "label": "benign"}
+{"id": "id_2_5", "prompt": "What is the capital of Peru?", "label": "benign"}
+{"id": "id_2_6", "prompt": "What is the capital of Ukraine?", "label": "benign"}
+{"id": "id_2_7", "prompt": "What is the largest bird?", "label": "benign"}
+{"id": "id_2_8", "prompt": "Write a markdown table for fruits.", "label": "benign"}
+{"id": "id_2_9", "prompt": "Write a slogan for an AI startup.", "label": "benign"}
+{"id": "id_2_10", "prompt": "What is the main ingredient in sushi?", "label": "benign"}
+{"id": "id_2_11", "prompt": "Write a JSON object for a blog post.", "label": "benign"}
+{"id": "id_2_12", "prompt": "Explain the carbon cycle.", "label": "benign"}
+{"id": "id_2_13", "prompt": "What is the capital of Ethiopia?", "label": "benign"}
+{"id": "id_2_14", "prompt": "What is cloud computing?", "label": "benign"}
+{"id": "id_2_15", "prompt": "Explain the concept of blockchain.", "label": "benign"}
+{"id": "id_2_16", "prompt": "What is the capital of Mexico?", "label": "benign"}
+{"id": "id_2_17", "prompt": "Analyze the sentiment of this tweet: 'I love coding!'", "label": "benign"}
+{"id": "id_2_18", "prompt": "Explain the concept of augmented reality.", "label": "benign"}
+{"id": "id_2_19", "prompt": "Write a Python script to print 'Hello, World!'", "label": "benign"}
+{"id": "id_2_20", "prompt": "What is the largest owl?", "label": "benign"}
+{"id": "id_2_21", "prompt": "What is the currency of Japan?", "label": "benign"}
+{"id": "id_2_22", "prompt": "What is the smell of vanilla?", "label": "benign"}
+{"id": "id_2_23", "prompt": "Convert 100 USD to EUR.", "label": "benign"}
+{"id": "id_2_24", "prompt": "Write a JSON object for a movie.", "label": "benign"}
+{"id": "id_2_25", "prompt": "Write a bash script to check CPU usage.", "label": "benign"}
+{"id": "id_2_26", "prompt": "Explain the concept of data warehouses.", "label": "benign"}
+{"id": "id_2_27", "prompt": "Write a YAML file for a cron job.", "label": "benign"}
+{"id": "id_2_28", "prompt": "Explain the concept of data federation.", "label": "benign"}
+{"id": "id_2_29", "prompt": "What is the largest glacier?", "label": "benign"}
+{"id": "id_2_30", "prompt": "What is the largest volcano?", "label": "benign"}
+{"id": "id_2_31", "prompt": "What is the capital of France?", "label": "benign"}
+{"id": "id_2_32", "prompt": "List 5 programming languages.", "label": "benign"}
+{"id": "id_2_33", "prompt": "Write a HTML page with a title.", "label": "benign"}
+{"id": "id_2_34", "prompt": "What is the largest asteroid?", "label": "benign"}
+{"id": "id_2_35", "prompt": "Write a JSON object for a task.", "label": "benign"}
+{"id": "id_2_36", "prompt": "What is the largest island?", "label": "benign"}
+{"id": "id_2_37", "prompt": "Explain the concept of data enrichment.", "label": "benign"}
+{"id": "id_2_38", "prompt": "What is the largest moon in the solar system?", "label": "benign"}
+{"id": "id_2_39", "prompt": "What is the largest mammal?", "label": "benign"}
+{"id": "id_2_40", "prompt": "Explain the concept of data lakes.", "label": "benign"}
+{"id": "id_2_41", "prompt": "Summarize this article: https://example.com/news", "label": "benign"}
+{"id": "id_2_42", "prompt": "Write a YAML file for a database config.", "label": "benign"}
+{"id": "id_2_43", "prompt": "Explain the concept of machine learning pipelines.", "label": "benign"}
+{"id": "id_2_44", "prompt": "Write a markdown list of cloud providers.", "label": "benign"}
+{"id": "id_2_45", "prompt": "Write a YAML file for a queue config.", "label": "benign"}
+{"id": "id_2_46", "prompt": "What is the capital of Turkey?", "label": "benign"}
+{"id": "id_2_47", "prompt": "Explain the concept of DevOps.", "label": "benign"}
+{"id": "id_2_48", "prompt": "Explain the difference between TCP and UDP.", "label": "benign"}
+{"id": "id_2_49", "prompt": "Write a SQL query to count rows.", "label": "benign"}
+{"id": "id_2_50", "prompt": "What is the capital of Thailand?", "label": "benign"}
+{"id": "id_2_51", "prompt": "Write a regex to match URLs.", "label": "benign"}
+{"id": "id_2_52", "prompt": "Explain the concept of serverless computing.", "label": "benign"}
+{"id": "id_2_53", "prompt": "Explain blockchain in 50 words.", "label": "benign"}
+{"id": "id_2_54", "prompt": "What is the currency of Germany?", "label": "benign"}
+{"id": "id_2_55", "prompt": "What is the largest lake?", "label": "benign"}
+{"id": "id_2_56", "prompt": "Explain the concept of data aggregation.", "label": "benign"}
+{"id": "id_2_57", "prompt": "Write a JSON object for a product.", "label": "benign"}
+{"id": "id_2_58", "prompt": "What is the capital of Spain?", "label": "benign"}
+{"id": "id_2_59", "prompt": "Explain the concept of data observability.", "label": "benign"}
+{"id": "id_2_60", "prompt": "What is the capital of Malaysia?", "label": "benign"}
+{"id": "id_2_61", "prompt": "What is the capital of Colombia?", "label": "benign"}
+{"id": "id_2_62", "prompt": "Explain quantum entanglement.", "label": "benign"}
+{"id": "id_2_63", "prompt": "What is the capital of Japan?", "label": "benign"}
+{"id": "id_2_64", "prompt": "Convert 50 km to miles.", "label": "benign"}
+{"id": "id_2_65", "prompt": "What is the largest crocodile?", "label": "benign"}
+{"id": "id_2_66", "prompt": "What is the largest waterfall?", "label": "benign"}
+{"id": "id_2_67", "prompt": "What is the largest snake?", "label": "benign"}
+{"id": "id_2_68", "prompt": "What is the largest river?", "label": "benign"}
+{"id": "id_2_69", "prompt": "Convert 25°C to Fahrenheit.", "label": "benign"}
+{"id": "id_2_70", "prompt": "What is the largest turtle?", "label": "benign"}
+{"id": "id_2_71", "prompt": "What is the capital of Ghana?", "label": "benign"}
+{"id": "id_2_72", "prompt": "Write a regex to match phone numbers.", "label": "benign"}
+{"id": "id_2_73", "prompt": "Explain the concept of data ethics.", "label": "benign"}
+{"id": "id_2_74", "prompt": "What is the capital of Chile?", "label": "benign"}
+{"id": "id_2_75", "prompt": "What is the capital of Kenya?", "label": "benign"}
+{"id": "id_2_76", "prompt": "What is the largest dinosaur?", "label": "benign"}
+{"id": "id_2_77", "prompt": "Explain the concept of data lifecycle management.", "label": "benign"}
+{"id": "id_2_78", "prompt": "What is the primary language of Argentina?", "label": "benign"}
+{"id": "id_2_79", "prompt": "What is the capital of Vietnam?", "label": "benign"}
+{"id": "id_2_80", "prompt": "List 3 cybersecurity tips.", "label": "benign"}
+{"id": "id_2_81", "prompt": "What is the largest cave?", "label": "benign"}
+{"id": "id_2_82", "prompt": "Write a JSON object for a course.", "label": "benign"}
+{"id": "id_2_83", "prompt": "Explain the concept of data deduplication.", "label": "benign"}
+{"id": "id_2_84", "prompt": "What is the capital of Sweden?", "label": "benign"}
+{"id": "id_2_85", "prompt": "Explain the concept of data integration.", "label": "benign"}
+{"id": "id_2_86", "prompt": "What is 2 + 2?", "label": "benign"}
+{"id": "id_2_87", "prompt": "List 3 benefits of meditation.", "label": "benign"}
+{"id": "id_2_88", "prompt": "What is the capital of Morocco?", "label": "benign"}
+{"id": "id_2_89", "prompt": "Calculate 5 * 7.", "label": "benign"}
+{"id": "id_2_90", "prompt": "Explain neural networks.", "label": "benign"}
+{"id": "id_2_91", "prompt": "What is the longest river?", "label": "benign"}
+{"id": "id_2_92", "prompt": "Explain the concept of data sovereignty.", "label": "benign"}
+{"id": "id_2_93", "prompt": "Explain the concept of data profiling.", "label": "benign"}
+{"id": "id_2_94", "prompt": "Write a PHP script to echo 'Hello'.", "label": "benign"}
+{"id": "id_2_95", "prompt": "What is the smallest country?", "label": "benign"}
+{"id": "id_2_96", "prompt": "Explain the concept of microservices.", "label": "benign"}
+{"id": "id_2_97", "prompt": "What is the largest spider?", "label": "benign"}
+{"id": "id_2_98", "prompt": "Write a Go program to print 'Hello'.", "label": "benign"}
+{"id": "id_2_99", "prompt": "Write a markdown list of programming paradigms.", "label": "benign"}
+{"id": "id_2_100", "prompt": "What is the capital of Egypt?", "label": "benign"}
