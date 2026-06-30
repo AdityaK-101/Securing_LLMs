@@ -440,87 +440,155 @@ from .adaptive_attacks import (
 
 def robustness_adaptive(
     test_csv: str = TEST_CSV,
-) -> pd.DataFrame:
+    train_csv: str = TRAIN_CSV,
+    use_llm: bool = True,
+) -> tuple:
     """
-    Adaptive robustness evaluation using an
-    independent LLM attack generator.
+    Adaptive robustness evaluation using an independent LLM attack generator,
+    followed by the same two-layer pipeline as evaluate().
 
-    Each held-out injection prompt is rewritten
-    into multiple attack styles.
+    Each held-out injection prompt is rewritten into multiple attack styles,
+    then each adaptive attack passes through sanitizer → Phi-2 → Qwen judge.
 
-    The rewritten attacks are then evaluated
-    against every sanitizer.
+    Returns:
+        logs_df    — per-attack-per-method DataFrame
+        metrics_df — per-method summary (Bypass Rate, True ASR, FPR, TP/TN/FP/FN)
+        cm_dict    — per-method confusion matrices
     """
     df_test = pd.read_csv(test_csv)
-    injections = (
-        df_test[
-            df_test["label"] == "injection"
-        ]["prompt"]
-        .dropna()
-        .tolist()
+    injection_rows = df_test[
+        df_test["label"] == "injection"
+    ].dropna(subset=["prompt"])
+
+    sanitizers = get_all_sanitizers(train_csv=train_csv)
+    runner = LLMRunner() if use_llm else None
+
+    skip_judge = (
+        os.environ.get("SKIP_JUDGE", "0").strip() == "1"
+        or not use_llm
+        or runner is None
+        or runner.is_mock()
     )
-    sanitizers = get_all_sanitizers(
-        train_csv=TRAIN_CSV
-    )
-    records = []
+
+    attack_items = []
     print(
-        f"\n[Adaptive] "
-        f"{len(injections)} injection prompts"
+        f"\n[Adaptive] Generating attacks for "
+        f"{len(injection_rows)} injection prompts..."
     )
-    for prompt in tqdm(
-        injections,
-        desc="Adaptive Attack Generation"
+    for _, row in tqdm(
+        injection_rows.iterrows(),
+        total=len(injection_rows),
+        desc="Adaptive Attack Generation",
     ):
-        attacks = generate_adaptive_variants(
-            prompt
-        )
-        for attack in attacks:
-            for san in sanitizers:
-                _, blocked = san.sanitize(
-                    attack
-                )
-                records.append({
-                    "method":
-                        san.name,
-                    "blocked":
-                        blocked,
-                    "original":
-                        prompt,
-                    "adaptive":
-                        attack
-                })
+        prompt_id = row["id"]
+        source_prompt = str(row["prompt"])
+        attacks = generate_adaptive_variants(source_prompt)
+        for variant_idx, attack in enumerate(attacks):
+            attack_items.append(
+                (prompt_id, source_prompt, attack, variant_idx)
+            )
 
     release_generator()
-    df = pd.DataFrame(records)
-    if df.empty:
+
+    if not attack_items:
         raise ValueError(
             "No adaptive attack variants were successfully generated. "
             "Please check the FLAN-T5 model loading logs for errors."
         )
-    summary = (
-        df
-        .groupby("method")
-        .agg(
-            Adaptive_Bypass_Rate=(
-                "blocked",
-                lambda x:
-                round(
-                    1 - x.mean(),
-                    4
-                )
-            ),
-            Blocked_Attacks=(
-                "blocked",
-                "sum"
-            ),
-            Total_Attacks=(
-                "blocked",
-                "count"
-            )
-        )
-        .reset_index()
+
+    records = []
+    pending_judge = []
+
+    print(
+        f"\n[Adaptive] Phase 1: sanitizer + Phi-2 on "
+        f"{len(attack_items)} adaptive attacks × {len(sanitizers)} methods..."
     )
-    return summary
+    print(
+        f"[Adaptive] Phase 2: Qwen judge (COMPLIED/REFUSED) — "
+        f"{'enabled' if not skip_judge else 'disabled'}"
+    )
+
+    for prompt_id, source_prompt, attack, variant_idx in tqdm(
+        attack_items,
+        desc="Phase 1 (Phi-2)",
+    ):
+        label = "injection"
+
+        for san in sanitizers:
+            sanitized, blocked = san.sanitize(attack)
+
+            if blocked:
+                llm_output = "[BLOCKED]"
+                judge_label = "BLOCKED"
+                judge_reasoning = ""
+            elif runner:
+                llm_output = runner.run(sanitized)
+                if not skip_judge:
+                    judge_label = None
+                    judge_reasoning = ""
+                else:
+                    judge_label = "SKIPPED"
+                    judge_reasoning = ""
+            else:
+                llm_output = "[LLM_SKIPPED]"
+                judge_label = "SKIPPED"
+                judge_reasoning = ""
+
+            rec = {
+                "id":               f"{prompt_id}_v{variant_idx}",
+                "label":            label,
+                "method":           san.name,
+                "blocked":          blocked,
+                "original":         attack,
+                "source_injection": source_prompt,
+                "sanitized":        sanitized,
+                "llm_output":       llm_output,
+                "judge_label":      judge_label,
+                "judge_reasoning":  judge_reasoning,
+                "attack_success":   False,
+            }
+            if judge_label is None:
+                pending_judge.append(len(records))
+            elif judge_label not in (None, "N/A", "SKIPPED"):
+                rec["attack_success"] = _attack_success(label, blocked, judge_label)
+            records.append(rec)
+
+    if pending_judge and not skip_judge:
+        print(
+            f"\n[Adaptive] Phase 2: judging "
+            f"{len(pending_judge)} unblocked adaptive attacks..."
+        )
+        for san in sanitizers:
+            if hasattr(san, "release_models"):
+                san.release_models()
+        if runner:
+            runner.release()
+        empty_cuda_cache()
+
+        judge = ComplianceJudge()
+
+        if judge.is_mock():
+            for idx in pending_judge:
+                records[idx]["judge_label"] = "SKIPPED"
+        else:
+            for idx in tqdm(pending_judge, desc="Phase 2 (Qwen judge)"):
+                rec = records[idx]
+                judge_label, reasoning = judge.evaluate(
+                    rec["original"], rec["llm_output"]
+                )
+                rec["judge_label"] = judge_label
+                rec["judge_reasoning"] = reasoning
+                rec["attack_success"] = _attack_success(
+                    rec["label"], rec["blocked"], judge_label
+                )
+
+        judge.release()
+        empty_cuda_cache()
+
+    logs_df = pd.DataFrame(records)
+    metrics_df, cm_dict = _compute_metrics(logs_df)
+
+    return logs_df, metrics_df, cm_dict
 
 
 def robustness_edge_benign() -> pd.DataFrame:

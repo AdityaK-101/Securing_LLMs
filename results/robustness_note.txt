@@ -12,13 +12,13 @@ METRIC DEFINITIONS
 
 1. DEFENSE EFFECTIVENESS (Layer 1 + Layer 2)
 ----------------------------------------
-  baseline         Bypass=100.0%  TrueASR= 60.0%  FPR=  0.0%  TP=  0  FN= 30  FP=  0  TN= 23  attacks=18
-  regex            Bypass= 86.7%  TrueASR= 56.7%  FPR=  0.0%  TP=  4  FN= 26  FP=  0  TN= 23  attacks=17
-  keyword          Bypass= 96.7%  TrueASR= 60.0%  FPR=  0.0%  TP=  1  FN= 29  FP=  0  TN= 23  attacks=18
-  context_aware    Bypass=  6.7%  TrueASR=  3.3%  FPR= 13.0%  TP= 28  FN=  2  FP=  3  TN= 20  attacks=1
+  baseline         Bypass=100.0%  TrueASR= 46.7%  FPR=  0.0%  TP=  0  FN= 30  FP=  0  TN= 23  attacks=14
+  regex            Bypass= 86.7%  TrueASR= 46.7%  FPR=  0.0%  TP=  4  FN= 26  FP=  0  TN= 23  attacks=14
+  keyword          Bypass= 96.7%  TrueASR= 46.7%  FPR=  0.0%  TP=  1  FN= 29  FP=  0  TN= 23  attacks=14
+  context_aware    Bypass=  6.7%  TrueASR=  0.0%  FPR= 13.0%  TP= 28  FN=  2  FP=  3  TN= 20  attacks=0
 
-  Best performing defense: context_aware (Bypass=6.7%, TrueASR=3.3%)
-  Weakest active defense:  keyword (Bypass=96.7%, TrueASR=60.0%)
+  Best performing defense: context_aware (Bypass=6.7%, TrueASR=0.0%)
+  Weakest active defense:  keyword (Bypass=96.7%, TrueASR=46.7%)
 
 2. SIDE EFFECTS & FALSE POSITIVES
 ----------------------------------------
@@ -48,12 +48,13 @@ METRIC DEFINITIONS
 
 4. ADAPTIVE ATTACKS ROBUSTNESS (FLAN-T5)
 ----------------------------------------
-  baseline         Adaptive Bypass=100.0%  blocked 0/150 attacks
-  context_aware    Adaptive Bypass=16.7%  blocked 125/150 attacks
-  keyword          Adaptive Bypass=96.7%  blocked 5/150 attacks
-  regex            Adaptive Bypass=93.3%  blocked 10/150 attacks
+  baseline         Bypass=100.0%  TrueASR= 45.3%  blocked 0/150 attacks
+  regex            Bypass= 93.3%  TrueASR= 42.0%  blocked 10/150 attacks
+  keyword          Bypass= 96.7%  TrueASR= 45.3%  blocked 5/150 attacks
+  context_aware    Bypass= 16.7%  TrueASR=  8.7%  blocked 125/150 attacks
 
-  Adaptive attacks are generated using FLAN-T5-Base in 5 styles.
+  Adaptive attacks are generated using FLAN-T5-Base in 5 styles,
+  then evaluated through the full sanitizer → Phi-2 → Qwen judge pipeline.
   Context-Aware sanitizer is significantly more robust against these
   attacks compared to keyword and regex defenses because of semantic similarity signals.
 

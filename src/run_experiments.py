@@ -231,24 +231,46 @@ def _plot_paraphrase_robustness(para_df: pd.DataFrame):
     return out
 
 
-def _plot_adaptive_robustness(adaptive_df: pd.DataFrame):
-    """Adaptive attack robustness bar chart — Bypass Rate per method under LLM-generated attacks."""
-    methods = adaptive_df["method"].tolist()
-    bypass_pct = (adaptive_df["Adaptive_Bypass_Rate"] * 100).tolist()
+def _plot_adaptive_robustness(adaptive_metrics_df: pd.DataFrame):
+    """Adaptive attack robustness bar chart — Bypass Rate and True ASR under FLAN-T5 attacks."""
+    methods = adaptive_metrics_df["method"].tolist()
+    bypass_pct = adaptive_metrics_df["Bypass_Rate_%"].tolist()
+    true_asr_pct = adaptive_metrics_df["True_ASR_%"].tolist()
     labels = [METHOD_LABELS.get(m, m) for m in methods]
     colors = [METHOD_COLORS.get(m, "#95a5a6") for m in methods]
 
-    fig, ax = plt.subplots(figsize=(8, 5))
-    bars = ax.bar(labels, bypass_pct, color=colors, edgecolor="black", linewidth=0.8, width=0.55)
+    x = np.arange(len(methods))
+    w = 0.35
+    fig, ax = plt.subplots(figsize=(9, 5))
+    b1 = ax.bar(
+        x - w / 2, bypass_pct, w,
+        label="Bypass Rate (Layer 1)", color="#3498db",
+        edgecolor="black", linewidth=0.7,
+    )
+    b2 = ax.bar(
+        x + w / 2, true_asr_pct, w,
+        label="True ASR (Layer 2)", color="#e74c3c",
+        edgecolor="black", linewidth=0.7,
+    )
 
-    for bar, v in zip(bars, bypass_pct):
-        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1.2,
-                f"{v:.1f}%", ha="center", va="bottom", fontweight="bold", fontsize=11)
+    for bar in list(b1) + list(b2):
+        h = bar.get_height()
+        ax.text(
+            bar.get_x() + bar.get_width() / 2, h + 0.8,
+            f"{h:.1f}%", ha="center", va="bottom",
+            fontsize=9, fontweight="bold",
+        )
 
-    ax.set_ylabel("Adaptive Bypass Rate (%)", fontsize=12)
-    ax.set_title("Adaptive Robustness — FLAN-T5 Generated Attacks\n(Lower is Better)",
-                 fontsize=13, fontweight="bold")
-    ax.set_ylim(0, max(bypass_pct + [10]) * 1.2 + 5)
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, fontsize=9)
+    ax.set_ylabel("Rate (%)", fontsize=11)
+    ax.set_title(
+        "Adaptive Robustness — FLAN-T5 Generated Attacks\n(Lower is Better)",
+        fontsize=12, fontweight="bold",
+    )
+    ymax = max(bypass_pct + true_asr_pct + [10]) * 1.2 + 5
+    ax.set_ylim(0, ymax)
+    ax.legend(fontsize=10)
     ax.spines[["top", "right"]].set_visible(False)
     plt.tight_layout()
 
@@ -342,13 +364,17 @@ def _write_robustness_note(metrics_df, para_df, edge_df, adaptive_df, out_path):
         "-" * 40,
     ]
     for _, row in adaptive_df.iterrows():
+        blocked_attacks = row["TP"]
+        total_attacks = row["injections"]
         lines.append(
-            f"  {row['method']:15s}  Adaptive Bypass={row['Adaptive_Bypass_Rate']*100:.1f}%  "
-            f"blocked {row['Blocked_Attacks']}/{row['Total_Attacks']} attacks"
+            f"  {row['method']:15s}  Bypass={row['Bypass_Rate_%']:5.1f}%  "
+            f"TrueASR={row['True_ASR_%']:5.1f}%  "
+            f"blocked {blocked_attacks}/{total_attacks} attacks"
         )
     lines += [
         "",
-        "  Adaptive attacks are generated using FLAN-T5-Base in 5 styles.",
+        "  Adaptive attacks are generated using FLAN-T5-Base in 5 styles,",
+        "  then evaluated through the full sanitizer → Phi-2 → Qwen judge pipeline.",
         "  Context-Aware sanitizer is significantly more robust against these",
         "  attacks compared to keyword and regex defenses because of semantic similarity signals.",
         "",
@@ -477,19 +503,33 @@ def main():
     print(f"[OK] Saved: results/robustness_edge_benign.csv")
 
     _banner("4.6  Robustness — Adaptive Attacks (FLAN-T5)")
-    adaptive_df = robustness_adaptive(test_csv=TEST_CSV)
-    print("\n--- Adaptive Bypass Rate ---")
-    print(adaptive_df.to_string(index=False))
-    adaptive_df.to_csv(RESULTS_DIR / "robustness_adaptive.csv", index=False)
-    _plot_adaptive_robustness(adaptive_df)
+    adaptive_logs_df, adaptive_metrics_df, adaptive_cm_dict = robustness_adaptive(
+        test_csv=TEST_CSV, train_csv=TRAIN_CSV, use_llm=use_llm,
+    )
+    print("\n--- Adaptive Bypass Rate / True ASR ---")
+    print(adaptive_metrics_df[cols].to_string(index=False))
+    _metrics_export_columns(adaptive_metrics_df).to_csv(
+        RESULTS_DIR / "robustness_adaptive.csv", index=False,
+    )
+    with open(RESULTS_DIR / "robustness_adaptive_logs.jsonl", "w", encoding="utf-8") as f:
+        for rec in adaptive_logs_df.to_dict(orient="records"):
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    with open(
+        RESULTS_DIR / "robustness_adaptive_confusion_matrices.json",
+        "w", encoding="utf-8",
+    ) as f:
+        json.dump(adaptive_cm_dict, f, indent=2)
+    _plot_adaptive_robustness(adaptive_metrics_df)
     print(f"[OK] Saved: results/robustness_adaptive.csv")
+    print(f"[OK] Saved: results/robustness_adaptive_logs.jsonl  ({len(adaptive_logs_df)} records)")
+    print(f"[OK] Saved: results/robustness_adaptive_confusion_matrices.json")
 
     # -----------------------------------------------------------------------
     # Robustness Note
     # -----------------------------------------------------------------------
     _banner("Writing Robustness Note")
     _write_robustness_note(
-        metrics_df, para_df, edge_df, adaptive_df,
+        metrics_df, para_df, edge_df, adaptive_metrics_df,
         out_path=RESULTS_DIR / "robustness_note.txt"
     )
 
