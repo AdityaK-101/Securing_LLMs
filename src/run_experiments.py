@@ -42,6 +42,7 @@ import matplotlib.patches as mpatches
 from pathlib import Path
 
 from .evaluate import evaluate, robustness_paraphrase, robustness_adaptive, robustness_edge_benign
+from .ablation import run_weighted_ablation_study, run_hard_trigger_ablation_study
 from .judge import ComplianceJudge, run_calibration
 
 _ROOT       = Path(__file__).parent.parent
@@ -281,6 +282,50 @@ def _plot_adaptive_robustness(adaptive_metrics_df: pd.DataFrame):
     return out
 
 
+def _plot_ablation_bypass_rate(
+    ablation_df: pd.DataFrame,
+    title: str,
+    filename: str,
+    full_variant_names: set = None,
+):
+    """Ablation bar chart — Bypass Rate per variant."""
+    if full_variant_names is None:
+        full_variant_names = {"Full Weighted Model", "Full Model", "Full"}
+
+    variants = ablation_df["variant"].tolist()
+    bypass_pct = ablation_df["Bypass_Rate_%"].tolist()
+    colors = [
+        "#2ecc71" if v in full_variant_names else "#3498db"
+        for v in variants
+    ]
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    bars = ax.bar(
+        variants, bypass_pct, color=colors,
+        edgecolor="black", linewidth=0.8, width=0.65,
+    )
+
+    for bar, v in zip(bars, bypass_pct):
+        ax.text(
+            bar.get_x() + bar.get_width() / 2, bar.get_height() + 1.2,
+            f"{v:.1f}%", ha="center", va="bottom",
+            fontweight="bold", fontsize=10,
+        )
+
+    ax.set_ylabel("Bypass Rate (%)", fontsize=12)
+    ax.set_title(title, fontsize=13, fontweight="bold")
+    ax.set_ylim(0, max(bypass_pct + [10]) * 1.2 + 5)
+    plt.xticks(rotation=35, ha="right", fontsize=9)
+    ax.spines[["top", "right"]].set_visible(False)
+    plt.tight_layout()
+
+    out = FIGURES_DIR / filename
+    plt.savefig(out, dpi=200, bbox_inches="tight")
+    plt.close()
+    print(f"[OK] Saved: results/figures/{filename}")
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Robustness Note
 # ---------------------------------------------------------------------------
@@ -424,6 +469,10 @@ def main():
                         help="Run optional judge calibration (~20 cases) before evaluation")
     parser.add_argument("--classifier", action="store_true",
                         help="Run stretch-goal LR+TF-IDF classifier")
+    parser.add_argument("--weighted-ablation", action="store_true",
+                        help="Run weighted signal ablation study only (separate outputs)")
+    parser.add_argument("--hard-trigger-ablation", action="store_true",
+                        help="Run hard-trigger ablation study only (separate outputs)")
     args = parser.parse_args()
 
     RESULTS_DIR.mkdir(exist_ok=True)
@@ -432,6 +481,61 @@ def main():
     use_llm = not args.no_llm
     if args.no_judge:
         os.environ["SKIP_JUDGE"] = "1"
+
+    ablation_cols = [
+        "variant", "Bypass_Rate_%", "True_ASR_%", "Detection_Rate", "FPR_%",
+        "TP", "FN", "FP", "TN", "successful_attack_count",
+    ]
+
+    if args.weighted_ablation or args.hard_trigger_ablation:
+        print(f"  Target : microsoft/phi-2 ({'enabled' if use_llm else 'SKIP (--no-llm)'})")
+        print(f"  Judge  : Qwen2.5-7B-Instruct ({'enabled' if use_llm and not args.no_judge else 'SKIP'})")
+        print(f"  Seed   : 42 (fixed for reproducibility)")
+        print(f"  Test   : {TEST_CSV}")
+        print(f"  Train  : {TRAIN_CSV}")
+
+    if args.weighted_ablation:
+        _banner("Weighted Signal Ablation")
+        weighted_df = run_weighted_ablation_study(
+            test_csv=TEST_CSV, train_csv=TRAIN_CSV, use_llm=use_llm,
+        )
+        print("\n--- Weighted Signal Ablation Summary ---")
+        print(weighted_df[ablation_cols].to_string(index=False))
+        weighted_df.to_csv(RESULTS_DIR / "weighted_ablation_metrics.csv", index=False)
+        _plot_ablation_bypass_rate(
+            weighted_df,
+            title="Weighted Signal Ablation — Bypass Rate by Signal\n(Hard Triggers Disabled; Lower is Better)",
+            filename="weighted_ablation.png",
+            full_variant_names={"Full Weighted Model"},
+        )
+        print("[OK] Saved: results/weighted_ablation_metrics.csv")
+
+    if args.hard_trigger_ablation:
+        _banner("Hard Trigger Ablation")
+        hard_trigger_df = run_hard_trigger_ablation_study(
+            test_csv=TEST_CSV, train_csv=TRAIN_CSV, use_llm=use_llm,
+        )
+        print("\n--- Hard Trigger Ablation Summary ---")
+        print(hard_trigger_df[ablation_cols].to_string(index=False))
+        hard_trigger_df.to_csv(RESULTS_DIR / "hard_trigger_ablation.csv", index=False)
+        _plot_ablation_bypass_rate(
+            hard_trigger_df,
+            title="Hard Trigger Ablation — Bypass Rate by Variant\n(Lower is Better)",
+            filename="hard_trigger_ablation.png",
+            full_variant_names={"Full Model"},
+        )
+        print("[OK] Saved: results/hard_trigger_ablation.csv")
+
+    if args.weighted_ablation or args.hard_trigger_ablation:
+        _banner("Ablation Study Complete")
+        if args.weighted_ablation:
+            print("  Weighted: results/weighted_ablation_metrics.csv")
+            print("            results/figures/weighted_ablation.png")
+        if args.hard_trigger_ablation:
+            print("  Triggers: results/hard_trigger_ablation.csv")
+            print("            results/figures/hard_trigger_ablation.png")
+        print()
+        return
 
     _banner("Milestone 3 — Prompt Injection Defense Evaluation")
     print(f"  Target : microsoft/phi-2 ({'enabled' if use_llm else 'SKIP (--no-llm)'})")

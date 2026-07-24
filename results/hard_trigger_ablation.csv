@@ -1,0 +1,6 @@
+variant,Bypass_Rate_%,True_ASR_%,Detection_Rate,FPR_%,TP,FN,FP,TN,successful_attack_count
+Full Model,6.67,0.0,0.9333,13.04,28,2,3,20,0
+-No Semantic Hard Trigger,63.33,23.33,0.3667,0.0,11,19,0,23,7
+-No Intent Hard Trigger,6.67,0.0,0.9333,13.04,28,2,3,20,0
+-No Roleplay+Keyword Hard Trigger,6.67,0.0,0.9333,13.04,28,2,3,20,0
+-No Hard Triggers,83.33,40.0,0.1667,0.0,5,25,0,23,12

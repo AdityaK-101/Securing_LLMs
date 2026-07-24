@@ -308,6 +308,117 @@ def evaluate(
     return logs_df, metrics_df, cm_dict
 
 
+def evaluate_sanitizer(
+    sanitizer,
+    test_csv: str = TEST_CSV,
+    use_llm: bool = True,
+) -> tuple:
+    """
+    Run the full two-layer evaluation pipeline for a single sanitizer.
+
+    Same logic as evaluate(), but accepts one sanitizer instance instead of
+    calling get_all_sanitizers(). Used by ablation studies.
+    """
+    df_test = pd.read_csv(test_csv)
+    runner = LLMRunner() if use_llm else None
+
+    skip_judge = (
+        os.environ.get("SKIP_JUDGE", "0").strip() == "1"
+        or not use_llm
+        or runner is None
+        or runner.is_mock()
+    )
+
+    records = []
+    pending_judge = []
+
+    print(
+        f"\n[Evaluate] Running experiment on {len(df_test)} prompts "
+        f"× 1 method ({sanitizer.name})..."
+    )
+    print(f"[Evaluate] Phase 1: sanitizer + Phi-2")
+    print(
+        f"[Evaluate] Phase 2: Qwen judge (COMPLIED/REFUSED) — "
+        f"{'enabled' if not skip_judge else 'disabled'}"
+    )
+
+    for _, row in tqdm(df_test.iterrows(), total=len(df_test), desc="Phase 1 (Phi-2)"):
+        prompt_id = row["id"]
+        prompt    = str(row["prompt"])
+        label     = str(row["label"])
+
+        sanitized, blocked = sanitizer.sanitize(prompt)
+
+        if blocked:
+            llm_output = "[BLOCKED]"
+            judge_label = "BLOCKED"
+            judge_reasoning = ""
+        elif runner:
+            llm_output = runner.run(sanitized)
+            if label == "injection" and not skip_judge:
+                judge_label = None
+                judge_reasoning = ""
+            elif label == "injection":
+                judge_label = "SKIPPED"
+                judge_reasoning = ""
+            else:
+                judge_label = "N/A"
+                judge_reasoning = ""
+        else:
+            llm_output = "[LLM_SKIPPED]"
+            judge_label = "SKIPPED"
+            judge_reasoning = ""
+
+        rec = {
+            "id":               prompt_id,
+            "label":            label,
+            "method":           sanitizer.name,
+            "blocked":          blocked,
+            "original":         prompt,
+            "sanitized":        sanitized,
+            "llm_output":       llm_output,
+            "judge_label":      judge_label,
+            "judge_reasoning":  judge_reasoning,
+            "attack_success":   False,
+        }
+        if judge_label is None:
+            pending_judge.append(len(records))
+        elif judge_label not in (None, "N/A", "SKIPPED"):
+            rec["attack_success"] = _attack_success(label, blocked, judge_label)
+        records.append(rec)
+
+    if pending_judge and not skip_judge:
+        print(f"\n[Evaluate] Phase 2: judging {len(pending_judge)} unblocked injections...")
+        if hasattr(sanitizer, "release_models"):
+            sanitizer.release_models()
+        if runner:
+            runner.release()
+        empty_cuda_cache()
+
+        judge = ComplianceJudge()
+
+        if judge.is_mock():
+            for idx in pending_judge:
+                records[idx]["judge_label"] = "SKIPPED"
+        else:
+            for idx in tqdm(pending_judge, desc="Phase 2 (Qwen judge)"):
+                rec = records[idx]
+                label, reasoning = judge.evaluate(rec["original"], rec["llm_output"])
+                rec["judge_label"] = label
+                rec["judge_reasoning"] = reasoning
+                rec["attack_success"] = _attack_success(
+                    rec["label"], rec["blocked"], label
+                )
+
+        judge.release()
+        empty_cuda_cache()
+
+    logs_df = pd.DataFrame(records)
+    metrics_df, cm_dict = _compute_metrics(logs_df)
+
+    return logs_df, metrics_df, cm_dict
+
+
 def _compute_metrics(logs_df: pd.DataFrame) -> tuple:
     """
     Compute per-method metrics.

@@ -257,8 +257,37 @@ class ContextAwareSanitizer:
     """
     name = "context_aware"
 
-    def __init__(self, threshold: float = CONTEXT_THRESHOLD, train_csv: str = _TRAIN_CSV):
+    def __init__(
+        self,
+        threshold: float = CONTEXT_THRESHOLD,
+        train_csv: str = _TRAIN_CSV,
+        disable_regex: bool = False,
+        disable_keyword: bool = False,
+        disable_semantic: bool = False,
+        disable_intent: bool = False,
+        disable_roleplay: bool = False,
+        disable_instruction_shift: bool = False,
+        disable_objective_conflict: bool = False,
+        disable_perplexity: bool = False,
+        disable_hard_triggers: bool = False,
+        disable_semantic_hard_trigger: bool = False,
+        disable_intent_hard_trigger: bool = False,
+        disable_roleplay_keyword_hard_trigger: bool = False,
+        _skip_train: bool = False,
+    ):
         self.threshold = threshold
+        self._disable_regex = disable_regex
+        self._disable_keyword = disable_keyword
+        self._disable_semantic = disable_semantic
+        self._disable_intent = disable_intent
+        self._disable_roleplay = disable_roleplay
+        self._disable_instruction_shift = disable_instruction_shift
+        self._disable_objective_conflict = disable_objective_conflict
+        self._disable_perplexity = disable_perplexity
+        self._disable_hard_triggers = disable_hard_triggers
+        self._disable_semantic_hard_trigger = disable_semantic_hard_trigger
+        self._disable_intent_hard_trigger = disable_intent_hard_trigger
+        self._disable_roleplay_keyword_hard_trigger = disable_roleplay_keyword_hard_trigger
         self._regex_san  = RegexSanitizer()
         self._kw_san     = KeywordHeuristicSanitizer()
 
@@ -271,8 +300,10 @@ class ContextAwareSanitizer:
         self._ppl_tokenizer = None
         self._ppl_low = None   # 5th percentile of train perplexities (calibration)
         self._ppl_high = None  # 95th percentile of train perplexities (calibration)
+        self._device = "cpu"
 
-        self._train(train_csv)
+        if not _skip_train:
+            self._train(train_csv)
 
     def _train(self, train_csv: str):
         """Load models, encode injection prompts, and calibrate perplexity."""
@@ -514,20 +545,46 @@ class ContextAwareSanitizer:
         return 1.0 if any(p.search(lowered) for p in self._CONFLICT_PATTERNS) else 0.0
 
     def score(self, prompt: str) -> dict:
-        r   = self._regex_signal(prompt)
-        k   = self._keyword_signal(prompt)
-        s   = self._semantic_signal(prompt)
-        i   = self._intent_signal(prompt)
-        rp  = self._roleplay_signal(prompt)
-        sh  = self._instruction_shift_signal(prompt)
-        obj = self._objective_conflict_signal(prompt)
-        ppl = self._perplexity_signal(prompt)
+        r   = 0.0 if self._disable_regex else self._regex_signal(prompt)
+        k   = 0.0 if self._disable_keyword else self._keyword_signal(prompt)
+        s   = 0.0 if self._disable_semantic else self._semantic_signal(prompt)
+        i   = 0.0 if self._disable_intent else self._intent_signal(prompt)
+        rp  = 0.0 if self._disable_roleplay else self._roleplay_signal(prompt)
+        sh  = 0.0 if self._disable_instruction_shift else self._instruction_shift_signal(prompt)
+        obj = 0.0 if self._disable_objective_conflict else self._objective_conflict_signal(prompt)
+        ppl = 0.0 if self._disable_perplexity else self._perplexity_signal(prompt)
         total = (W1*r + W2*k + W3*s + W4*i + W5*rp + W6*sh + W7*obj + W8*ppl)
         return {
             "regex": r, "keyword": k, "semantic": s,
             "intent": i, "roleplay": rp, "shift": sh,
             "objective_conflict": obj, "perplexity": ppl, "total": total,
         }
+
+    def _hard_trigger_blocked(self, signals: dict) -> bool:
+        """Return True if any enabled hard trigger fires."""
+        if self._disable_hard_triggers:
+            return False
+        if (
+            not self._disable_semantic_hard_trigger
+            and not self._disable_semantic
+            and signals["semantic"] > 0.6
+        ):
+            return True
+        if (
+            not self._disable_intent_hard_trigger
+            and not self._disable_intent
+            and signals["intent"] == 1.0
+        ):
+            return True
+        if (
+            not self._disable_roleplay_keyword_hard_trigger
+            and not self._disable_roleplay
+            and not self._disable_keyword
+            and signals["roleplay"] == 1.0
+            and signals["keyword"] > 0.3
+        ):
+            return True
+        return False
 
     def sanitize(self, prompt: str):
         signals = self.score(prompt)
@@ -538,17 +595,52 @@ class ContextAwareSanitizer:
         # roleplay + keyword combo: roleplay frame with suspicious keywords.
         # No hard trigger for perplexity — it is a supplementary naturalness
         # signal, not discriminative enough alone for hard blocking.
-        if signals["semantic"] > 0.6:
-            blocked = True   # vocabulary clearly matches known injections
-        elif signals["intent"] == 1.0:
-            blocked = True   # structural injection pattern found
-        elif signals["roleplay"] == 1.0 and signals["keyword"] > 0.3:
-            blocked = True   # roleplay frame + suspicious keyword combo
-        else:
-            blocked = signals["total"] >= self.threshold  # soft weighted score
+        # Individual hard triggers and disable_hard_triggers can bypass these rules.
+        blocked = self._hard_trigger_blocked(signals) or signals["total"] >= self.threshold
 
         sanitized = "[PROMPT BLOCKED — CONTEXT ANALYSIS]" if blocked else prompt
         return sanitized, blocked
+
+    _CONFIG_KEYS = (
+        "threshold",
+        "disable_regex",
+        "disable_keyword",
+        "disable_semantic",
+        "disable_intent",
+        "disable_roleplay",
+        "disable_instruction_shift",
+        "disable_objective_conflict",
+        "disable_perplexity",
+        "disable_hard_triggers",
+        "disable_semantic_hard_trigger",
+        "disable_intent_hard_trigger",
+        "disable_roleplay_keyword_hard_trigger",
+    )
+
+    def copy_with(self, name: str = None, **overrides) -> "ContextAwareSanitizer":
+        """
+        Return a lightweight variant sharing loaded MiniLM / distilgpt2 state.
+
+        Used by ablation studies to avoid reloading auxiliary models per variant.
+        """
+        clone = object.__new__(ContextAwareSanitizer)
+        clone.name = name if name is not None else self.name
+        clone._regex_san = self._regex_san
+        clone._kw_san = self._kw_san
+        clone._embed_model = self._embed_model
+        clone._injection_embeddings = self._injection_embeddings
+        clone._ppl_model = self._ppl_model
+        clone._ppl_tokenizer = self._ppl_tokenizer
+        clone._ppl_low = self._ppl_low
+        clone._ppl_high = self._ppl_high
+        clone._device = self._device
+
+        for key in self._CONFIG_KEYS:
+            attr = key if key == "threshold" else f"_{key}"
+            default = getattr(self, attr)
+            setattr(clone, attr, overrides.get(key, default))
+
+        return clone
 
     def release_models(self):
         """
