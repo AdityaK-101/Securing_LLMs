@@ -44,7 +44,7 @@ This project evaluates four defense strategies — from a simple baseline (no de
 | Metric | Layer | Definition |
 |--------|-------|------------|
 | **Bypass Rate** | Layer 1 (Sanitizer) | % of injection prompts the sanitizer *fails* to block — lower is better |
-| **True ASR** | Layer 2 (Model) | % of injection prompts where sanitizer was bypassed AND Phi-2 actually complied (per Qwen2.5-7B judge) — lower is better |
+| **True ASR** | Layer 2 (Model) | % of injection prompts where sanitizer was bypassed AND the target LLM actually complied (per judge) — lower is better |
 | **FPR** (False Positive Rate) | Layer 1 | % of safe prompts incorrectly blocked — lower is better |
 
 ---
@@ -69,14 +69,16 @@ Securing_LLMs/
 │
 ├── src/
 │   ├── __init__.py
-│   ├── sanitizers.py           ← All 4 defense methods
-│   ├── llm_runner.py           ← microsoft/phi-2 integration
-│   ├── evaluate.py             ← Metrics engine (Bypass Rate, True ASR, FPR, confusion matrix)
-│   ├── adaptive_attacks.py     ← FLAN-T5 adaptive attack generator
-│   ├── judge.py                ← Qwen2.5-7B compliance judge (Layer 2)
+│   ├── config.py               ← Shared paths, seeds, model names
+│   ├── run_experiments.py      ← Main CLI runner (orchestration only)
 │   ├── classifier.py           ← LR + TF-IDF ML classifier (stretch goal)
-│   └── run_experiments.py      ← Main CLI runner
+│   ├── sanitizers/             ← All 4 defense methods
+│   ├── models/                 ← Target LLM, judge, FLAN-T5 attack generator
+│   ├── evaluation/             ← Pipeline, metrics, robustness, ablation
+│   ├── visualization/          ← Plots + robustness note
+│   └── utils/                  ← GPU helpers + dataset loading
 │
+├── load_dataset.py             ← Convenience CLI for train/val/test splits
 ├── results/
 │   ├── metrics.csv             ← Bypass Rate / True ASR / FPR per method
 │   ├── logs.jsonl              ← Per-prompt records with LLM outputs
@@ -168,7 +170,7 @@ The injections cover a wide variety of real jailbreak techniques:
 ## 5. Milestone 3 — Experiments & Tests (Weeks 5–6)
 
 ### Objective
-Evaluate all four defense methods against `microsoft/phi-2` using the held-out test set. Measure Bypass Rate, True ASR, FPR, and robustness.
+Evaluate all four defense methods against `Qwen/Qwen2.5-3B-Instruct` using the held-out test set. Measure Bypass Rate, True ASR, FPR, and robustness.
 
 ---
 
@@ -273,55 +275,48 @@ else:
 
 > **Note:** The upgrade from TF-IDF to MiniLM + perplexity dramatically improved detection
 > (Bypass Rate 47.8% → 4.35%) at the cost of a modest FPR increase (0% → 13.33%).
-> The True ASR of 0.0% means zero attacks were both bypassed AND complied by Phi-2.
+> The True ASR of 0.0% means zero attacks were both bypassed AND complied by the target LLM.
 
 ---
 
 ### How the LLM Runner Works
 
-`src/llm_runner.py` wraps `microsoft/phi-2` (2.7B parameter model):
+`src/models/target_llm.py` wraps `Qwen/Qwen2.5-3B-Instruct`:
 
 ```
-Prompt (after sanitizer) 
+Prompt (after sanitizer)
     │
     ▼
-Format as instruction template:
-    ### Instruction:
-    <prompt>
-    
-    ### Response:
+Format via chat template (apply_chat_template)
     │
     ▼
-phi-2 generates response (max 150 tokens)
-    │
-    ▼
-Strip everything after next ### marker
+Target LLM generates response (max_new_tokens=512)
     │
     ▼
 Return generated text
 ```
 
-**Why phi-2?** Small enough to run on CPU, follows instructions reliably enough to demonstrate injection compliance. Downloaded once (~5.5 GB), then cached locally.
+**Why this model?** Small enough for local research runs, instruction-following enough to demonstrate injection compliance. Downloaded once, then cached locally.
 
 ---
 
 ### How the Evaluation Works (Two-Layer Design)
 
-`src/evaluate.py` runs a two-phase pipeline:
+`src/evaluation/evaluate.py` runs a two-phase pipeline:
 
 ```
-Phase 1 — Sanitizer + Phi-2:
+Phase 1 — Sanitizer + Target LLM:
   for each prompt in test.csv:
       for each sanitizer (baseline, regex, keyword, context_aware):
           sanitized_text, blocked = sanitizer.sanitize(prompt)
           if blocked:
               llm_output = "[BLOCKED]"
           else:
-              llm_output = phi2.run(sanitized_text)
+              llm_output = target_llm.run(sanitized_text)
 
-Phase 2 — Qwen2.5-7B Judge (only unblocked injections):
+Phase 2 — Judge (only unblocked injections):
   for each unblocked injection:
-      judge_label = qwen_judge(original_prompt, phi2_output)
+      judge_label = judge(original_prompt, llm_output)
       attack_success = (not blocked) AND (judge_label == COMPLIED)
 
 > Layer 1: compute Bypass Rate, FPR, confusion matrix per method
@@ -363,7 +358,7 @@ Evaluates on val.csv and test.csv
 
 ## 6. Results
 
-### Main Experiment (microsoft/phi-2, test set n=38)
+### Main Experiment (Qwen2.5-3B-Instruct target, held-out test set)
 
 | Method | Bypass Rate (↓) | True ASR (↓) | FPR (↓) | Injections Blocked | Benign Blocked | Successful Attacks |
 |--------|-----------------|-------------|---------|-------------------|---------------|-------------------|
@@ -373,7 +368,7 @@ Evaluates on val.csv and test.csv
 | **Context-Aware** | **4.35%** | **0.0%** | 13.33% | **22 / 23** | 2 / 15 | **0** |
 
 > **Layer 1 (Bypass Rate):** The Context-Aware sanitizer blocks 22 of 23 injections (Bypass Rate = 4.35%).
-> **Layer 2 (True ASR):** Of the bypassed prompts, Phi-2 compliance was judged by Qwen2.5-7B — Context-Aware achieves 0.0% True ASR (zero successful end-to-end attacks).
+> **Layer 2 (True ASR):** Of the bypassed prompts, target-LLM compliance was judged independently — Context-Aware achieves 0.0% True ASR (zero successful end-to-end attacks).
 > The FPR of 13.33% (2 benign prompts blocked) is the tradeoff for near-complete injection coverage.
 
 ### Paraphrase Robustness (50 paraphrased injection prompts)
@@ -428,12 +423,16 @@ python -m src.run_experiments --no-llm
 # Fast mode + ML classifier
 python -m src.run_experiments --no-llm --classifier
 
-# Full mode — real phi-2 inference (~11 min on GPU)
-# phi-2 downloads automatically on first run (~5.5 GB)
+# Full mode — real target LLM + judge inference
+# Models download automatically on first run
 python -m src.run_experiments
 
 # Full mode + ML classifier
 python -m src.run_experiments --classifier
+
+# Ablation studies (same as before)
+python -m src.run_experiments --weighted-ablation
+python -m src.run_experiments --hard-trigger-ablation
 ```
 
 > **Optional:** Set `$env:HF_TOKEN = "hf_..."` with a free [HuggingFace token](https://huggingface.co/settings/tokens)
@@ -493,7 +492,7 @@ jupyter notebook notebooks/experiments.ipynb
 
 ```
 pandas, numpy, scikit-learn     ← data & ML
-torch, transformers             ← phi-2 + perplexity (distilgpt2)
+torch, transformers             ← target LLM + judge + perplexity (distilgpt2)
 huggingface_hub                 ← model download
 sentence-transformers           ← MiniLM embeddings for semantic signal
 matplotlib                      ← figures

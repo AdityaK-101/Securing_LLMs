@@ -1,15 +1,15 @@
 """
-src/judge.py
-============
+src/models/judge.py
+===================
 LLM-as-a-Judge for Layer 2 (Model Security Evaluation).
 
-Uses Qwen2.5-7B-Instruct as an independent judge — separate from Phi-2,
-which remains the target model under test. The judge receives BOTH the
-original user prompt and Phi-2's generated output, then reasons semantically
-about whether Phi-2 complied with the attacker's objective.
+Uses an independent judge model — separate from the target LLM under test.
+The judge receives BOTH the original user prompt and the target model's
+generated output, then reasons semantically about whether the target model
+complied with the attacker's objective.
 
-Why Qwen2.5-7B-Instruct?
-  An independent model avoids circular evaluation (Phi-2 judging itself)
+Why a separate judge model?
+  An independent model avoids circular evaluation (target judging itself)
   and provides semantic reasoning beyond keyword/regex refusal heuristics.
 
 Why analyze prompt + response together?
@@ -28,12 +28,9 @@ import warnings
 warnings.filterwarnings("ignore", message=".*torch_dtype.*deprecated.*")
 warnings.filterwarnings("ignore", message=".*unauthenticated requests.*HF Hub.*")
 
-os.environ.setdefault("HF_HUB_DISABLE_IMPLICIT_TOKEN", "1")
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
+from ..config import JUDGE_MODEL_NAME
+from ..utils.gpu import cuda_free_gb, empty_cuda_cache
 
-from .gpu_utils import empty_cuda_cache, cuda_free_gb
-
-JUDGE_MODEL_NAME = "Qwen/Qwen2.5-3B-Instruct"
 MAX_JUDGE_PROMPT_CHARS = 2000
 MAX_JUDGE_OUTPUT_CHARS = 800
 
@@ -360,7 +357,7 @@ _pipeline = None
 
 
 def release_judge():
-    """Unload Qwen judge to free memory."""
+    """Unload judge model to free memory."""
     global _pipeline
     if _pipeline is None:
         return
@@ -374,7 +371,7 @@ def release_judge():
     del _pipeline
     _pipeline = None
     empty_cuda_cache()
-    print("[ComplianceJudge] Qwen judge released from memory.")
+    print(f"[ComplianceJudge] {JUDGE_MODEL_NAME} released from memory.")
 
 
 def parse_judge_output(raw: str) -> tuple:
@@ -402,10 +399,10 @@ def _extract_reasoning(raw: str) -> str:
 
 def _resolve_judge_device():
     """
-    Pick device for Qwen judge.
+    Pick device for the judge model.
 
     JUDGE_DEVICE env: cpu | cuda | auto (default auto).
-    auto uses GPU only when enough free VRAM remains after Phi-2 is released.
+    auto uses GPU only when enough free VRAM remains after the target LLM is released.
     """
     import torch
 
@@ -431,6 +428,9 @@ def _load_judge_pipeline():
     global _pipeline
     if _pipeline is not None:
         return _pipeline
+
+    os.environ.setdefault("HF_HUB_DISABLE_IMPLICIT_TOKEN", "1")
+    os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
     from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
     from transformers import logging as hf_logging
@@ -471,9 +471,9 @@ def _load_judge_pipeline():
 
 class ComplianceJudge:
     """
-    Qwen2.5-7B-Instruct compliance judge for Layer 2 evaluation.
+    Compliance judge for Layer 2 evaluation.
 
-    Evaluates the relationship between original prompt and Phi-2 output.
+    Evaluates the relationship between original prompt and target LLM output.
     """
 
     def __init__(self):
@@ -485,7 +485,7 @@ class ComplianceJudge:
                 self._pipe = _load_judge_pipeline()
             except MemoryError as e:
                 print(f"[ComplianceJudge] OUT OF MEMORY loading judge: {e}")
-                print("[ComplianceJudge] Phi-2 outputs were saved; re-run with more RAM or --no-judge.")
+                print("[ComplianceJudge] Target LLM outputs were saved; re-run with more RAM or --no-judge.")
                 raise
             except Exception as e:
                 print(f"[ComplianceJudge] ERROR loading judge: {e}")
@@ -496,7 +496,7 @@ class ComplianceJudge:
         return self.mock
 
     def release(self):
-        """Free Qwen judge weights from memory."""
+        """Free judge model weights from memory."""
         self._pipe = None
         if not self.mock:
             release_judge()
@@ -528,13 +528,13 @@ class ComplianceJudge:
 
     def evaluate(self, original_prompt: str, llm_output: str) -> tuple:
         """
-        Judge whether Phi-2 complied with the original prompt objective.
+        Judge whether the target LLM complied with the original prompt objective.
 
         Returns (judge_label, judge_reasoning) where judge_label is
         COMPLIED, REFUSED, or ERROR (inference failure — not a real refusal).
         """
         if self.mock:
-            return "REFUSED", "[JUDGE_MOCK] Set SKIP_JUDGE=0 to enable Qwen judge."
+            return "REFUSED", f"[JUDGE_MOCK] Set SKIP_JUDGE=0 to enable {JUDGE_MODEL_NAME}."
 
         prompt, output = self._truncate(original_prompt, llm_output)
 

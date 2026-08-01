@@ -1,36 +1,33 @@
 """
-src/llm_runner.py
-=================
-Local LLM runner using microsoft/phi-2 via HuggingFace Transformers.
+src/models/target_llm.py
+========================
+Local target LLM runner via HuggingFace Transformers.
 
 Usage:
     runner = LLMRunner()
     output = runner.run("Your prompt here")
 
 Set environment variable SKIP_LLM=1 ONLY if you want to skip model download.
-By default, phi-2 is loaded and used for real inference.
+By default, the target model is loaded and used for real inference.
 """
 
 import os
 import warnings
 
-# Suppress noisy but harmless phi-2 deprecation warnings that fire on every call
+# Suppress noisy but harmless generation deprecation warnings that fire on every call
 warnings.filterwarnings("ignore", message=".*Both.*max_new_tokens.*max_length.*")
 warnings.filterwarnings("ignore", message=".*Passing.*generation_config.*generation-related.*")
 warnings.filterwarnings("ignore", message=".*generation flags are not valid.*temperature.*")
 warnings.filterwarnings("ignore", message=".*torch_dtype.*deprecated.*")
 warnings.filterwarnings("ignore", message=".*unauthenticated requests.*HF Hub.*")
 
-import os
-os.environ.setdefault("HF_HUB_DISABLE_IMPLICIT_TOKEN", "1")  # silence HF token nag
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
+from ..config import TARGET_MODEL_NAME
+from ..utils.gpu import empty_cuda_cache
 
-from .gpu_utils import empty_cuda_cache
+MODEL_NAME = TARGET_MODEL_NAME
 
-MODEL_NAME = "Qwen/Qwen2.5-3B-Instruct"
-
-# Instruction template per spec §4.2
-# INSTRUCTION_TEMPLATE = "### Instruction:\n{prompt}\n\n### Response:\n"
+# Legacy export for notebooks that still reference the old instruction template.
+INSTRUCTION_TEMPLATE = "### Instruction:\n{prompt}\n\n### Response:\n"
 
 _pipeline = None
 
@@ -57,6 +54,9 @@ def _load_model():
     global _pipeline
     if _pipeline is not None:
         return _pipeline
+
+    os.environ.setdefault("HF_HUB_DISABLE_IMPLICIT_TOKEN", "1")  # silence HF token nag
+    os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
     from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
     from transformers import logging as hf_logging
@@ -86,10 +86,6 @@ def _load_model():
         low_cpu_mem_usage=True,
     )
 
-    # phi-2 ships with max_length=20 in generation_config.json — clear it
-    # to avoid the "Both max_new_tokens and max_length" warning on every call
-    # model.generation_config.max_length = None
-
     _pipeline = pipeline(
         "text-generation",
         model=model,
@@ -104,7 +100,7 @@ def _load_model():
 
 class LLMRunner:
     """
-    Wraps microsoft/phi-2 for instruction-style inference.
+    Wraps the target LLM for instruction-style inference.
     Falls back to mock ONLY if SKIP_LLM=1 is explicitly set.
     """
 
@@ -116,19 +112,19 @@ class LLMRunner:
             try:
                 self._pipe = _load_model()
             except MemoryError as e:
-                print(f"[LLMRunner] OUT OF MEMORY loading phi-2: {e}")
+                print(f"[LLMRunner] OUT OF MEMORY loading {MODEL_NAME}: {e}")
                 print("[LLMRunner] Close other apps or set SKIP_LLM=1 for sanitizer-only mode.")
                 raise
             except Exception as e:
-                print(f"[LLMRunner] ERROR loading phi-2: {e}")
+                print(f"[LLMRunner] ERROR loading {MODEL_NAME}: {e}")
                 print("[LLMRunner] Falling back to mock. Set SKIP_LLM=1 to suppress this.")
                 self.mock = True
 
     def run(self, prompt: str) -> str:
-        """Run prompt through Qwen2.5-3B-Instruct."""
+        """Run prompt through the configured target LLM."""
 
         if self.mock:
-            return "[LLM_MOCK] (set SKIP_LLM=0 or unset env var to use Qwen)"
+            return f"[LLM_MOCK] (set SKIP_LLM=0 or unset env var to use {MODEL_NAME})"
 
         try:
             messages = [

@@ -11,22 +11,14 @@ Models (MiniLM, distilgpt2, target LLM, judge) are loaded once per study and
 shared across all variants within that study.
 """
 
-import os
-
 import pandas as pd
-from tqdm import tqdm
 
-from .evaluate import (
-    TEST_CSV,
-    TRAIN_CSV,
-    _attack_success,
-    _compute_metrics,
-)
-from .gpu_utils import empty_cuda_cache
-from .judge import ComplianceJudge
-from .llm_runner import LLMRunner
-from .sanitizers import ContextAwareSanitizer
-
+from ..config import TEST_CSV, TRAIN_CSV
+from ..models.target_llm import LLMRunner
+from ..sanitizers import ContextAwareSanitizer
+from ..utils.gpu import empty_cuda_cache
+from .metrics import compute_metrics
+from .pipeline import run_two_phase_pipeline, should_skip_judge
 WEIGHTED_ABLATION_VARIANTS = [
     ("Full Weighted Model", {"disable_hard_triggers": True}),
     ("-No Regex", {"disable_hard_triggers": True, "disable_regex": True}),
@@ -94,111 +86,46 @@ def _evaluate_ablation_variants(
     ]
 
     runner = LLMRunner() if use_llm else None
-    skip_judge = (
-        os.environ.get("SKIP_JUDGE", "0").strip() == "1"
-        or not use_llm
-        or runner is None
-        or runner.is_mock()
-    )
-
-    records = []
-    pending_judge = []
+    skip_judge = should_skip_judge(use_llm, runner)
 
     print(
         f"[Ablation] Phase 1: {len(df_test)} prompts × "
         f"{len(sanitizers)} variants"
     )
     print(
-        f"[Ablation] Phase 2: Qwen judge — "
+        f"[Ablation] Phase 2: judge — "
         f"{'enabled' if not skip_judge else 'disabled'}"
     )
 
-    for _, row in tqdm(
+    def _release_base_models():
+        if hasattr(base, "release_models"):
+            base.release_models()
+
+    def _cleanup_after_phase1():
+        _release_base_models()
+        if runner:
+            runner.release()
+        empty_cuda_cache()
+
+    records = run_two_phase_pipeline(
         df_test.iterrows(),
-        total=len(df_test),
-        desc="Phase 1 (sanitizer + target LLM)",
-    ):
-        prompt_id = row["id"]
-        prompt = str(row["prompt"])
-        label = str(row["label"])
-
-        for san in sanitizers:
-            sanitized, blocked = san.sanitize(prompt)
-
-            if blocked:
-                llm_output = "[BLOCKED]"
-                judge_label = "BLOCKED"
-                judge_reasoning = ""
-            elif runner:
-                llm_output = runner.run(sanitized)
-                if label == "injection" and not skip_judge:
-                    judge_label = None
-                    judge_reasoning = ""
-                elif label == "injection":
-                    judge_label = "SKIPPED"
-                    judge_reasoning = ""
-                else:
-                    judge_label = "N/A"
-                    judge_reasoning = ""
-            else:
-                llm_output = "[LLM_SKIPPED]"
-                judge_label = "SKIPPED"
-                judge_reasoning = ""
-
-            rec = {
-                "id":               prompt_id,
-                "label":            label,
-                "method":           san.name,
-                "blocked":          blocked,
-                "original":         prompt,
-                "sanitized":        sanitized,
-                "llm_output":       llm_output,
-                "judge_label":      judge_label,
-                "judge_reasoning":  judge_reasoning,
-                "attack_success":   False,
-            }
-            if judge_label is None:
-                pending_judge.append(len(records))
-            elif judge_label not in (None, "N/A", "SKIPPED"):
-                rec["attack_success"] = _attack_success(label, blocked, judge_label)
-            records.append(rec)
-
-    if pending_judge and not skip_judge:
-        print(f"\n[Ablation] Phase 2: judging {len(pending_judge)} unblocked injections...")
-        if hasattr(base, "release_models"):
-            base.release_models()
-        if runner:
-            runner.release()
-        empty_cuda_cache()
-
-        judge = ComplianceJudge()
-
-        if judge.is_mock():
-            for idx in pending_judge:
-                records[idx]["judge_label"] = "SKIPPED"
-        else:
-            for idx in tqdm(pending_judge, desc="Phase 2 (Qwen judge)"):
-                rec = records[idx]
-                judge_label, reasoning = judge.evaluate(
-                    rec["original"], rec["llm_output"]
-                )
-                rec["judge_label"] = judge_label
-                rec["judge_reasoning"] = reasoning
-                rec["attack_success"] = _attack_success(
-                    rec["label"], rec["blocked"], judge_label
-                )
-
-        judge.release()
-        empty_cuda_cache()
-    else:
-        if hasattr(base, "release_models"):
-            base.release_models()
-        if runner:
-            runner.release()
-        empty_cuda_cache()
+        sanitizers,
+        runner,
+        skip_judge,
+        get_record_id=lambda item: item[1]["id"],
+        get_prompt=lambda item: str(item[1]["prompt"]),
+        get_label=lambda item: str(item[1]["label"]),
+        defer_judge=lambda label, sj: label == "injection" and not sj,
+        release_sanitizers=_release_base_models,
+        phase1_desc="Phase 1 (sanitizer + target LLM)",
+        phase1_total=len(df_test),
+        phase2_log_prefix="[Ablation]",
+        phase2_item_name="unblocked injections",
+        cleanup_after_phase1=_cleanup_after_phase1,
+    )
 
     logs_df = pd.DataFrame(records)
-    metrics_df, _ = _compute_metrics(logs_df)
+    metrics_df, _ = compute_metrics(logs_df)
 
     rows = []
     for _, mrow in metrics_df.iterrows():

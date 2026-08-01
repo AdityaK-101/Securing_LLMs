@@ -1,6 +1,6 @@
 """
-src/adaptive_attacks.py
-=======================
+src/models/attack_generator.py
+==============================
 
 Adaptive prompt generation for robustness evaluation.
 
@@ -16,7 +16,9 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-MODEL_NAME = "google/flan-t5-base"
+from ..config import ATTACK_GENERATOR_MODEL_NAME
+
+MODEL_NAME = ATTACK_GENERATOR_MODEL_NAME
 
 _generator = None
 

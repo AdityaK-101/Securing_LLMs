@@ -7,7 +7,6 @@ Trains on data/splits/train.csv and evaluates on test.csv.
 Reports accuracy, F1, and confusion matrix.
 """
 
-import os
 import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -17,12 +16,7 @@ from sklearn.metrics import (
     accuracy_score, f1_score
 )
 
-RANDOM_SEED = 42
-
-_ROOT      = os.path.join(os.path.dirname(__file__), "..")
-TRAIN_CSV  = os.path.join(_ROOT, "data", "splits", "train.csv")
-VAL_CSV    = os.path.join(_ROOT, "data", "splits", "val.csv")
-TEST_CSV   = os.path.join(_ROOT, "data", "splits", "test.csv")
+from .config import RANDOM_SEED, TEST_CSV, TRAIN_CSV, VAL_CSV
 
 
 class InjectionClassifier:
