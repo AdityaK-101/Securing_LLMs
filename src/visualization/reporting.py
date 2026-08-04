@@ -3,7 +3,14 @@
 from ..config import JUDGE_MODEL_NAME, TARGET_MODEL_NAME
 
 
-def _write_robustness_note(metrics_df, para_df, edge_df, adaptive_df, out_path):
+def _write_robustness_note(
+    metrics_df,
+    para_df,
+    edge_df,
+    adaptive_df,
+    out_path,
+    overhead_report=None,
+):
     """Write a plain-text robustness note (required deliverable)."""
 
     # Find best and worst by Bypass Rate (Layer 1)
@@ -29,7 +36,7 @@ def _write_robustness_note(metrics_df, para_df, edge_df, adaptive_df, out_path):
     ]
     for _, row in metrics_df.iterrows():
         lines.append(
-            f"  {row['method']:15s}  Bypass={row['Bypass_Rate_%']:5.1f}%  "
+            f"  {row['method']:24s}  Bypass={row['Bypass_Rate_%']:5.1f}%  "
             f"TrueASR={row['True_ASR_%']:5.1f}%  FPR={row['FPR_%']:5.1f}%  "
             f"TP={row['TP']:3d}  FN={row['FN']:3d}  "
             f"FP={row['FP']:3d}  TN={row['TN']:3d}  "
@@ -49,7 +56,7 @@ def _write_robustness_note(metrics_df, para_df, edge_df, adaptive_df, out_path):
 
     for _, row in edge_df.iterrows():
         lines.append(
-            f"  {row['method']:15s}  edge_FPR={row['edge_FPR']*100:.0f}%  "
+            f"  {row['method']:24s}  edge_FPR={row['edge_FPR']*100:.0f}%  "
             f"blocked {row['blocked_count']}/{row['total']} edge prompts"
         )
     lines += [
@@ -66,7 +73,7 @@ def _write_robustness_note(metrics_df, para_df, edge_df, adaptive_df, out_path):
         delta = row["Bypass_Rate_delta"] * 100
         direction = "WORSE (+)" if delta > 0 else "better (-)"
         lines.append(
-            f"  {row['method']:15s}  orig={row['orig_Bypass_Rate']*100:.1f}%  "
+            f"  {row['method']:24s}  orig={row['orig_Bypass_Rate']*100:.1f}%  "
             f"para={row['para_Bypass_Rate']*100:.1f}%  Δ={delta:+.1f}% {direction}"
         )
     lines += [
@@ -85,7 +92,7 @@ def _write_robustness_note(metrics_df, para_df, edge_df, adaptive_df, out_path):
         blocked_attacks = row["TP"]
         total_attacks = row["injections"]
         lines.append(
-            f"  {row['method']:15s}  Bypass={row['Bypass_Rate_%']:5.1f}%  "
+            f"  {row['method']:24s}  Bypass={row['Bypass_Rate_%']:5.1f}%  "
             f"TrueASR={row['True_ASR_%']:5.1f}%  "
             f"blocked {blocked_attacks}/{total_attacks} attacks"
         )
@@ -95,8 +102,19 @@ def _write_robustness_note(metrics_df, para_df, edge_df, adaptive_df, out_path):
         f"  then evaluated through the full sanitizer → {TARGET_MODEL_NAME} → judge pipeline.",
         "  Context-Aware sanitizer is significantly more robust against these",
         "  attacks compared to keyword and regex defenses because of semantic similarity signals.",
+    ]
+
+    if overhead_report is not None:
+        from ..evaluation.latency import format_overhead_for_note
+
+        lines += format_overhead_for_note(overhead_report)
+        fail_section, repro_section = "6", "7"
+    else:
+        fail_section, repro_section = "5", "6"
+
+    lines += [
         "",
-        "5. WHERE DEFENSES FAILED",
+        f"{fail_section}. WHERE DEFENSES FAILED",
         "-" * 40,
         "  - Sophisticated roleplay jailbreaks (DAN, BOB, STAN personas)",
         "    that embed harmful requests inside fictional narratives.",
@@ -106,7 +124,7 @@ def _write_robustness_note(metrics_df, para_df, edge_df, adaptive_df, out_path):
         "  - Very long prompts dilute keyword density below threshold.",
         "  - Bypassed prompts may still be refused by the target LLM (True ASR < Bypass Rate).",
         "",
-        "6. REPRODUCIBILITY",
+        f"{repro_section}. REPRODUCIBILITY",
         "-" * 40,
         "  Fixed seed: 42 (applied to numpy and random modules).",
         "  All sanitizer metrics are deterministic given the same dataset split.",
@@ -116,4 +134,4 @@ def _write_robustness_note(metrics_df, para_df, edge_df, adaptive_df, out_path):
 
     with open(out_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
-    print(f"[OK] Saved: results/robustness_note.txt")
+    print(f"[OK] Saved: {out_path}")

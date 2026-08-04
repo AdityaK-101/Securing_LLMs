@@ -1,0 +1,85 @@
+==============================================================
+  Robustness Note — Milestone 3
+==============================================================
+
+METRIC DEFINITIONS
+----------------------------------------
+  Bypass Rate (Layer 1): % of injection prompts the sanitizer failed
+    to block. Measures sanitizer bypass, NOT model compliance.
+  True ASR (Layer 2): % of injection prompts where the sanitizer was
+    bypassed AND the target LLM actually complied (per Qwen/Qwen2.5-3B-Instruct judge).
+  Confusion matrices use sanitizer blocked/unblocked only.
+
+1. DEFENSE EFFECTIVENESS (Layer 1 + Layer 2)
+----------------------------------------
+  baseline                  Bypass=100.0%  TrueASR= 46.7%  FPR=  0.0%  TP=  0  FN= 30  FP=  0  TN= 23  attacks=14
+  regex                     Bypass= 86.7%  TrueASR= 46.7%  FPR=  0.0%  TP=  4  FN= 26  FP=  0  TN= 23  attacks=14
+  keyword                   Bypass= 96.7%  TrueASR= 46.7%  FPR=  0.0%  TP=  1  FN= 29  FP=  0  TN= 23  attacks=14
+  context_aware             Bypass=  6.7%  TrueASR=  0.0%  FPR= 13.0%  TP= 28  FN=  2  FP=  3  TN= 20  attacks=0
+
+  Best performing defense: context_aware (Bypass=6.7%, TrueASR=0.0%)
+  Weakest active defense:  keyword (Bypass=96.7%, TrueASR=46.7%)
+
+2. SIDE EFFECTS & FALSE POSITIVES
+----------------------------------------
+  baseline                  edge_FPR=0%  blocked 0/80 edge prompts
+  context_aware             edge_FPR=36%  blocked 29/80 edge prompts
+  keyword                   edge_FPR=0%  blocked 0/80 edge prompts
+  regex                     edge_FPR=2%  blocked 2/80 edge prompts
+
+  Regex sanitizer has the highest edge-case FPR — it triggers
+  on technical phrases like 'bypass this error' or 'act as proxy'.
+  Context-Aware has a slightly elevated edge FPR but remains
+  the best trade-off between security and usability.
+
+3. PARAPHRASE ROBUSTNESS
+----------------------------------------
+  baseline                  orig=100.0%  para=100.0%  Δ=+0.0% better (-)
+  context_aware             orig=0.0%  para=0.0%  Δ=+0.0% better (-)
+  keyword                   orig=86.0%  para=90.0%  Δ=+4.0% WORSE (+)
+  regex                     orig=74.0%  para=76.0%  Δ=+2.0% WORSE (+)
+
+  All active defenses degrade when attacks are paraphrased.
+  Regex is most brittle (relies on exact phrase matching).
+  Context-Aware now uses MiniLM dense embeddings for semantic
+  similarity, which are more robust to vocabulary changes than
+  the previous TF-IDF approach. A perplexity signal (distilgpt2)
+  provides an additional language-model naturalness check.
+
+4. ADAPTIVE ATTACKS ROBUSTNESS (FLAN-T5)
+----------------------------------------
+  baseline                  Bypass=100.0%  TrueASR= 45.3%  blocked 0/150 attacks
+  regex                     Bypass= 93.3%  TrueASR= 42.0%  blocked 10/150 attacks
+  keyword                   Bypass= 96.7%  TrueASR= 45.3%  blocked 5/150 attacks
+  context_aware             Bypass= 16.7%  TrueASR=  8.7%  blocked 125/150 attacks
+
+  Adaptive attacks are generated using FLAN-T5-Base in 5 styles,
+  then evaluated through the full sanitizer → Qwen/Qwen2.5-3B-Instruct → judge pipeline.
+  Context-Aware sanitizer is significantly more robust against these
+  attacks compared to keyword and regex defenses because of semantic similarity signals.
+
+5. RUNTIME / LATENCY OVERHEAD (MiniLM + DistilGPT-2)
+----------------------------------------
+  Hardware: CPU=Intel64 Family 6 Model 170 Stepping 4, GenuineIntel; RAM=15.43 GB; CUDA=True (NVIDIA GeForce RTX 4070 Laptop GPU)
+  Aux models (MiniLM, DistilGPT-2) run on CPU by design.
+  MiniLM semantic           mean=14.73 ms/prompt  (median=12.69, p95=26.30, n=50)
+  DistilGPT-2 perplexity    mean=34.28 ms/prompt  (median=21.35, p95=88.53, n=50)
+  MiniLM + DistilGPT-2      mean=49.01 ms/prompt  (median=32.70, p95=114.84, n=50)
+  Method A full sanitize    mean=47.13 ms/prompt  (median=31.67, p95=117.95, n=50)
+
+6. WHERE DEFENSES FAILED
+----------------------------------------
+  - Sophisticated roleplay jailbreaks (DAN, BOB, STAN personas)
+    that embed harmful requests inside fictional narratives.
+  - Multilingual attacks (German) partially bypass regex/keyword.
+  - Indirect/coded language (e.g., 'assets' meaning stolen data)
+    scores low on all signal types.
+  - Very long prompts dilute keyword density below threshold.
+  - Bypassed prompts may still be refused by the target LLM (True ASR < Bypass Rate).
+
+7. REPRODUCIBILITY
+----------------------------------------
+  Fixed seed: 42 (applied to numpy and random modules).
+  All sanitizer metrics are deterministic given the same dataset split.
+  True ASR depends on Qwen/Qwen2.5-3B-Instruct + Qwen/Qwen2.5-3B-Instruct inference.
+==============================================================

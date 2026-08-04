@@ -1,0 +1,7 @@
+component,model,device,n,mean_ms_per_prompt,median_ms_per_prompt,p95_ms_per_prompt,std_ms,min_ms,max_ms
+minilm_semantic,sentence-transformers/all-MiniLM-L6-v2,cpu,50,14.686,12.328,26.122,5.481,9.213,27.857
+distilgpt2_perplexity,distilgpt2,cpu,50,34.123,20.704,88.026,30.404,15.382,160.77
+method_a_full_sanitize,context_aware (all 8 signals + hard triggers),cpu,50,46.972,31.296,115.803,35.126,24.926,183.32
+regex_sanitize,regex,cpu,50,0.127,0.043,0.509,0.182,0.033,0.953
+keyword_sanitize,keyword,cpu,50,0.016,0.01,0.041,0.012,0.008,0.069
+minilm_plus_distilgpt2,MiniLM + DistilGPT-2 (sum of separate timings),cpu,50,48.809,31.471,113.939,35.513,25.22,188.627

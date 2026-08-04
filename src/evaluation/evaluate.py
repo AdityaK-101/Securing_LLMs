@@ -22,7 +22,7 @@ TP/TN/FP/FN computation.
 
 import pandas as pd
 
-from ..config import RANDOM_SEED, TEST_CSV, TRAIN_CSV
+from ..config import RANDOM_SEED, TEST_CSV, TRAIN_CSV, VAL_CSV
 from ..models.target_llm import LLMRunner
 from ..sanitizers import get_all_sanitizers
 from .metrics import compute_metrics
@@ -36,6 +36,7 @@ __all__ = [
     "RANDOM_SEED",
     "TEST_CSV",
     "TRAIN_CSV",
+    "VAL_CSV",
     "evaluate",
     "evaluate_sanitizer",
 ]
@@ -44,8 +45,11 @@ __all__ = [
 def evaluate(
     test_csv: str = TEST_CSV,
     train_csv: str = TRAIN_CSV,
+    val_csv: str = VAL_CSV,
     use_llm: bool = True,
     judge=None,
+    include_method_a: bool = True,
+    include_method_b: bool = True,
 ) -> tuple:
     """
     Run the full two-layer evaluation pipeline.
@@ -59,7 +63,12 @@ def evaluate(
         metrics_df — per-method summary (Bypass Rate, True ASR, FPR, TP/TN/FP/FN)
     """
     df_test = pd.read_csv(test_csv)
-    sanitizers = get_all_sanitizers(train_csv=train_csv)
+    sanitizers = get_all_sanitizers(
+        train_csv=train_csv,
+        val_csv=val_csv,
+        include_method_a=include_method_a,
+        include_method_b=include_method_b,
+    )
     runner = LLMRunner() if use_llm else None
 
     skip_judge = should_skip_judge(use_llm, runner)

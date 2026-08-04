@@ -1,5 +1,7 @@
 """Matplotlib figures for experiment results."""
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -9,20 +11,28 @@ import matplotlib.pyplot as plt
 from ..config import FIGURES_DIR
 
 METHOD_COLORS = {
-    "baseline":     "#e74c3c",
-    "regex":        "#e67e22",
-    "keyword":      "#3498db",
-    "context_aware": "#2ecc71",
+    "baseline":               "#e74c3c",
+    "regex":                  "#e67e22",
+    "keyword":                "#3498db",
+    "context_aware":          "#2ecc71",
+    "context_aware_learned":  "#1abc9c",
 }
 METHOD_LABELS = {
-    "baseline":      "Baseline\n(No Defense)",
-    "regex":         "Sanitizer A\n(Regex)",
-    "keyword":       "Sanitizer B\n(Keyword)",
-    "context_aware": "Context-Aware\n(Proposed)",
+    "baseline":              "Baseline\n(No Defense)",
+    "regex":                 "Sanitizer A\n(Regex)",
+    "keyword":               "Sanitizer B\n(Keyword)",
+    "context_aware":         "Context-Aware\n(Hand + Triggers)",
+    "context_aware_learned": "Context-Aware\n(Learned Soft)",
 }
 
 
-def _plot_bypass_rate_bar(metrics_df: pd.DataFrame):
+def _figures_dir(figures_dir=None) -> Path:
+    d = Path(figures_dir) if figures_dir is not None else FIGURES_DIR
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _plot_bypass_rate_bar(metrics_df: pd.DataFrame, figures_dir=None):
     """Layer 1 bar chart — sanitizer Bypass Rate (formerly mislabeled ASR)."""
     methods = metrics_df["method"].tolist()
     bypass_pct = metrics_df["Bypass_Rate_%"].tolist()
@@ -45,14 +55,14 @@ def _plot_bypass_rate_bar(metrics_df: pd.DataFrame):
     ax.spines[["top", "right"]].set_visible(False)
     plt.tight_layout()
 
-    out = FIGURES_DIR / "attack_success_bar.png"
+    out = _figures_dir(figures_dir) / "attack_success_bar.png"
     plt.savefig(out, dpi=200, bbox_inches="tight")
     plt.close()
-    print(f"[OK] Saved: results/figures/attack_success_bar.png")
+    print(f"[OK] Saved: {out}")
     return out
 
 
-def _plot_true_asr_bar(metrics_df: pd.DataFrame):
+def _plot_true_asr_bar(metrics_df: pd.DataFrame, figures_dir=None):
     """Layer 2 bar chart — True Attack Success Rate (judge-confirmed compliance)."""
     methods = metrics_df["method"].tolist()
     true_asr_pct = metrics_df["True_ASR_%"].tolist()
@@ -75,14 +85,14 @@ def _plot_true_asr_bar(metrics_df: pd.DataFrame):
     ax.spines[["top", "right"]].set_visible(False)
     plt.tight_layout()
 
-    out = FIGURES_DIR / "true_asr_bar.png"
+    out = _figures_dir(figures_dir) / "true_asr_bar.png"
     plt.savefig(out, dpi=200, bbox_inches="tight")
     plt.close()
-    print(f"[OK] Saved: results/figures/true_asr_bar.png")
+    print(f"[OK] Saved: {out}")
     return out
 
 
-def _plot_fpr_bar(metrics_df: pd.DataFrame):
+def _plot_fpr_bar(metrics_df: pd.DataFrame, figures_dir=None):
     methods = metrics_df["method"].tolist()
     fpr_pct = metrics_df["FPR_%"].tolist()
     labels  = [METHOD_LABELS.get(m, m) for m in methods]
@@ -102,14 +112,14 @@ def _plot_fpr_bar(metrics_df: pd.DataFrame):
     ax.spines[["top", "right"]].set_visible(False)
     plt.tight_layout()
 
-    out = FIGURES_DIR / "fpr_chart.png"
+    out = _figures_dir(figures_dir) / "fpr_chart.png"
     plt.savefig(out, dpi=200, bbox_inches="tight")
     plt.close()
-    print(f"[OK] Saved: results/figures/fpr_chart.png")
+    print(f"[OK] Saved: {out}")
     return out
 
 
-def _plot_confusion_matrices(cm_dict: dict):
+def _plot_confusion_matrices(cm_dict: dict, figures_dir=None):
     """One confusion matrix subplot per method."""
     methods = list(cm_dict.keys())
     fig, axes = plt.subplots(1, len(methods), figsize=(4 * len(methods), 4))
@@ -119,7 +129,7 @@ def _plot_confusion_matrices(cm_dict: dict):
     for ax, method in zip(axes, methods):
         d = cm_dict[method]
         cm = np.array(d["matrix"])
-        im = ax.imshow(cm, interpolation="nearest", cmap="Blues")
+        ax.imshow(cm, interpolation="nearest", cmap="Blues")
         ax.set_title(METHOD_LABELS.get(method, method), fontsize=10, fontweight="bold")
 
         tick_labels = ["Benign", "Injection"]
@@ -138,14 +148,14 @@ def _plot_confusion_matrices(cm_dict: dict):
     plt.suptitle("Confusion Matrices — Sanitizer Only (Layer 1)", fontsize=13, fontweight="bold", y=1.02)
     plt.tight_layout()
 
-    out = FIGURES_DIR / "confusion_matrices.png"
+    out = _figures_dir(figures_dir) / "confusion_matrices.png"
     plt.savefig(out, dpi=200, bbox_inches="tight")
     plt.close()
-    print(f"[OK] Saved: results/figures/confusion_matrices.png")
+    print(f"[OK] Saved: {out}")
     return out
 
 
-def _plot_paraphrase_robustness(para_df: pd.DataFrame):
+def _plot_paraphrase_robustness(para_df: pd.DataFrame, figures_dir=None):
     methods   = para_df["method"].tolist()
     orig_br   = (para_df["orig_Bypass_Rate"] * 100).tolist()
     para_br   = (para_df["para_Bypass_Rate"] * 100).tolist()
@@ -171,14 +181,14 @@ def _plot_paraphrase_robustness(para_df: pd.DataFrame):
     ax.spines[["top", "right"]].set_visible(False)
     plt.tight_layout()
 
-    out = FIGURES_DIR / "robustness_paraphrase.png"
+    out = _figures_dir(figures_dir) / "robustness_paraphrase.png"
     plt.savefig(out, dpi=200, bbox_inches="tight")
     plt.close()
-    print(f"[OK] Saved: results/figures/robustness_paraphrase.png")
+    print(f"[OK] Saved: {out}")
     return out
 
 
-def _plot_adaptive_robustness(adaptive_metrics_df: pd.DataFrame):
+def _plot_adaptive_robustness(adaptive_metrics_df: pd.DataFrame, figures_dir=None):
     """Adaptive attack robustness bar chart — Bypass Rate and True ASR under FLAN-T5 attacks."""
     methods = adaptive_metrics_df["method"].tolist()
     bypass_pct = adaptive_metrics_df["Bypass_Rate_%"].tolist()
@@ -221,10 +231,10 @@ def _plot_adaptive_robustness(adaptive_metrics_df: pd.DataFrame):
     ax.spines[["top", "right"]].set_visible(False)
     plt.tight_layout()
 
-    out = FIGURES_DIR / "robustness_adaptive.png"
+    out = _figures_dir(figures_dir) / "robustness_adaptive.png"
     plt.savefig(out, dpi=200, bbox_inches="tight")
     plt.close()
-    print(f"[OK] Saved: results/figures/robustness_adaptive.png")
+    print(f"[OK] Saved: {out}")
     return out
 
 
@@ -233,10 +243,18 @@ def _plot_ablation_bypass_rate(
     title: str,
     filename: str,
     full_variant_names: set = None,
+    figures_dir=None,
 ):
     """Ablation bar chart — Bypass Rate per variant."""
     if full_variant_names is None:
-        full_variant_names = {"Full Weighted Model", "Full Model", "Full"}
+        full_variant_names = {
+            "Full Weighted Model",
+            "Full Model",
+            "Full Model (A + Hard Triggers)",
+            "Full Learned Model",
+            "Method A Full (Hard Triggers)",
+            "Full",
+        }
 
     variants = ablation_df["variant"].tolist()
     bypass_pct = ablation_df["Bypass_Rate_%"].tolist()
@@ -265,8 +283,8 @@ def _plot_ablation_bypass_rate(
     ax.spines[["top", "right"]].set_visible(False)
     plt.tight_layout()
 
-    out = FIGURES_DIR / filename
+    out = _figures_dir(figures_dir) / filename
     plt.savefig(out, dpi=200, bbox_inches="tight")
     plt.close()
-    print(f"[OK] Saved: results/figures/{filename}")
+    print(f"[OK] Saved: {out}")
     return out

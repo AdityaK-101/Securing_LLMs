@@ -5,7 +5,7 @@ import re
 import pandas as pd
 from tqdm import tqdm
 
-from ..config import TEST_CSV, TRAIN_CSV
+from ..config import TEST_CSV, TRAIN_CSV, VAL_CSV
 from ..models.target_llm import LLMRunner
 from ..sanitizers import get_all_sanitizers
 from .metrics import compute_metrics
@@ -145,7 +145,12 @@ def _paraphrase(text: str) -> str:
     return result
 
 
-def robustness_paraphrase(train_csv: str = TRAIN_CSV, n: int = 50) -> pd.DataFrame:
+def robustness_paraphrase(
+    train_csv: str = TRAIN_CSV,
+    n: int = 50,
+    include_method_a: bool = True,
+    include_method_b: bool = True,
+) -> pd.DataFrame:
     """
     Paraphrase test: take n injection prompts from train set,
     apply synonym substitutions, re-evaluate all sanitizers.
@@ -161,7 +166,12 @@ def robustness_paraphrase(train_csv: str = TRAIN_CSV, n: int = 50) -> pd.DataFra
         .tolist()
     )
 
-    sanitizers = get_all_sanitizers(train_csv=train_csv)
+    sanitizers = get_all_sanitizers(
+        train_csv=train_csv,
+        val_csv=VAL_CSV,
+        include_method_a=include_method_a,
+        include_method_b=include_method_b,
+    )
     records = []
 
     print(f"\n[Robustness] Paraphrase test: {len(injection_prompts)} prompts...")
@@ -191,6 +201,8 @@ def robustness_adaptive(
     test_csv: str = TEST_CSV,
     train_csv: str = TRAIN_CSV,
     use_llm: bool = True,
+    include_method_a: bool = True,
+    include_method_b: bool = True,
 ) -> tuple:
     """
     Adaptive robustness evaluation using an independent LLM attack generator,
@@ -214,7 +226,12 @@ def robustness_adaptive(
         df_test["label"] == "injection"
     ].dropna(subset=["prompt"])
 
-    sanitizers = get_all_sanitizers(train_csv=train_csv)
+    sanitizers = get_all_sanitizers(
+        train_csv=train_csv,
+        val_csv=VAL_CSV,
+        include_method_a=include_method_a,
+        include_method_b=include_method_b,
+    )
     runner = LLMRunner() if use_llm else None
 
     skip_judge = should_skip_judge(use_llm, runner)
@@ -277,12 +294,20 @@ def robustness_adaptive(
     return logs_df, metrics_df, cm_dict
 
 
-def robustness_edge_benign() -> pd.DataFrame:
+def robustness_edge_benign(
+    include_method_a: bool = True,
+    include_method_b: bool = True,
+) -> pd.DataFrame:
     """
     Edge benign test: run the fixed edge-case prompt list through all sanitizers.
     Reports FPR on these edge cases.
     """
-    sanitizers = get_all_sanitizers()
+    sanitizers = get_all_sanitizers(
+        train_csv=TRAIN_CSV,
+        val_csv=VAL_CSV,
+        include_method_a=include_method_a,
+        include_method_b=include_method_b,
+    )
     records = []
 
     print(f"\n[Robustness] Edge benign test: {len(EDGE_BENIGN_PROMPTS)} prompts...")
