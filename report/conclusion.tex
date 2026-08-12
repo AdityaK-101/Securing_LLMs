@@ -1,0 +1,27 @@
+% Conclusion — Securing LLMs Against Prompt Injection
+% Academic manuscript section (IEEE / arXiv style)
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+This paper studied model-agnostic pre-inference sanitization for direct prompt injection.
+We compared an unprotected baseline and two lexical filters with a hybrid handcrafted context-aware gate (Method~A) and a learned soft-fusion variant (Method~B), under a two-layer protocol that separates Bypass Rate from True ASR and reports false positives, robustness, ablations, and latency.
+
+Lexical defenses alone proved insufficient on the held-out test partition once end-to-end compliance was measured: they reduced Bypass Rate only modestly and left True ASR unchanged relative to the unprotected baseline.
+Both context-aware methods improved security substantially.
+Method~A achieved the strongest protection, including zero successful attacks on the static test set, but incurred higher false-positive rates, especially on technical edge-case prompts.
+Method~B offered a milder usability cost while leaving residual True ASR.
+Under adaptive stylistic rewriting, all active defenses degraded, yet the same ordering was preserved.
+
+Ablation analysis clarifies where these gains originate.
+Method~A should be understood as a hybrid defense rather than a pure ensemble scorer: semantic hard triggers provide the majority of protection, while weighted multi-signal scoring serves as a complementary layer for borderline cases.
+Method~B's gains depend primarily on semantic features; removing them returns performance to unprotected baseline levels on this partition.
+We therefore retain the present architecture and report it transparently, rather than redesigning the sanitizer around an inaccurate ensemble narrative.
+
+Within the stated scope---direct textual injection, a compact curated corpus, and a single open instruction-tuned target---the results support three practical conclusions.
+First, portable context-aware sanitization can outperform standard regex and keyword controls when security is measured end-to-end.
+Second, hybrid hard-trigger designs can deliver stronger static protection than soft fusion alone, at an explicit usability cost.
+Third, semantic evidence is central to both handcrafted and learned variants in this setting.
+
+Future work may reduce Method~A's edge-case over-blocking, explore adaptive or learned fusion that balances signal contributions more evenly, strengthen adaptive attackers, and extend evaluation to indirect and agentic benchmarks.
+Even under the present constraints, the study provides an evidence-oriented account of a deployable pre-inference sanitizer and of the architectural choices that drive its defensive capability.

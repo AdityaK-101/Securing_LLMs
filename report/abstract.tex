@@ -1,0 +1,13 @@
+% Abstract — Securing LLMs Against Prompt Injection
+% Academic manuscript abstract (IEEE / arXiv style)
+
+\begin{abstract}
+Prompt injection remains a primary risk for LLM applications because adversarial natural-language inputs can override intended instructions and collapse the boundary between trusted system policy and untrusted user text.
+We study model-agnostic pre-inference sanitization for direct prompt injection, placing a portable gate in front of a fixed instruction-tuned open model and comparing an unprotected baseline and two lexical filters with a hybrid handcrafted context-aware gate (Method~A) and a learned soft-fusion variant (Method~B).
+Method~A uses semantic hard triggers---especially MiniLM similarity to known injections---as the primary high-confidence layer, with weighted multi-signal scoring as secondary coverage for borderline cases; Method~B expands the semantic feature set and replaces handcrafted aggregation with logistic fusion and a validation-selected threshold, without hard vetoes.
+Under a two-layer protocol that separates Bypass Rate from True ASR, lexical defenses reduce Bypass Rate only modestly and leave True ASR unchanged at \(46.67\%\) relative to the baseline.
+Method~A reaches \(6.67\%\) Bypass Rate and \(0\%\) True ASR at \(13.04\%\) FPR, while Method~B reaches \(20\%\) Bypass Rate and \(13.33\%\) True ASR at a milder \(8.70\%\) FPR; adaptive rewriting degrades both defenses but preserves the same ordering.
+Ablations show that Method~A's gains originate mainly in semantic hard triggers rather than ensemble scoring alone, while Method~B depends primarily on semantic features, revealing an explicit security--usability trade-off under a compact curated evaluation.
+\end{abstract}
+
+\keywords{Prompt Injection \and Large Language Models \and LLM Security \and Input Sanitization \and Context-Aware Defense \and Adversarial Prompts \and Semantic Similarity \and Prompt Hardening \and Multi-Signal Detection \and AI Safety}

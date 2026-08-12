@@ -1,0 +1,133 @@
+% Related Work — Securing LLMs Against Prompt Injection
+% Academic manuscript section (IEEE / arXiv style)
+% Citation keys match references.txt
+
+\section{Related Work}
+\label{sec:related-work}
+
+\subsection{Prompt Injection Taxonomy}
+\label{sec:rw-taxonomy}
+
+Security research has evolved from treating prompt injection as isolated jailbreak behaviour to viewing it as a broader input-control failure across LLM application stacks.
+The OWASP LLM framework identifies prompt injection as a primary application-level threat involving instruction-priority violations, unsafe context ingestion, and collapse of trust boundaries between system instructions and external inputs~\cite{owasp_llm}.
+This perspective reframes the issue from simple malicious phrasing to natural-language control-flow corruption, motivating defenses that reason about intent, provenance, and execution context rather than keywords alone.
+Early demonstrations showed that benign-looking prompts could redirect model goals under weak instruction anchoring~\cite{perez2022ignore}, establishing that fluency and apparent cooperativeness are not reliable indicators of safety.
+Later indirect-injection studies revealed that retrieved documents, tool outputs, and web content can act as hidden attack channels, allowing an adversary to influence behaviour without ever typing an explicit override into the primary chat interface~\cite{greshake2023indirect}.
+
+Recent surveys extend this into a multi-dimensional threat model spanning attack origin, persistence, delivery channel, and objective~\cite{11359704,correia2026systematic,yi2024jailbreak}.
+Attack origin distinguishes user-supplied direct injection from externally mediated indirect injection; persistence distinguishes one-shot overrides from multi-turn or cross-session manipulation; delivery channel covers chat input, retrieval corpora, tool responses, and multimodal context; and objective ranges from policy bypass and secret exfiltration to goal hijacking and unauthorized tool use.
+Emerging categories include cross-turn manipulation, paraphrased and obfuscated attacks, policy evasion through academic or hypothetical framing, and optimization-guided jailbreaks that search for highly effective adversarial suffixes~\cite{yi2024jailbreak}.
+Multimodal prompt injection further broadens the attack surface by embedding adversarial instructions in images or multimodal context-assembly pipelines~\cite{yeo2025multimodal}.
+Retrieval-mediated and epistemic attacks similarly show that adversaries can steer generation through selectively framed contextual evidence rather than explicit overrides~\cite{wu2025epistemic,greshake2023indirect}.
+Collectively, these findings suggest that prompt injection is fundamentally a context-integrity problem spanning semantic intent, provenance, and downstream action sensitivity.
+
+Taxonomies also highlight a gap between academic attack categories and production deployments.
+Real systems typically involve heterogeneous pipelines combining user prompts, retrieval modules, tool outputs, and orchestration frameworks.
+In such environments, the same adversarial objective may appear as a direct override in one stage and as indirect poisoning in another, which means that a defense validated only on single-turn chat overrides can miss the dominant risk in an agentic deployment~\cite{debenedetti2024agentdojo,bair2025prompt}.
+OWASP-style operational guidance~\cite{owasp_llm}, practitioner red-teaming workflows~\cite{promptfoo2024owasp}, and systematic surveys~\cite{11359704,correia2026systematic} therefore collectively motivate layered defenses that combine lexical, semantic, and contextual reasoning rather than relying on a single attack template.
+Our study focuses on direct textual injection under a pre-inference gate.
+This choice keeps the comparison of sanitizer designs experimentally controlled, while remaining explicit that agentic, multimodal, and long-context indirect settings raise additional challenges beyond the present scope~\cite{debenedetti2024agentdojo,hines2024spotlighting,yeo2025multimodal}.
+
+\subsection{Rule-Based Defenses}
+\label{sec:rw-rule}
+
+Rule-based defenses remain the most common first layer of mitigation because they are transparent, inexpensive, and easy to integrate with existing moderation systems.
+Industry and practitioner guidance frequently recommends regular-expression signatures, deny-lists, role-token constraints, and static safety preambles to suppress unsafe behaviour~\cite{openrouter2026promptinjection,getstream2024prompt,mend2024prompt}.
+Commercial guardrail documentation likewise describes pattern libraries for instruction overrides, persona hijacks, encoding tricks, and related evasions, often with configurable enforcement actions such as flag, redact, or block~\cite{openrouter2026promptinjection}.
+These approaches provide deterministic behaviour, interpretable decisions, predictable latency, and rapid update cycles when new attack patterns emerge~\cite{promptfoo2024owasp,bair2025prompt}.
+Such operational simplicity is especially valuable in production systems with strict throughput, compliance logging, and auditing requirements, where an opaque neural gate may be difficult to justify or debug.
+
+However, the literature consistently reports brittleness under adaptive attacks.
+Rule-based methods tend to overfit to known lexical forms and degrade under paraphrasing, multilingual obfuscation, context splitting, or staged payload construction~\cite{yi2024jailbreak,wang2025promptsleuth,zizzo2025adversarial}.
+An adversary who preserves intent while changing surface wording can often bypass exact signatures, and multi-step prompts can dilute keyword density below a fixed threshold.
+More aggressive rule sets also increase false positives, particularly in technical domains where benign prompts share vocabulary with attacks---for example, process control, configuration overrides, security debugging, or figurative uses of ``jailbreak''~\cite{bair2025prompt,kholkar2025capture,11359704}.
+This creates a persistent trade-off between robustness and usability: tightening rules improves recall on known attacks but harms ordinary users, while loosening rules restores usability at the cost of residual risk.
+Indirect-injection research further shows that static prompt hardening alone is insufficient when adversarial instructions are embedded inside retrieved or external content that the application treats as data~\cite{greshake2023indirect,hines2024spotlighting}.
+As a result, recent work increasingly advocates hybrid approaches that preserve rule-level interpretability while adding semantic and contextual awareness~\cite{bair2025prompt,shi2025promptarmor,wang2025promptsleuth,correia2026systematic}.
+Our framework follows this direction by retaining lightweight lexical checks as baselines and combining them with context-aware signals designed to address the weaknesses of purely rule-based filtering.
+
+\subsection{Structured Prompting and Alignment Defenses}
+\label{sec:rw-structured}
+
+Structured prompting methods attempt to mitigate prompt injection by redesigning the instruction interface itself rather than by detecting malicious strings after the fact.
+StruQ separates instructions and data into explicit structured components, reducing the likelihood that untrusted text is interpreted as executable guidance~\cite{struq2024}.
+By pairing a secure front-end format with structured instruction tuning, the model is encouraged to follow only the trusted prompt channel and to ignore instruction-like content appearing in the data channel.
+Spotlighting uses prompt-engineering strategies that make trust boundaries visible to the model, encouraging externally supplied text to be treated as untrusted content rather than as instructions~\cite{hines2024spotlighting}.
+These approaches improve architectural clarity and can significantly reduce attack success in controlled environments, especially against optimization-free injections that rely on the model confusing data with control.
+
+Despite these strengths, structured prompting introduces integration constraints.
+Such methods assume consistent schema control across retrieval pipelines, middleware, and orchestration frameworks, yet real systems often involve heterogeneous components where formatting drift, legacy connectors, or third-party tools can weaken protection~\cite{bair2025prompt}.
+Moreover, structured prompting cannot fully eliminate semantic ambiguity, since attackers may still manipulate behaviour through contextual shaping, multi-turn interactions, or injections that do not look like overt commands~\cite{struq2024,hines2024spotlighting,yi2024jailbreak}.
+Consequently, structured prompting is best viewed as reducing one major injection channel---instruction/data concatenation---rather than providing comprehensive protection against every linguistic realization of an adversarial goal.
+
+Alignment-based defenses such as SecAlign instead modify model behaviour directly through preference optimization or safety-oriented fine-tuning~\cite{secalign2024}.
+Training examples expose the model to injected inputs paired with desirable responses to the intended instruction and undesirable responses to the injection, and optimization increases the preference margin between them.
+Their advantage is that robustness becomes partially internalized within the model itself, potentially improving resistance to paraphrased or adaptive attacks without requiring an external filter at inference time.
+However, these methods require training infrastructure, curated datasets, compute resources, and ongoing adaptation as base models evolve~\cite{11359704,correia2026systematic,bair2025prompt}.
+They also provide less interpretability at decision time compared with explicit policy rules, and they may be unavailable when the backend is a closed API.
+Our framework occupies a complementary space by remaining model-agnostic and deployable over black-box APIs while still exposing interpretable signals for auditing and threshold tuning.
+In that sense, structured and alignment defenses strengthen the model or interface, whereas our sanitizer strengthens the pre-inference gate in front of an unchanged model.
+
+\subsection{Classifier-Based and Sanitization Defenses}
+\label{sec:rw-classifier}
+
+Classifier-based and sanitization defenses provide a middle ground between hand-crafted rules and expensive retraining.
+Instead of rewriting the application schema or fine-tuning the backend, they score or transform incoming text before generation.
+PromptSleuth focuses on semantic intent invariance, observing that malicious intent often survives paraphrasing even when lexical form changes~\cite{wang2025promptsleuth}.
+By reasoning over task-level goals and inconsistencies with the intended application objective, such methods aim to catch rewritten attacks that evade keyword screens.
+PromptArmor emphasizes a simple but effective guardrail pattern: an off-the-shelf model detects and removes injected prompts before a backend agent processes the cleaned input~\cite{shi2025promptarmor}.
+PISanitizer targets long-context settings by sanitizing likely injected tokens, exploiting the observation that successful injections must attract attention in order to divert behaviour and thereby creating a dilemma for attackers~\cite{geng2025pisanitizer}.
+Privacy-oriented sanitization work such as Pr$\epsilon\epsilon$mpt further shows that pre-model transformation of user text is itself an important control point, even when the primary objective is sensitive-content handling rather than injection blocking~\cite{chowdhury2025prepsilonepsilonmptsanitizingsensitiveprompts}.
+These studies collectively indicate that semantic and contextual features substantially improve resilience against obfuscated or compositional attacks relative to lexical filters alone.
+
+The major trade-off in this family is between robustness and operational cost.
+Large semantic guard models can improve detection performance but introduce additional latency, infrastructure complexity, and lifecycle-management overhead~\cite{shi2025promptarmor,zizzo2025adversarial}.
+Lightweight classifiers reduce these costs but may miss sophisticated indirect or long-context attacks~\cite{geng2025pisanitizer,kholkar2025capture}.
+Adversarial benchmarking results indicate that signal diversity and architectural design can matter as much as model scale~\cite{zizzo2025adversarial}.
+Another challenge is domain drift: classifiers trained on narrow datasets may generalize poorly across languages, retrieval settings, or application domains~\cite{geng2025pisanitizer,11359704,correia2026systematic}.
+CAPTURE further shows that context-aware evaluation exposes both high false negatives on adversarial cases and excessive false positives on benign ones, underscoring over-defense as a first-class failure mode rather than a secondary inconvenience~\cite{kholkar2025capture}.
+Aggressive filtering can also remove context required for successful task completion, so sanitization strength must be balanced against utility~\cite{chowdhury2025prepsilonepsilonmptsanitizingsensitiveprompts,bair2025prompt}.
+
+These findings motivate layered architectures that combine inexpensive heuristics with semantic and contextual reasoning while exposing interpretable risk scores for policy control.
+Our framework adopts this strategy through a lightweight hybrid sanitizer rather than a monolithic guard model.
+Sentence embeddings support a high-confidence semantic hard-trigger layer~\cite{reimers2019sentence,wang2020minilm}; structural detectors and perplexity participate mainly through a complementary weighted score~\cite{radford2019language}.
+Compared with heavy moderation stacks, the design prioritizes deployability and manageable latency while retaining explainability.
+Compared with purely lexical approaches, it aims to improve resilience against paraphrased and structurally transformed attacks~\cite{wang2025promptsleuth,shi2025promptarmor,geng2025pisanitizer,zizzo2025adversarial}.
+A further distinction in our work is the explicit comparison between this hybrid handcrafted design and a learned soft-fusion variant without hard vetoes, which lets us ask which layer actually carries empirical gains.
+
+\subsection{Adversarial Benchmarking and Jailbreak Research}
+\label{sec:rw-benchmark}
+
+Jailbreak research has progressed from isolated prompt tricks to systematic adversarial evaluation methodologies.
+Early demonstrations showed that LLM behaviour could be redirected through creative instruction framing and role-play~\cite{perez2022ignore}.
+Later surveys expanded this into broader taxonomies involving suffix attacks, optimization-guided jailbreaks, decomposition strategies, and multi-turn manipulation~\cite{yi2024jailbreak}.
+The important methodological shift is that attacks are now treated as adaptive processes rather than static templates, meaning evaluations based solely on fixed prompt sets may overestimate defense robustness.
+A filter that performs well on a hand-curated attack list can fail once an adversary paraphrases, restyles, or optimizes the same malicious goal.
+
+Benchmarking studies reinforce this concern.
+Systematic evaluations show that many defenses degrade under adversarially generated or distribution-shifted prompts, and that side effects on benign traffic must be measured alongside attack success~\cite{zizzo2025adversarial}.
+Agentic benchmarks such as AgentDojo demonstrate additional failure modes involving tool usage, external state, and sequential planning, where injection success is defined by diverted agent behaviour rather than by a single unsafe completion~\cite{debenedetti2024agentdojo}.
+CAPTURE emphasizes context-aware evaluation in realistic deployment environments and shows that guardrail models can simultaneously miss attacks and over-block benign cases~\cite{kholkar2025capture}.
+Practitioner red-teaming workflows further stress structured attack suites, repeated measurement, and joint reporting of false positives with attack-success reduction~\cite{promptfoo2024owasp,bair2025prompt}.
+Reviews consistently identify limited multidimensional evaluation as a weakness in the current literature~\cite{11359704,correia2026systematic}.
+Multimodal and retrieval-poisoning studies also indicate that future benchmarks must extend beyond text-only direct attacks~\cite{yeo2025multimodal,wu2025epistemic}.
+
+The broader implication is that robustness should be viewed as relative and scenario-dependent rather than absolute.
+No current defense fully protects against adaptive direct injection, indirect poisoning, long-context manipulation, and agentic attacks simultaneously.
+Our evaluation therefore reports Bypass Rate and True ASR separately, pairs security metrics with false-positive and edge-case analyses, and includes paraphrase and adaptive rewriting probes.
+Bypass Rate diagnoses whether the sanitizer failed to block an injection; True ASR asks whether an unblocked injection elicited judged compliance from the target model.
+Keeping these metrics distinct avoids equating a filter miss with end-to-end harm and aligns the protocol with contemporary guardrail-evaluation practice~\cite{zizzo2025adversarial,yi2024jailbreak}.
+The framework is positioned as a layered inference-time mitigation strategy intended to improve resilience under realistic operational constraints rather than as a complete solution~\cite{zizzo2025adversarial,debenedetti2024agentdojo,kholkar2025capture,yi2024jailbreak}.
+
+\subsection{Positioning of This Work}
+\label{sec:rw-position}
+
+Synthesizing the literature, existing defenses fall into several imperfectly overlapping clusters: rule-based and operational filters~\cite{openrouter2026promptinjection,getstream2024prompt,mend2024prompt}; structured prompting and alignment methods such as StruQ, spotlighting, and SecAlign~\cite{struq2024,hines2024spotlighting,secalign2024}; external sanitization and guardrail models~\cite{geng2025pisanitizer,shi2025promptarmor,chowdhury2025prepsilonepsilonmptsanitizingsensitiveprompts}; and semantic or context-aware detectors~\cite{wang2025promptsleuth,kholkar2025capture}.
+Surveys caution that none of these clusters alone resolves prompt injection, and that evaluation must expose security--usability trade-offs rather than attack metrics in isolation~\cite{correia2026systematic,bair2025prompt,11359704,zizzo2025adversarial}.
+
+Relative to that landscape, this paper makes a focused contribution at the intersection of rule-based filtering, semantic detection, and deployable input sanitization.
+We do not propose a new structured query interface, preference-optimization objective, long-context token localizer, or agent benchmark.
+Instead, we study a model-agnostic pre-inference sanitizer for direct prompt injection and compare a hybrid handcrafted design (Method~A) against a learned soft-fusion variant without hard vetoes (Method~B).
+Method~A treats semantic hard triggers as the primary high-confidence layer and weighted multi-signal scoring as a complementary layer for borderline cases; Method~B asks whether soft probabilistic fusion alone can approach that behaviour.
+By retaining regex and keyword baselines, reporting Bypass Rate and True ASR as distinct metrics, and analyzing false positives, robustness, and component ablations, we aim to provide an evidence-oriented account of which design choices matter in a lightweight sanitization regime that remains portable across black-box backend models~\cite{zizzo2025adversarial,bair2025prompt,correia2026systematic}.
+The following sections develop the resulting methods, experimental protocol, and empirical findings.

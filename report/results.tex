@@ -1,0 +1,275 @@
+% Results — Securing LLMs Against Prompt Injection
+% Academic manuscript section (IEEE / arXiv style)
+% Companion to methodology.tex and experimental_setup.tex
+% Numbers from frozen Suite A/B and ablation result tables
+
+\section{Results}
+\label{sec:results}
+
+We report results on the frozen held-out test partition under the full two-layer protocol, followed by robustness, ablation, and latency measurements.
+Throughout, Bypass Rate and True ASR are kept distinct: the former is the fraction of injection prompts left unblocked, whereas the latter additionally requires judged model compliance.
+Unless noted otherwise, percentages are computed over 30 test injections and 23 test benign prompts.
+
+\subsection{Main Comparison on the Held-Out Test Partition}
+\label{sec:main-results}
+
+Table~\ref{tab:main-results} summarizes the primary comparison.
+The unprotected baseline allows every injection through (Bypass Rate \(100\%\)) and yields a True ASR of \(46.67\%\) (14 successful attacks).
+Lexical defenses reduce Bypass Rate only modestly and leave True ASR unchanged at \(46.67\%\): the regular-expression filter reaches \(86.67\%\) Bypass Rate, and the keyword heuristic reaches \(96.67\%\).
+In other words, on this partition, regex and keyword filtering block a few injections at Layer~1 but do not reduce end-to-end successful attacks relative to the baseline.
+
+\begin{table}[t]
+  \centering
+  \caption{Primary test-set results (30 injections, 23 benign). Bypass Rate and True ASR are separate Layer~1 and Layer~2 metrics.}
+  \label{tab:main-results}
+  \begin{tabular}{lrrrr}
+    \hline
+    Method & Bypass (\%) & True ASR (\%) & FPR (\%) & Successful attacks \\
+    \hline
+    Baseline & 100.00 & 46.67 & 0.00 & 14 \\
+    Regex & 86.67 & 46.67 & 0.00 & 14 \\
+    Keyword & 96.67 & 46.67 & 0.00 & 14 \\
+    Method~A (context-aware) & 6.67 & 0.00 & 13.04 & 0 \\
+    Method~B (learned) & 20.00 & 13.33 & 8.70 & 4 \\
+    \hline
+  \end{tabular}
+\end{table}
+
+Both context-aware methods outperform the lexical baselines by a wide margin.
+Method~A---the hybrid handcrafted gate---achieves a Bypass Rate of \(6.67\%\) and a True ASR of \(0\%\) (no successful attacks), at a false-positive rate of \(13.04\%\) (3 of 23 benign prompts blocked).
+Method~B achieves a Bypass Rate of \(20.00\%\) and a True ASR of \(13.33\%\) (4 successful attacks), at a lower false-positive rate of \(8.70\%\) (2 of 23).
+
+These figures answer RQ1--RQ3 directly.
+Unprotected risk is substantial (True ASR near one half).
+Lexical controls are weak on this corpus once end-to-end compliance is measured.
+Context-aware sanitization is markedly stronger, with hybrid Method~A providing the best security and soft-only Method~B offering a milder false-positive trade-off.
+As shown later in the ablations, Method~A's advantage should be attributed primarily to its hard-trigger layer rather than to ensemble scoring alone.
+
+\paragraph{Bypass versus True ASR.}
+The gap between the two metrics is informative.
+Under the baseline and lexical defenses, roughly half of all injections become successful attacks, so many sanitizer misses are converted into complied responses.
+Under Method~A, the two residual bypasses do not produce judged compliance, so True ASR falls to zero.
+Under Method~B, four of the six bypasses become successful attacks.
+Reporting only Bypass Rate would therefore overstate residual harm for Method~A and would understate the distinction between filter misses and realized end-to-end success.
+
+\subsection{Usability: Standard and Edge-Case False Positives}
+\label{sec:fpr-results}
+
+On the standard benign test partition, regex and keyword filtering incur no false positives, while Method~A and Method~B incur \(13.04\%\) and \(8.70\%\) FPR, respectively (Table~\ref{tab:main-results}).
+The more revealing usability probe is the edge-case benign set of 80 technical-but-harmless prompts (Table~\ref{tab:edge-fpr}).
+
+\begin{table}[t]
+  \centering
+  \caption{Edge-case benign false-positive rates (\(n=80\)).}
+  \label{tab:edge-fpr}
+  \begin{tabular}{lrr}
+    \hline
+    Method & Edge FPR (\%) & Blocked / 80 \\
+    \hline
+    Baseline & 0.0 & 0 \\
+    Regex & 2.5 & 2 \\
+    Keyword & 0.0 & 0 \\
+    Method~A & 36.25 & 29 \\
+    Method~B & 7.5 & 6 \\
+    \hline
+  \end{tabular}
+\end{table}
+
+Lexical methods remain nearly inert on this set.
+Method~A, however, blocks 29 of 80 edge prompts (\(36.25\%\)), indicating substantial over-triggering on technical language that overlaps superficially with attack vocabulary.
+Method~B is far gentler, blocking 6 of 80 (\(7.5\%\)).
+Together with the standard-test FPR figures, these results address RQ4: Method~A purchases stronger security at a clear usability cost, whereas Method~B reduces that cost while allowing a nonzero residual True ASR.
+
+\subsection{Paraphrase Robustness}
+\label{sec:para-results}
+
+Table~\ref{tab:paraphrase} reports Bypass Rate before and after mild synonym substitution on 50 training injections (sanitizer-only evaluation).
+Both context-aware methods remain at \(0\%\) Bypass Rate on the original and paraphrased variants in this diagnostic setting.
+Lexical methods degrade slightly: keyword Bypass Rate rises from \(86\%\) to \(90\%\) (\(+4\) percentage points), and regex from \(74\%\) to \(76\%\) (\(+2\) percentage points).
+
+\begin{table}[t]
+  \centering
+  \caption{Paraphrase robustness (sanitizer-only Bypass Rate on 50 training injections).}
+  \label{tab:paraphrase}
+  \begin{tabular}{lrrr}
+    \hline
+    Method & Original Bypass & Paraphrased Bypass & \(\Delta\) (pp) \\
+    \hline
+    Baseline & 1.00 & 1.00 & 0.00 \\
+    Regex & 0.74 & 0.76 & \(+0.02\) \\
+    Keyword & 0.86 & 0.90 & \(+0.04\) \\
+    Method~A & 0.00 & 0.00 & 0.00 \\
+    Method~B & 0.00 & 0.00 & 0.00 \\
+    \hline
+  \end{tabular}
+\end{table}
+
+The paraphrase operator is intentionally mild, so these results should be read as evidence against shallow lexical brittleness rather than as proof of invariance to arbitrary rewriting.
+Even under this limited stress, the lexical baselines move in the expected direction, while the context-aware methods do not.
+
+\subsection{Adaptive Rewriting}
+\label{sec:adaptive-results}
+
+Adaptive evaluation rewrites each of the 30 test injections into five styles, yielding up to 150 prompts evaluated with the full two-layer pipeline (Table~\ref{tab:adaptive}).
+Relative to the static test set, all active defenses degrade, but the ordering is preserved.
+
+\begin{table}[t]
+  \centering
+  \caption{Adaptive FLAN-T5 rewriting results (up to 150 prompts; full two-layer evaluation).}
+  \label{tab:adaptive}
+  \begin{tabular}{lrrr}
+    \hline
+    Method & Bypass (\%) & True ASR (\%) & Successful attacks \\
+    \hline
+    Baseline & 100.00 & 45.33 & 68 \\
+    Regex & 93.33 & 42.00 & 63 \\
+    Keyword & 96.67 & 45.33 & 68 \\
+    Method~A & 16.67 & 8.67 & 13 \\
+    Method~B & 40.00 & 15.33 & 23 \\
+    \hline
+  \end{tabular}
+\end{table}
+
+Under adaptive rewriting, Method~A Bypass Rate rises from \(6.67\%\) on the static test set to \(16.67\%\), and True ASR rises from \(0\%\) to \(8.67\%\) (13 successful attacks).
+Method~B Bypass Rate rises from \(20\%\) to \(40\%\), and True ASR from \(13.33\%\) to \(15.33\%\) (23 successful attacks).
+Lexical defenses remain close to the unprotected baseline (True ASR \(42.00\%\)--\(45.33\%\)).
+Thus Method~A remains the strongest defense under style shift, while Method~B retains a substantial but smaller advantage over regex and keyword filtering.
+The increase relative to the static test set confirms that adaptive restatement is a harder condition than the original wording, even when the rewriter is a compact sequence-to-sequence model rather than an unbounded optimizer.
+
+\subsection{Ablation Studies}
+\label{sec:ablation-results}
+
+Ablations attribute the main-table gains to specific components on the same held-out test partition.
+
+\subsubsection{Hard-veto ablation for Method A}
+
+Table~\ref{tab:hard-ablation} confirms the hybrid interpretation of Method~A.
+The full system achieves \(6.67\%\) Bypass Rate and \(0\%\) True ASR.
+Removing all hard vetoes (soft-only Method~A) raises Bypass Rate to \(83.33\%\) and True ASR to \(40.00\%\) (\(+76.66\) percentage points in Bypass Rate), collapsing performance into the same weak regime as soft-weighted scoring alone and showing that the secondary soft layer is insufficient as a primary defense.
+Disabling only the semantic hard veto already raises Bypass Rate to \(63.33\%\) and True ASR to \(23.33\%\), identifying that veto as the principal high-confidence component.
+Disabling the intent veto or the role-play--keyword veto individually leaves the full-system metrics unchanged on this partition.
+
+\begin{table}[t]
+  \centering
+  \caption{Hard-veto ablation for Method~A on the held-out test partition.}
+  \label{tab:hard-ablation}
+  \begin{tabular}{lrrrr}
+    \hline
+    Variant & Bypass (\%) & True ASR (\%) & FPR (\%) & \(\Delta\) Bypass (pp) \\
+    \hline
+    Full Method~A & 6.67 & 0.00 & 13.04 & 0.00 \\
+    Soft-only (no hard vetoes) & 83.33 & 40.00 & 0.00 & \(+76.66\) \\
+    $-$ semantic hard veto & 63.33 & 23.33 & 0.00 & \(+56.66\) \\
+    $-$ intent hard veto & 6.67 & 0.00 & 13.04 & 0.00 \\
+    $-$ role-play+keyword hard veto & 6.67 & 0.00 & 13.04 & 0.00 \\
+    \hline
+  \end{tabular}
+\end{table}
+
+Two conclusions follow.
+First, Method~A should not be presented as a purely ensemble-based scoring system: soft aggregation alone does not deliver its reported security.
+Second, among hard vetoes, the semantic trigger is the decisive primary layer under the present test distribution; the other two vetoes contribute comparatively little once that semantic trigger is present.
+
+\subsubsection{Soft-weighted ablation for Method A}
+
+With hard vetoes disabled, leave-one-signal-out soft ablations remain in a weak band (Table~\ref{tab:soft-ablation}).
+The full soft-weighted model already allows \(83.33\%\) Bypass Rate and \(40.00\%\) True ASR.
+Removing the semantic soft signal produces the largest further degradation (\(+10.00\) percentage points Bypass Rate).
+Removing intent or role-play each adds \(6.67\) percentage points.
+Removing regular expression, keyword, or perplexity each adds \(3.34\) percentage points.
+Removing instruction shift or objective conflict leaves the soft-only totals unchanged on this partition.
+
+\begin{table}[t]
+  \centering
+  \caption{Soft-weighted ablation for Method~A (hard vetoes off).}
+  \label{tab:soft-ablation}
+  \begin{tabular}{lrrr}
+    \hline
+    Variant & Bypass (\%) & True ASR (\%) & \(\Delta\) Bypass (pp) \\
+    \hline
+    Full soft-weighted & 83.33 & 40.00 & 0.00 \\
+    $-$ semantic & 93.33 & 46.67 & \(+10.00\) \\
+    $-$ intent & 90.00 & 46.67 & \(+6.67\) \\
+    $-$ role-play & 90.00 & 46.67 & \(+6.67\) \\
+    $-$ regex / keyword / perplexity & 86.67 & 40.00 & \(+3.34\) \\
+    $-$ instruction shift & 83.33 & 40.00 & 0.00 \\
+    $-$ objective conflict & 83.33 & 40.00 & 0.00 \\
+    \hline
+  \end{tabular}
+\end{table}
+
+These results reinforce the hybrid claim: soft fusion contributes some secondary signal, especially through semantics, but does not by itself approach the security of full Method~A.
+
+\subsubsection{Feature ablation for Method B}
+
+Table~\ref{tab:learned-ablation} summarizes Method~B feature ablations.
+The full learned model matches the Suite~B main result (\(20.00\%\) Bypass Rate, \(13.33\%\) True ASR, \(8.70\%\) FPR).
+Semantic features dominate.
+Removing all semantic features raises Bypass Rate to \(100\%\) and True ASR to \(46.67\%\), identical to the unprotected baseline on this partition.
+Among individual semantic features, removing the top-three mean causes the largest single increase in Bypass Rate (\(+50.00\) percentage points), followed by the maximum similarity (\(+36.67\)) and the benign-contrast term (\(+30.00\)).
+Removing intent produces a small increase (\(+3.33\)).
+Removing regular expression, keyword, role-play, instruction shift, objective conflict, or perplexity leaves the full-model metrics unchanged on this test partition.
+
+\begin{table}[t]
+  \centering
+  \caption{Learned feature ablation for Method~B on the held-out test partition.}
+  \label{tab:learned-ablation}
+  \begin{tabular}{lrrrr}
+    \hline
+    Variant & Bypass (\%) & True ASR (\%) & FPR (\%) & \(\Delta\) Bypass (pp) \\
+    \hline
+    Full Method~B & 20.00 & 13.33 & 8.70 & 0.00 \\
+    $-$ all semantic & 100.00 & 46.67 & 0.00 & \(+80.00\) \\
+    $-$ semantic top-3 & 70.00 & 33.33 & 0.00 & \(+50.00\) \\
+    $-$ semantic max & 56.67 & 26.67 & 0.00 & \(+36.67\) \\
+    $-$ semantic contrast & 50.00 & 23.33 & 0.00 & \(+30.00\) \\
+    $-$ intent & 23.33 & 16.67 & 8.70 & \(+3.33\) \\
+    $-$ regex / keyword / role-play / shift / conflict / perplexity & 20.00 & 13.33 & 8.70 & 0.00 \\
+    \hline
+  \end{tabular}
+\end{table}
+
+A zero change on this partition does not prove that a feature is useless in general; it indicates only that the feature did not alter decisions on these 53 test prompts when the remaining features were present.
+The positive conclusion is sharper: semantic features are necessary for Method~B's observed gains, and the expanded semantic representation (maximum, top-three, and contrast) carries most of the learned defense.
+
+\subsection{Runtime Overhead}
+\label{sec:latency-results}
+
+Table~\ref{tab:latency} reports CPU latency over 50 prompts.
+Lexical filters are negligible (keyword mean \(0.02\)~ms; regex mean \(0.22\)~ms).
+MiniLM semantic scoring averages \(20.98\)~ms per prompt, and DistilGPT-2 perplexity scoring averages \(45.03\)~ms.
+Full Method~A sanitization averages \(64.79\)~ms (median \(46.68\)~ms; 95th percentile \(147.04\)~ms).
+
+\begin{table}[t]
+  \centering
+  \caption{CPU latency per prompt (\(n=50\)).}
+  \label{tab:latency}
+  \begin{tabular}{lrrr}
+    \hline
+    Component & Mean (ms) & Median (ms) & p95 (ms) \\
+    \hline
+    Keyword & 0.02 & 0.01 & 0.05 \\
+    Regex & 0.22 & 0.07 & 0.78 \\
+    MiniLM semantic & 20.98 & 17.42 & 35.61 \\
+    DistilGPT-2 perplexity & 45.03 & 29.10 & 111.36 \\
+    Full Method~A & 64.79 & 46.68 & 147.04 \\
+    \hline
+  \end{tabular}
+\end{table}
+
+Relative to lexical baselines, Method~A therefore adds tens of milliseconds of pre-inference cost on CPU.
+This overhead is small compared with typical large-model generation latency, but it is no longer free: the security gains of context-aware sanitization come with a measurable compute premium concentrated in the embedding and perplexity auxiliaries.
+
+\subsection{Summary of Findings}
+\label{sec:results-summary}
+
+Across the held-out test partition, robustness suites, and ablations, five empirical findings stand out.
+\begin{enumerate}
+  \item Lexical defenses alone do not reduce True ASR relative to the unprotected baseline on this corpus.
+  \item Method~A achieves the strongest security (True ASR \(0\%\) on the static test set; \(8.67\%\) under adaptive rewriting), but incurs the highest false-positive burden, especially on edge-case benign prompts.
+  \item Method~B improves substantially over lexical baselines with a milder usability cost, yet leaves residual successful attacks (\(13.33\%\) True ASR on the static test set).
+  \item Method~A behaves as a hybrid defense: hard semantic vetoes provide most protection, while soft weighted scoring is only a complementary layer (soft-only detection falls to roughly \(17\%\), and True ASR rises to \(40\%\)).
+  \item Method~B's gains are driven primarily by semantic features; removing them returns performance to the unprotected baseline on this partition.
+\end{enumerate}
+These findings motivate framing Method~A as a hybrid architecture rather than a pure ensemble scorer.
+Scope boundaries and limitations of the evaluation are stated in Section~\ref{sec:limitations}.

@@ -1,0 +1,60 @@
+% Limitations and Scope — Securing LLMs Against Prompt Injection
+% Academic manuscript section (IEEE / arXiv style)
+
+\section{Limitations and Scope}
+\label{sec:limitations}
+
+This section clarifies what the present study does and does not claim.
+We first state the intended scope of the threat model, data, and evaluation protocol, then enumerate limitations that qualify the empirical conclusions.
+
+\subsection{Scope}
+\label{sec:scope}
+
+The study addresses \emph{direct} textual prompt injection against an instruction-tuned chat model under a model-agnostic pre-inference gate.
+The defender may inspect and optionally block the user prompt before generation, but may not retrain the backend model or redesign the application interface into structured queries~\cite{struq2024,secalign2024}.
+Within that setting we compare lexical baselines with two context-aware sanitizers: hybrid Method~A, in which semantic hard triggers form the primary layer and weighted multi-signal scoring provides secondary coverage, and Method~B, which relies on learned soft fusion without hard vetoes.
+
+The evaluation corpus is intentionally compact and curated for controlled comparison.
+Primary metrics are reported on a frozen held-out test partition using a two-layer protocol that separates Bypass Rate from True ASR, complemented by paraphrase, edge-case benign, adaptive rewriting, ablation, and latency analyses.
+The contribution is therefore a reproducible proof-of-concept account of where defensive capability originates in a lightweight sanitization pipeline, not a production security certification.
+
+Out of scope for the present experiments are agentic tool-use settings~\cite{debenedetti2024agentdojo}, long-context indirect injection through retrieved documents or web content as the primary attack channel~\cite{greshake2023indirect,hines2024spotlighting}, multimodal injection~\cite{yeo2025multimodal}, and unbounded optimization-based jailbreak search~\cite{yi2024jailbreak}.
+Training-time alignment and structured-query redesign are treated as complementary defenses rather than competing systems under evaluation.
+
+\subsection{Limitations}
+\label{sec:limitations-detail}
+
+Several limitations qualify the reported results.
+
+\paragraph{Data scale and statistical power.}
+The corpus contains 350 prompts with a 53-prompt test partition.
+On a set of this size, leave-one-component ablations that show zero change should not be over-interpreted as proof that a signal is universally useless; they indicate only that the component did not alter decisions on this particular hold-out when the remaining cues were present.
+Larger and more diverse benchmarks would be needed for confident estimates of ablation deltas and confidence intervals.
+
+\paragraph{Threat-model coverage.}
+We evaluate direct single-turn textual injection.
+Indirect poisoning, multi-turn manipulation, retrieval-mediated attacks, and tool-diverting agent attacks may expose failure modes that the present suite does not stress~\cite{greshake2023indirect,debenedetti2024agentdojo,wu2025epistemic}.
+Adaptive rewriting uses a compact sequence-to-sequence model and therefore probes controlled style transfer rather than the strongest available adversarial optimizers~\cite{yi2024jailbreak,zizzo2025adversarial}.
+
+\paragraph{Judge and target dependence.}
+True ASR depends on an LLM-as-a-judge from the same model family as the target.
+Under greedy decoding the protocol is reproducible for a fixed model revision, but the judge is not a human gold standard and may disagree with other models or annotators~\cite{zizzo2025adversarial}.
+Results may also shift if a stronger or differently aligned backend replaces Qwen2.5-3B-Instruct.
+
+\paragraph{Architectural interpretation.}
+Method~A is a hybrid system: ablations show that semantic hard triggers provide most of the observed protection, while soft weighted scoring is complementary.
+Claims that would present Method~A as a balanced multi-signal ensemble would overstate the role of soft aggregation on this benchmark.
+Method~B improves over lexical baselines with milder false positives, but does not match Method~A's static-test True ASR; soft fusion alone is therefore not a drop-in substitute for the hybrid gate under the present evaluation.
+
+\paragraph{Usability cost.}
+Method~A's stronger security coincides with higher false-positive rates on ordinary benign prompts and especially on technical edge-case prompts.
+This trade-off is intrinsic to the current operating point and may limit deployment in product settings where over-blocking is costly~\cite{bair2025prompt,kholkar2025capture}.
+Threshold retuning or benign whitelisting could reduce that cost, but such changes were not explored here in order to keep the architecture and evaluation fixed.
+
+\paragraph{Efficiency and deployment.}
+Sanitizer auxiliaries run on CPU by design; Method~A adds tens of milliseconds of pre-inference latency relative to lexical filters.
+This overhead is modest compared with large-model generation, but it is not free, and wall-clock cost will vary with hardware and batching.
+The study does not evaluate multi-tenant serving, streaming interfaces, or privacy constraints on prompt logging.
+
+Taken together, these limitations imply that the results should be read as evidence about hybrid versus soft context-aware sanitization under a constrained direct-injection protocol.
+They support retaining and transparently reporting the present architecture, while leaving broader generalization, adaptive weighting, and reduced hard-trigger reliance to future work.

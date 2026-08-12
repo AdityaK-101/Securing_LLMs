@@ -1,0 +1,1243 @@
+\documentclass{article}
+
+
+
+\usepackage{arxiv}
+
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{lipsum}		% Can be removed after putting your text content
+\usepackage{amsmath} % for \text in math mode
+\usepackage{graphicx}
+\usepackage{natbib}
+\usepackage{doi}
+\usepackage{subcaption}
+\usepackage{float}
+
+
+
+\title{Securing Large Language Models Against Prompt Injection\\
+Towards Robust, Context-Aware Input Sanitization}
+
+%\date{September 9, 1985}	% Here you can change the date presented in the paper title
+%\date{} 					% Or removing it
+
+\author{ \href{https://orcid.org/0009-0007-0917-5957}{\includegraphics[scale=0.06]{orcid.pdf}\hspace{1mm}Aditya Kulkarni}\\
+	Department of Computer Engineering\\
+	Savitribai Phule Pune University\\
+	Pune, India\\
+	\texttt{kulkarni.aditya.m@gmail.com} \\
+	%% examples of more authors
+	\And
+	\href{https://orcid.org/0000-0000-0000-0000}{\includegraphics[scale=0.06]{orcid.pdf}\hspace{1mm}XYZ} \\
+	Department of Electrical Engineering\\
+	Mount-Sheikh University\\
+	Santa Narimana, Levand \\
+	\texttt{stariate@ee.mount-sheikh.edu} \\
+	%% \AND
+	%% Coauthor \\
+	%% Affiliation \\
+	%% Address \\
+	%% \texttt{email} \\
+	%% \And
+	%% Coauthor \\
+	%% Affiliation \\
+	%% Address \\
+	%% \texttt{email} \\
+	%% \And
+	%% Coauthor \\
+	%% Affiliation \\
+	%% Address \\
+	%% \texttt{email} \\
+}
+
+% Uncomment to remove the date
+%\date{}
+
+% Uncomment to override  the `A preprint' in the header
+% \renewcommand{\headeright}{Technical Report}
+\renewcommand{\shorttitle}{\textit{Securing LLMs Against Prompt Injection}}
+
+%%% Add PDF metadata to help others organize their library
+%%% Once the PDF is generated, you can check the metadata with
+%%% $ pdfinfo template.pdf
+\hypersetup{
+pdftitle={A template for the arxiv style},
+pdfsubject={q-bio.NC, q-bio.QM},
+pdfauthor={David S.~Hippocampus, Elias D.~Striatum},
+pdfkeywords={First keyword, Second keyword, More},
+}
+\nocite{*}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Prompt injection remains a primary risk for LLM applications because adversarial natural-language inputs can override intended instructions and collapse the boundary between trusted system policy and untrusted user text.
+We study model-agnostic pre-inference sanitization for direct prompt injection, placing a portable gate in front of a fixed instruction-tuned open model and comparing an unprotected baseline and two lexical filters with a hybrid handcrafted context-aware gate (Method~A) and a learned soft-fusion variant (Method~B).
+Method~A uses semantic hard triggers---especially MiniLM similarity to known injections---as the primary high-confidence layer, with weighted multi-signal scoring as secondary coverage for borderline cases; Method~B expands the semantic feature set and replaces handcrafted aggregation with logistic fusion and a validation-selected threshold, without hard vetoes.
+Under a two-layer protocol that separates Bypass Rate from True ASR, lexical defenses reduce Bypass Rate only modestly and leave True ASR unchanged at \(46.67\%\) relative to the baseline.
+Method~A reaches \(6.67\%\) Bypass Rate and \(0\%\) True ASR at \(13.04\%\) FPR, while Method~B reaches \(20\%\) Bypass Rate and \(13.33\%\) True ASR at a milder \(8.70\%\) FPR; adaptive rewriting degrades both defenses but preserves the same ordering.
+Ablations show that Method~A's gains originate mainly in semantic hard triggers rather than ensemble scoring alone, while Method~B depends primarily on semantic features, revealing an explicit security--usability trade-off under a compact curated evaluation.
+\end{abstract}
+
+\keywords{Prompt Injection \and Large Language Models \and LLM Security \and Input Sanitization \and Context-Aware Defense \and Adversarial Prompts \and Semantic Similarity \and Prompt Hardening \and Multi-Signal Detection \and AI Safety}
+
+
+\section{Introduction}
+\label{sec:introduction}
+
+Large language models are increasingly embedded in chat assistants, developer tools, enterprise copilots, customer-support systems, and agentic workflows that accept free-form natural language as a primary control interface.
+This flexibility is also a security liability.
+Because models are trained to follow instructions expressed in text, an adversary can often embed conflicting directives in a user prompt and induce the system to ignore application policy, reveal restricted information, adopt an unauthorized persona, execute unintended tool calls, or otherwise pursue an attacker-chosen goal~\cite{owasp_llm,perez2022ignore,yi2024jailbreak}.
+Unlike classical injection vulnerabilities that target a brittle parser or query language, prompt injection exploits the model's intended strength---open-ended instruction following---which makes both attack and defense intrinsically linguistic~\cite{11359704,bair2025prompt}.
+OWASP identifies this failure mode as prompt injection and ranks it among the most critical risks for LLM applications~\cite{owasp_llm}.
+Subsequent work has shown that the threat is not limited to overt phrases such as ``ignore previous instructions'': paraphrased, role-play, hypothetical, multilingual, and optimization-based attacks can achieve similar ends~\cite{yi2024jailbreak,perez2022ignore}, while indirect injection can deliver adversarial content through retrieved documents, web pages, or tool outputs rather than through the primary chat box~\cite{greshake2023indirect,hines2024spotlighting,debenedetti2024agentdojo}.
+As surveys emphasize, the underlying difficulty is a collapse of trust boundaries between trusted instructions and untrusted natural-language inputs, turning context integrity into a first-class security problem~\cite{11359704,correia2026systematic,bair2025prompt}.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.9\linewidth]{./images/prompt-injection.png}
+  \caption{Types of Prompt Injection}
+  \label{fig:hard-trigger-ablation}
+\end{figure}
+
+In practice, many deployments respond first with inexpensive lexical controls: regular expressions, keyword deny-lists, role-token constraints, and prompt-hardening guidance~\cite{openrouter2026promptinjection,getstream2024prompt,mend2024prompt}.
+These defenses are attractive because they are transparent, auditable, fast, and easy to update when a new attack signature appears.
+Yet the same literature that recommends them also documents their brittleness.
+Attackers can preserve malicious intent while changing surface form; multi-step prompts can dilute keyword density; and benign technical language can collide with attack vocabulary, producing false positives that degrade usability~\cite{yi2024jailbreak,wang2025promptsleuth,bair2025prompt,kholkar2025capture}.
+The result is a persistent robustness--usability trade-off: tightening rules improves recall on known attacks but harms ordinary users, while loosening rules restores usability at the cost of residual risk.
+
+Stronger alternatives exist across several research clusters.
+Structured query interfaces separate instructions from data so that untrusted text is less likely to be treated as executable guidance~\cite{struq2024}.
+Preference-optimization methods such as SecAlign internalize resistance by training models to prefer responses to intended instructions over responses to injections~\cite{secalign2024}.
+External sanitization and guardrail models detect, rewrite, or remove injected content before backend generation~\cite{shi2025promptarmor,geng2025pisanitizer,chowdhury2025prepsilonepsilonmptsanitizingsensitiveprompts}.
+Semantic detectors further argue that unauthorized task intent can remain invariant under paraphrase even when lexical cues disappear~\cite{wang2025promptsleuth}, and context-aware evaluations show that both missed attacks and over-defense must be measured together~\cite{kholkar2025capture,zizzo2025adversarial}.
+These lines of work are important, but they do not fully answer a question that arises in many real deployments: when the backend model is fixed, the chat interface cannot be redesigned, and only a portable pre-inference gate can be inserted, how effective is a model-agnostic input sanitizer that combines lexical, structural, and semantic evidence?
+
+This paper addresses that question through a controlled study of context-aware input sanitization for direct prompt injection.
+We place a pre-inference gate in front of an instruction-tuned open model and compare five conditions under a shared evaluation protocol: an unprotected baseline, a regular-expression filter, a keyword heuristic, a hybrid handcrafted context-aware sanitizer (Method~A), and a learned soft-fusion variant of the same signal family (Method~B).
+Method~A is not framed as a pure ensemble scorer.
+It uses a high-confidence hard-trigger layer---especially a semantic veto based on MiniLM similarity to known injections---as the primary defense, while a weighted combination of lexical, structural, semantic, and DistilGPT-2 perplexity cues provides secondary coverage for borderline cases~\cite{reimers2019sentence,wang2020minilm,radford2019language}.
+Method~B retains an expanded semantic representation, including maximum similarity, top-three mean similarity, and a benign-contrast term, and replaces handcrafted aggregation with logistic regression and a validation-selected threshold, without hard vetoes.
+This contrast lets us ask not only whether context-aware sanitization outperforms lexical baselines, but also whether observed gains come from soft score fusion or from hard semantic gating---and ablations later show that Method~A behaves as a hybrid system in which the latter dominates.
+
+Evaluation is deliberately two-layered, following contemporary guardrail-benchmarking practice that warns against equating filter misses with end-to-end harm~\cite{zizzo2025adversarial,promptfoo2024owasp}.
+\emph{Bypass Rate} measures whether the sanitizer fails to block an injection at Layer~1.
+\emph{True Attack Success Rate (True ASR)} measures whether an unblocked injection also elicits judged compliance from the target model at Layer~2.
+An unblocked injection that the model refuses therefore contributes to Bypass Rate but not to True ASR.
+We additionally report false positives on ordinary and edge-case benign prompts, paraphrase and adaptive rewriting robustness, component ablations, and sanitizer latency.
+The corpus is compact and curated by design.
+The study should therefore be read as a reproducible proof-of-concept comparison under a fixed direct-injection threat model, not as a claim of production completeness against agentic, multimodal, or strongly optimized attack leaderboards~\cite{debenedetti2024agentdojo,yeo2025multimodal,yi2024jailbreak}.
+
+Empirically, lexical defenses reduce Bypass Rate only modestly on the held-out test partition and leave True ASR unchanged relative to the unprotected baseline, indicating that blocking a few known surface forms is not enough once model compliance is measured.
+Both context-aware methods improve security substantially.
+Method~A achieves the strongest protection, including zero successful attacks on the static test set, but incurs a higher false-positive burden, especially on technical edge-case prompts that reuse attack-like vocabulary in harmless contexts.
+Method~B offers a milder usability cost while leaving residual end-to-end risk.
+Ablations show that Method~A should be interpreted as a hybrid defense: semantic hard triggers provide most of the protection, while soft weighted scoring is only complementary; Method~B's gains depend primarily on semantic features, and removing all semantic cues returns it to unprotected baseline behaviour on this partition.
+Adaptive stylistic rewriting degrades all active defenses but preserves the same ordering, reinforcing that context-aware sanitization remains useful under controlled restatement even though it is not invulnerable.
+Latency measurements further show that the added security of Method~A comes with a measurable but moderate CPU-side pre-inference cost concentrated in embedding and perplexity scoring.
+
+The contributions of this paper are as follows:
+\begin{enumerate}
+  \item We formulate direct prompt-injection defense as a model-agnostic pre-inference sanitization problem and implement Method~A as a hybrid gate in which semantic hard triggers form the primary layer and weighted multi-signal scoring provides secondary coverage.
+  \item We compare this hybrid handcrafted design (Method~A) against learned soft fusion without hard vetoes (Method~B), enabling an evidence-based attribution of security gains to architectural choices rather than to pipeline complexity alone.
+  \item We evaluate all methods under a two-layer protocol that separates Bypass Rate from True ASR, and we complement the main comparison with false-positive, paraphrase, adaptive-rewriting, ablation, and latency analyses.
+  \item We show empirically that lexical baselines are insufficient on this corpus once end-to-end compliance is measured, that Method~A's defensive capability originates mainly in semantic hard triggers rather than ensemble scoring alone, and that Method~B's gains are driven primarily by semantic features under an explicit usability trade-off.
+\end{enumerate}
+
+The remainder of the paper is organized as follows.
+Section~\ref{sec:related-work} reviews prompt-injection taxonomies, rule-based and alignment defenses, sanitization and semantic detection, and evaluation practice.
+Section~\ref{sec:methodology} presents the threat model, dataset, defense designs, and two-layer evaluation methodology.
+Section~\ref{sec:experimental-setup} details the experimental protocol, model configurations, robustness settings, and reproducibility controls.
+Section~\ref{sec:results} reports the main results, robustness findings, ablations, and latency measurements.
+Section~\ref{sec:limitations} states the scope of the study and its limitations before we conclude.
+
+
+% ---------------------------------------------------------------------------
+% From related_work.tex
+% ---------------------------------------------------------------------------
+
+\section{Related Work}
+\label{sec:related-work}
+
+\subsection{Prompt Injection Taxonomy}
+\label{sec:rw-taxonomy}
+
+Security research has evolved from treating prompt injection as isolated jailbreak behaviour to viewing it as a broader input-control failure across LLM application stacks.
+The OWASP LLM framework identifies prompt injection as a primary application-level threat involving instruction-priority violations, unsafe context ingestion, and collapse of trust boundaries between system instructions and external inputs~\cite{owasp_llm}.
+This perspective reframes the issue from simple malicious phrasing to natural-language control-flow corruption, motivating defenses that reason about intent, provenance, and execution context rather than keywords alone.
+Early demonstrations showed that benign-looking prompts could redirect model goals under weak instruction anchoring~\cite{perez2022ignore}, establishing that fluency and apparent cooperativeness are not reliable indicators of safety.
+Later indirect-injection studies revealed that retrieved documents, tool outputs, and web content can act as hidden attack channels, allowing an adversary to influence behaviour without ever typing an explicit override into the primary chat interface~\cite{greshake2023indirect}.
+
+Recent surveys extend this into a multi-dimensional threat model spanning attack origin, persistence, delivery channel, and objective~\cite{11359704,correia2026systematic,yi2024jailbreak}.
+Attack origin distinguishes user-supplied direct injection from externally mediated indirect injection; persistence distinguishes one-shot overrides from multi-turn or cross-session manipulation; delivery channel covers chat input, retrieval corpora, tool responses, and multimodal context; and objective ranges from policy bypass and secret exfiltration to goal hijacking and unauthorized tool use.
+Emerging categories include cross-turn manipulation, paraphrased and obfuscated attacks, policy evasion through academic or hypothetical framing, and optimization-guided jailbreaks that search for highly effective adversarial suffixes~\cite{yi2024jailbreak}.
+Multimodal prompt injection further broadens the attack surface by embedding adversarial instructions in images or multimodal context-assembly pipelines~\cite{yeo2025multimodal}.
+Retrieval-mediated and epistemic attacks similarly show that adversaries can steer generation through selectively framed contextual evidence rather than explicit overrides~\cite{wu2025epistemic,greshake2023indirect}.
+Collectively, these findings suggest that prompt injection is fundamentally a context-integrity problem spanning semantic intent, provenance, and downstream action sensitivity.
+
+Taxonomies also highlight a gap between academic attack categories and production deployments.
+Real systems typically involve heterogeneous pipelines combining user prompts, retrieval modules, tool outputs, and orchestration frameworks.
+In such environments, the same adversarial objective may appear as a direct override in one stage and as indirect poisoning in another, which means that a defense validated only on single-turn chat overrides can miss the dominant risk in an agentic deployment~\cite{debenedetti2024agentdojo,bair2025prompt}.
+OWASP-style operational guidance~\cite{owasp_llm}, practitioner red-teaming workflows~\cite{promptfoo2024owasp}, and systematic surveys~\cite{11359704,correia2026systematic} therefore collectively motivate layered defenses that combine lexical, semantic, and contextual reasoning rather than relying on a single attack template.
+Our study focuses on direct textual injection under a pre-inference gate.
+This choice keeps the comparison of sanitizer designs experimentally controlled, while remaining explicit that agentic, multimodal, and long-context indirect settings raise additional challenges beyond the present scope~\cite{debenedetti2024agentdojo,hines2024spotlighting,yeo2025multimodal}.
+
+\subsection{Rule-Based Defenses}
+\label{sec:rw-rule}
+
+Rule-based defenses remain the most common first layer of mitigation because they are transparent, inexpensive, and easy to integrate with existing moderation systems.
+Industry and practitioner guidance frequently recommends regular-expression signatures, deny-lists, role-token constraints, and static safety preambles to suppress unsafe behaviour~\cite{openrouter2026promptinjection,getstream2024prompt,mend2024prompt}.
+Commercial guardrail documentation likewise describes pattern libraries for instruction overrides, persona hijacks, encoding tricks, and related evasions, often with configurable enforcement actions such as flag, redact, or block~\cite{openrouter2026promptinjection}.
+These approaches provide deterministic behaviour, interpretable decisions, predictable latency, and rapid update cycles when new attack patterns emerge~\cite{promptfoo2024owasp,bair2025prompt}.
+Such operational simplicity is especially valuable in production systems with strict throughput, compliance logging, and auditing requirements, where an opaque neural gate may be difficult to justify or debug.
+
+However, the literature consistently reports brittleness under adaptive attacks.
+Rule-based methods tend to overfit to known lexical forms and degrade under paraphrasing, multilingual obfuscation, context splitting, or staged payload construction~\cite{yi2024jailbreak,wang2025promptsleuth,zizzo2025adversarial}.
+An adversary who preserves intent while changing surface wording can often bypass exact signatures, and multi-step prompts can dilute keyword density below a fixed threshold.
+More aggressive rule sets also increase false positives, particularly in technical domains where benign prompts share vocabulary with attacks---for example, process control, configuration overrides, security debugging, or figurative uses of ``jailbreak''~\cite{bair2025prompt,kholkar2025capture,11359704}.
+This creates a persistent trade-off between robustness and usability: tightening rules improves recall on known attacks but harms ordinary users, while loosening rules restores usability at the cost of residual risk.
+Indirect-injection research further shows that static prompt hardening alone is insufficient when adversarial instructions are embedded inside retrieved or external content that the application treats as data~\cite{greshake2023indirect,hines2024spotlighting}.
+As a result, recent work increasingly advocates hybrid approaches that preserve rule-level interpretability while adding semantic and contextual awareness~\cite{bair2025prompt,shi2025promptarmor,wang2025promptsleuth,correia2026systematic}.
+Our framework follows this direction by retaining lightweight lexical checks as baselines and combining them with context-aware signals designed to address the weaknesses of purely rule-based filtering.
+
+\subsection{Structured Prompting and Alignment Defenses}
+\label{sec:rw-structured}
+
+Structured prompting methods attempt to mitigate prompt injection by redesigning the instruction interface itself rather than by detecting malicious strings after the fact.
+StruQ separates instructions and data into explicit structured components, reducing the likelihood that untrusted text is interpreted as executable guidance~\cite{struq2024}.
+By pairing a secure front-end format with structured instruction tuning, the model is encouraged to follow only the trusted prompt channel and to ignore instruction-like content appearing in the data channel.
+Spotlighting uses prompt-engineering strategies that make trust boundaries visible to the model, encouraging externally supplied text to be treated as untrusted content rather than as instructions~\cite{hines2024spotlighting}.
+These approaches improve architectural clarity and can significantly reduce attack success in controlled environments, especially against optimization-free injections that rely on the model confusing data with control.
+
+Despite these strengths, structured prompting introduces integration constraints.
+Such methods assume consistent schema control across retrieval pipelines, middleware, and orchestration frameworks, yet real systems often involve heterogeneous components where formatting drift, legacy connectors, or third-party tools can weaken protection~\cite{bair2025prompt}.
+Moreover, structured prompting cannot fully eliminate semantic ambiguity, since attackers may still manipulate behaviour through contextual shaping, multi-turn interactions, or injections that do not look like overt commands~\cite{struq2024,hines2024spotlighting,yi2024jailbreak}.
+Consequently, structured prompting is best viewed as reducing one major injection channel---instruction/data concatenation---rather than providing comprehensive protection against every linguistic realization of an adversarial goal.
+
+Alignment-based defenses such as SecAlign instead modify model behaviour directly through preference optimization or safety-oriented fine-tuning~\cite{secalign2024}.
+Training examples expose the model to injected inputs paired with desirable responses to the intended instruction and undesirable responses to the injection, and optimization increases the preference margin between them.
+Their advantage is that robustness becomes partially internalized within the model itself, potentially improving resistance to paraphrased or adaptive attacks without requiring an external filter at inference time.
+However, these methods require training infrastructure, curated datasets, compute resources, and ongoing adaptation as base models evolve~\cite{11359704,correia2026systematic,bair2025prompt}.
+They also provide less interpretability at decision time compared with explicit policy rules, and they may be unavailable when the backend is a closed API.
+Our framework occupies a complementary space by remaining model-agnostic and deployable over black-box APIs while still exposing interpretable signals for auditing and threshold tuning.
+In that sense, structured and alignment defenses strengthen the model or interface, whereas our sanitizer strengthens the pre-inference gate in front of an unchanged model.
+
+\subsection{Classifier-Based and Sanitization Defenses}
+\label{sec:rw-classifier}
+
+Classifier-based and sanitization defenses provide a middle ground between hand-crafted rules and expensive retraining.
+Instead of rewriting the application schema or fine-tuning the backend, they score or transform incoming text before generation.
+PromptSleuth focuses on semantic intent invariance, observing that malicious intent often survives paraphrasing even when lexical form changes~\cite{wang2025promptsleuth}.
+By reasoning over task-level goals and inconsistencies with the intended application objective, such methods aim to catch rewritten attacks that evade keyword screens.
+PromptArmor emphasizes a simple but effective guardrail pattern: an off-the-shelf model detects and removes injected prompts before a backend agent processes the cleaned input~\cite{shi2025promptarmor}.
+PISanitizer targets long-context settings by sanitizing likely injected tokens, exploiting the observation that successful injections must attract attention in order to divert behaviour and thereby creating a dilemma for attackers~\cite{geng2025pisanitizer}.
+Privacy-oriented sanitization work such as Pr$\epsilon\epsilon$mpt further shows that pre-model transformation of user text is itself an important control point, even when the primary objective is sensitive-content handling rather than injection blocking~\cite{chowdhury2025prepsilonepsilonmptsanitizingsensitiveprompts}.
+These studies collectively indicate that semantic and contextual features substantially improve resilience against obfuscated or compositional attacks relative to lexical filters alone.
+
+The major trade-off in this family is between robustness and operational cost.
+Large semantic guard models can improve detection performance but introduce additional latency, infrastructure complexity, and lifecycle-management overhead~\cite{shi2025promptarmor,zizzo2025adversarial}.
+Lightweight classifiers reduce these costs but may miss sophisticated indirect or long-context attacks~\cite{geng2025pisanitizer,kholkar2025capture}.
+Adversarial benchmarking results indicate that signal diversity and architectural design can matter as much as model scale~\cite{zizzo2025adversarial}.
+Another challenge is domain drift: classifiers trained on narrow datasets may generalize poorly across languages, retrieval settings, or application domains~\cite{geng2025pisanitizer,11359704,correia2026systematic}.
+CAPTURE further shows that context-aware evaluation exposes both high false negatives on adversarial cases and excessive false positives on benign ones, underscoring over-defense as a first-class failure mode rather than a secondary inconvenience~\cite{kholkar2025capture}.
+Aggressive filtering can also remove context required for successful task completion, so sanitization strength must be balanced against utility~\cite{chowdhury2025prepsilonepsilonmptsanitizingsensitiveprompts,bair2025prompt}.
+
+These findings motivate layered architectures that combine inexpensive heuristics with semantic and contextual reasoning while exposing interpretable risk scores for policy control.
+Our framework adopts this strategy through a lightweight hybrid sanitizer rather than a monolithic guard model.
+Sentence embeddings support a high-confidence semantic hard-trigger layer~\cite{reimers2019sentence,wang2020minilm}; structural detectors and perplexity participate mainly through a complementary weighted score~\cite{radford2019language}.
+Compared with heavy moderation stacks, the design prioritizes deployability and manageable latency while retaining explainability.
+Compared with purely lexical approaches, it aims to improve resilience against paraphrased and structurally transformed attacks~\cite{wang2025promptsleuth,shi2025promptarmor,geng2025pisanitizer,zizzo2025adversarial}.
+A further distinction in our work is the explicit comparison between this hybrid handcrafted design and a learned soft-fusion variant without hard vetoes, which lets us ask which layer actually carries empirical gains.
+
+\subsection{Adversarial Benchmarking and Jailbreak Research}
+\label{sec:rw-benchmark}
+
+Jailbreak research has progressed from isolated prompt tricks to systematic adversarial evaluation methodologies.
+Early demonstrations showed that LLM behaviour could be redirected through creative instruction framing and role-play~\cite{perez2022ignore}.
+Later surveys expanded this into broader taxonomies involving suffix attacks, optimization-guided jailbreaks, decomposition strategies, and multi-turn manipulation~\cite{yi2024jailbreak}.
+The important methodological shift is that attacks are now treated as adaptive processes rather than static templates, meaning evaluations based solely on fixed prompt sets may overestimate defense robustness.
+A filter that performs well on a hand-curated attack list can fail once an adversary paraphrases, restyles, or optimizes the same malicious goal.
+
+Benchmarking studies reinforce this concern.
+Systematic evaluations show that many defenses degrade under adversarially generated or distribution-shifted prompts, and that side effects on benign traffic must be measured alongside attack success~\cite{zizzo2025adversarial}.
+Agentic benchmarks such as AgentDojo demonstrate additional failure modes involving tool usage, external state, and sequential planning, where injection success is defined by diverted agent behaviour rather than by a single unsafe completion~\cite{debenedetti2024agentdojo}.
+CAPTURE emphasizes context-aware evaluation in realistic deployment environments and shows that guardrail models can simultaneously miss attacks and over-block benign cases~\cite{kholkar2025capture}.
+Practitioner red-teaming workflows further stress structured attack suites, repeated measurement, and joint reporting of false positives with attack-success reduction~\cite{promptfoo2024owasp,bair2025prompt}.
+Reviews consistently identify limited multidimensional evaluation as a weakness in the current literature~\cite{11359704,correia2026systematic}.
+Multimodal and retrieval-poisoning studies also indicate that future benchmarks must extend beyond text-only direct attacks~\cite{yeo2025multimodal,wu2025epistemic}.
+
+The broader implication is that robustness should be viewed as relative and scenario-dependent rather than absolute.
+No current defense fully protects against adaptive direct injection, indirect poisoning, long-context manipulation, and agentic attacks simultaneously.
+Our evaluation therefore reports Bypass Rate and True ASR separately, pairs security metrics with false-positive and edge-case analyses, and includes paraphrase and adaptive rewriting probes.
+Bypass Rate diagnoses whether the sanitizer failed to block an injection; True ASR asks whether an unblocked injection elicited judged compliance from the target model.
+Keeping these metrics distinct avoids equating a filter miss with end-to-end harm and aligns the protocol with contemporary guardrail-evaluation practice~\cite{zizzo2025adversarial,yi2024jailbreak}.
+The framework is positioned as a layered inference-time mitigation strategy intended to improve resilience under realistic operational constraints rather than as a complete solution~\cite{zizzo2025adversarial,debenedetti2024agentdojo,kholkar2025capture,yi2024jailbreak}.
+
+\subsection{Positioning of This Work}
+\label{sec:rw-position}
+
+Synthesizing the literature, existing defenses fall into several imperfectly overlapping clusters: rule-based and operational filters~\cite{openrouter2026promptinjection,getstream2024prompt,mend2024prompt}; structured prompting and alignment methods such as StruQ, spotlighting, and SecAlign~\cite{struq2024,hines2024spotlighting,secalign2024}; external sanitization and guardrail models~\cite{geng2025pisanitizer,shi2025promptarmor,chowdhury2025prepsilonepsilonmptsanitizingsensitiveprompts}; and semantic or context-aware detectors~\cite{wang2025promptsleuth,kholkar2025capture}.
+Surveys caution that none of these clusters alone resolves prompt injection, and that evaluation must expose security--usability trade-offs rather than attack metrics in isolation~\cite{correia2026systematic,bair2025prompt,11359704,zizzo2025adversarial}.
+
+Relative to that landscape, this paper makes a focused contribution at the intersection of rule-based filtering, semantic detection, and deployable input sanitization.
+We do not propose a new structured query interface, preference-optimization objective, long-context token localizer, or agent benchmark.
+Instead, we study a model-agnostic pre-inference sanitizer for direct prompt injection and compare a hybrid handcrafted design (Method~A) against a learned soft-fusion variant without hard vetoes (Method~B).
+Method~A treats semantic hard triggers as the primary high-confidence layer and weighted multi-signal scoring as a complementary layer for borderline cases; Method~B asks whether soft probabilistic fusion alone can approach that behaviour.
+By retaining regex and keyword baselines, reporting Bypass Rate and True ASR as distinct metrics, and analyzing false positives, robustness, and component ablations, we aim to provide an evidence-oriented account of which design choices matter in a lightweight sanitization regime that remains portable across black-box backend models~\cite{zizzo2025adversarial,bair2025prompt,correia2026systematic}.
+The following sections develop the resulting methods, experimental protocol, and empirical findings.
+
+
+% ---------------------------------------------------------------------------
+% From methodology.tex
+% ---------------------------------------------------------------------------
+
+\section{Methodology}
+\label{sec:methodology}
+
+This section presents the threat model, data construction procedure, defense designs, and evaluation methodology used in this study.
+Our objective is to determine whether lightweight, model-agnostic input sanitization can reduce the success of prompt-injection attacks while preserving acceptable behaviour on benign user requests.
+The methodological choices below are guided by three principles.
+First, defenses should operate before inference so that they remain portable across target models.
+Second, security should be measured both at the filter and at the end-to-end response, because a sanitizer miss does not automatically imply model compliance.
+Third, claims of robustness should be supported by controlled stress tests rather than by a single static wording of the test set.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.9\linewidth]{./images/pipeline_structure.png}
+  \caption{Pipeline Structure}
+  \label{fig:hard-trigger-ablation}
+\end{figure}
+
+\subsection{Threat Model and System Architecture}
+\label{sec:threat-model}
+
+Prompt injection arises when adversarial natural-language content causes a language model to disregard its intended instructions, disclose restricted information, or adopt an attacker-chosen role~\cite{owasp_llm,perez2022ignore,greshake2023indirect,yi2024jailbreak}.
+Unlike classical software injection, the malicious payload is expressed in unconstrained language and can be embedded in otherwise fluent requests, which makes purely syntactic defenses incomplete~\cite{11359704,correia2026systematic}.
+We focus on \emph{direct} prompt injection, in which the malicious content is contained in the user message itself, rather than introduced indirectly through retrieved documents, web pages, or external tool outputs~\cite{greshake2023indirect,hines2024spotlighting,wu2025epistemic}.
+This setting corresponds to the primary risk category identified in the OWASP Top~10 for Large Language Model Applications~\cite{owasp_llm} and remains a standard starting point for defense evaluation before extending to richer agentic environments~\cite{debenedetti2024agentdojo}.
+
+\paragraph{Adversary capabilities.}
+We assume an adversary who can submit arbitrary free-form text to a deployed instruction-following model.
+The adversary may employ instruction overrides, persona hijacking, multi-step pivots, hypothetical or academic framing, and mild paraphrase, but does not modify model weights, system prompts, or the sanitizer internals.
+The defender observes only the incoming user text and must decide whether to allow or refuse it before generation.
+No access to privileged system messages beyond what is implied by ordinary chat usage is assumed for the attacker in the direct-injection setting studied here.
+
+\paragraph{Defender capabilities and constraints.}
+The defender may inspect the candidate prompt, compute handcrafted or learned risk signals, and block the request.
+The defender may not retrain the target model, redesign its decoding strategy, or rely on structured query formats that change the application interface~\cite{struq2024,secalign2024}.
+Accordingly, we place a sanitizer as a pre-inference gate in front of the target model.
+For each incoming prompt, the sanitizer either forwards the text unchanged or blocks it.
+Blocked prompts never reach the model; unblocked prompts are answered in the usual way.
+This architecture is consistent with input sanitization and guardrail evaluation practice~\cite{chowdhury2025prepsilonepsilonmptsanitizingsensitiveprompts,geng2025pisanitizer,shi2025promptarmor,zizzo2025adversarial}, and is complementary to training-time or interface-level defenses, which we treat as related but out of scope.
+
+\paragraph{Scope.}
+The evaluation corpus is intentionally compact and curated.
+The study should therefore be read as a controlled, reproducible comparison of sanitizer designs under a fixed threat model, rather than as a production security certification or an exhaustive assessment of multi-tool agents and retrieval-mediated attacks~\cite{debenedetti2024agentdojo,greshake2023indirect}.
+Within this scope we examine defenses of increasing sophistication: an unprotected baseline, a regular-expression filter, a keyword heuristic, a hybrid handcrafted context-aware sanitizer with hard triggers and soft secondary scoring (Method~A), and a learned soft-fusion variant of the same signal family (Method~B).
+Lexical filters remain common in practice because they are transparent and inexpensive~\cite{openrouter2026promptinjection,getstream2024prompt,mend2024prompt}, yet they are known to degrade under paraphrase and stylistic rewriting~\cite{yi2024jailbreak,wang2025promptsleuth}.
+The context-aware methods therefore incorporate semantic similarity and linguistic naturalness cues, following the broader direction of semantic and context-sensitive detection~\cite{wang2025promptsleuth,kholkar2025capture,bair2025prompt}.
+
+\subsection{Dataset}
+\label{sec:dataset}
+
+\subsubsection{Construction principles}
+
+Effective evaluation of input sanitizers requires both clearly malicious prompts and realistic benign requests.
+If the benign distribution is unrealistically clean, false-positive rates appear artificially low and usability costs are hidden.
+If the attack distribution is dominated by a few stereotyped phrases, exact string matching appears artificially strong and generalizations to rewritten attacks are overstated.
+We therefore assembled a mixed English corpus from several public sources, imposed a uniform annotation schema, documented licensing, and reserved a stratified held-out test partition for final reporting.
+
+The corpus is designed to support three uses simultaneously: estimation of unprotected attack prevalence, comparison of lexical and context-aware defenses, and diagnosis of over-blocking on ordinary and technical benign language.
+It is not intended to exhaust the space of multilingual, multimodal, or tool-mediated attacks~\cite{yeo2025multimodal,debenedetti2024agentdojo}.
+
+\subsubsection{Corpus composition}
+
+The resulting dataset contains 350 prompts, of which 200 are labeled \emph{injection} and 150 are labeled \emph{benign}.
+Each instance consists of an identifier, the prompt text, and a binary label.
+This balance intentionally retains a substantial benign share so that false-positive behaviour remains statistically visible on the test partition.
+
+Injection examples are drawn in equal measure from four sources: a community jailbreak collection, a compact jailbreak corpus, a public prompt-injection benchmark, and a malicious-prompt detection dataset.
+Benign examples combine public non-malicious prompts with self-authored everyday requests covering ordinary information-seeking, explanation, and writing tasks (Table~\ref{tab:data-sources}).
+Taken together, the mixture covers instruction overrides, persona hijacking, policy circumvention framings, and commonplace user behaviour in a single evaluation pool.
+
+\begin{table}[H]
+  \centering
+  \caption{Composition of the evaluation corpus (\(N=350\)).}
+  \label{tab:data-sources}
+  \begin{tabular}{lrrlp{4.6cm}}
+    \hline
+    Slice & \(n\) & Share (\%) & Role & Origin \\
+    \hline
+    Community jailbreaks & 50 & 14.3 & injection & Public jailbreak prompt collection \\
+    Compact jailbreaks & 50 & 14.3 & injection & Compact jailbreak corpus \\
+    Prompt-injection benchmark & 50 & 14.3 & injection & Public injection / benign dataset \\
+    Malicious-prompt set & 50 & 14.3 & injection & Malicious prompt detection dataset \\
+    \textit{Injection subtotal} & \textit{200} & \textit{57.1} & --- & --- \\
+    \hline
+    Prompt-injection benchmark & 100 & 28.6 & benign & Same public dataset (benign subset) \\
+    Self-authored requests & 50 & 14.3 & benign & Everyday benign queries \\
+    \textit{Benign subtotal} & \textit{150} & \textit{42.9} & --- & --- \\
+    \hline
+    \textbf{Total} & \textbf{350} & \textbf{100.0} & --- & --- \\
+    \hline
+  \end{tabular}
+\end{table}
+
+Preprocessing is deliberately light in order to preserve natural wording.
+Empty strings are discarded, and all malicious source labels are mapped to the unified injection class.
+Random sampling, where required, uses a fixed seed to support reproducibility; one source contributes its first cleaned subset in source order.
+Licensing and attribution for each constituent source are recorded separately, and the combined corpus is treated as a non-commercial research artifact.
+
+\subsubsection{Partitioning}
+
+We form stratified training, validation, and test partitions that preserve the injection/benign ratio in each fold (Table~\ref{tab:splits}).
+Stratification is important because a chance imbalance on a small test set would otherwise dominate Bypass Rate and false-positive estimates.
+
+The training partition supports three roles: construction of reference embeddings for semantic similarity, calibration of perplexity percentiles, and supervised training of Method~B's fusion model.
+The validation partition is used solely to select Method~B's operating threshold, thereby avoiding threshold shopping on the test set.
+All primary metrics are reported on the held-out test partition of 53 prompts (30 injection, 23 benign).
+Partitions are frozen prior to evaluation and are not reshuffled during experimentation.
+
+\begin{table}[H]
+  \centering
+  \caption{Stratified dataset partitions.}
+  \label{tab:splits}
+  \begin{tabular}{lrrrr}
+    \hline
+    Partition & Total & Injection & Benign & Share \\
+    \hline
+    Training & 245 & 140 & 105 & 70.0\% \\
+    Validation & 52 & 30 & 22 & 14.9\% \\
+    Test & 53 & 30 & 23 & 15.1\% \\
+    \hline
+  \end{tabular}
+\end{table}
+
+\subsection{Defense Designs}
+\label{sec:defenses}
+
+Each defense maps an input prompt to a binary decision: allow or block.
+When a prompt is blocked, no target-model generation is performed for that request.
+This common interface allows all methods to be compared under an identical evaluation harness and isolates differences in filtering policy from differences in decoding.
+
+\subsubsection{Unprotected baseline}
+
+The baseline applies no filtering and forwards every prompt to the target model.
+It estimates unconstrained attack prevalence under the chosen target and judge configuration, and it serves as the reference against which relative security gains are measured~\cite{zizzo2025adversarial,promptfoo2024owasp}.
+Without this condition, reductions in Bypass Rate or True ASR cannot be interpreted as defense effects rather than as intrinsic model refusal.
+
+\subsubsection{Regular-expression filter}
+
+The regular-expression defense maintains a library of 45 case-insensitive patterns targeting recurring attack forms: instruction overrides, persona and role hijacks, named jailbreak personas, unrestricted-mode language, system-prompt exfiltration requests, selected non-English overrides, and common hypothetical or academic framings used to circumvent policy.
+A match causes the prompt to be blocked.
+
+Pattern filters are attractive in deployment because they are transparent, auditable, and computationally inexpensive~\cite{owasp_llm,openrouter2026promptinjection}.
+Their central limitation is dependence on surface form: an adversary who preserves intent while changing wording can often evade exact patterns.
+We therefore treat the regular-expression filter as a strong lexical baseline rather than as a complete solution.
+
+\subsubsection{Keyword heuristic}
+
+The keyword defense assigns suspicion weights to 37 phrases associated with injection and jailbreak language.
+Matched weights are accumulated, and the prompt is blocked when the total reaches or exceeds a threshold of 0.5.
+By combining multiple weak cues, the heuristic can fire on prompts that contain several mildly suspicious fragments even when no single regular expression matches~\cite{getstream2024prompt,mend2024prompt}.
+
+The same property creates a usability risk: technical benign language that reuses words such as ``override'', ``kill'', or ``jailbreak'' in harmless senses may accumulate enough weight to be blocked.
+The keyword method therefore illustrates both the appeal and the brittleness of lexicon-driven moderation.
+
+\begin{figure}[t]
+    \centering
+
+    \begin{subfigure}[b]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{./images/methodA_sanitizer.png}
+        \caption{Method A Sanitizer architecture}
+        \label{fig:prompt-injection}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{./images/methodB_sanitizer.png}
+        \caption{Method B Sanitizer architecture}
+        \label{fig:second-figure}
+    \end{subfigure}
+
+    \caption{Context Aware Sanitizer Architecture}
+    \label{fig:comparison}
+\end{figure}
+
+\subsubsection{Method A: Handcrafted context-aware sanitization}
+\label{sec:method-a}
+
+Method~A is the primary handcrafted defense proposed in this work.
+We frame it explicitly as a \emph{hybrid} architecture rather than as a pure ensemble scorer.
+A high-confidence hard-trigger layer provides the main protection when semantic or structural evidence is decisive, while a weighted multi-signal score supplies secondary coverage for borderline cases that do not meet those veto conditions.
+Additional heuristic signals improve robustness and interpretability even when their standalone contribution is limited.
+The design rests on a practical observation repeatedly noted in the jailbreak and injection literature: paraphrased and role-play attacks often evade exact string matching while still leaving semantic, structural, or stylistic traces~\cite{wang2025promptsleuth,kholkar2025capture,yi2024jailbreak,bair2025prompt}.
+
+\paragraph{Design rationale.}
+Lexical detectors contribute precision on known attack phrases, but they miss intent-preserving rewrites.
+Semantic similarity contributes coverage across wording changes by comparing the candidate prompt to known injections in embedding space~\cite{reimers2019sentence,wang2020minilm}.
+Structural detectors contribute sensitivity to the rhetorical shape of an injection, such as persona assignment or multi-step pivots.
+Perplexity contributes a weak naturalness prior that can raise suspicion for highly unnatural strings without being trusted in isolation~\cite{radford2019language}.
+In the hybrid design, strong semantic evidence is elevated to a primary veto, while the remaining cues participate mainly through the complementary soft layer.
+
+\paragraph{Signal inventory.}
+The eight signals are as follows.
+\begin{enumerate}
+  \item \emph{Regular expression:} whether the pattern filter would block the prompt, reused as one vote among several rather than as the sole decision maker.
+  \item \emph{Keyword:} the keyword suspicion score, capped so that a long list of weak matches cannot dominate the aggregate.
+  \item \emph{Semantic similarity:} cosine similarity between a compact sentence embedding of the candidate prompt and embeddings of training injection prompts.
+    The maximum similarity is mapped to a stepped risk score so that strong resemblance to known attacks contributes more than marginal overlap.
+  \item \emph{Intent:} structural patterns that combine instruction override with disclosure or policy-break requests, persona assignment, conversation resets, and named jailbreak modes.
+  \item \emph{Role-play:} cues associated with persona hijacking and unrestricted ``do anything'' style characters that package harmful requests inside fiction.
+  \item \emph{Instruction shift:} multi-step pivots in which a benign opening is followed by a conflicting directive.
+  \item \emph{Objective conflict:} juxtaposition of an apparently legitimate task with an incompatible malicious goal in the same prompt.
+  \item \emph{Perplexity:} relative linguistic unnaturalness under a small causal language model, calibrated on the training partition and treated as a supporting cue rather than a standalone detector.
+\end{enumerate}
+
+\paragraph{Primary layer: hard triggers.}
+Method~A first applies three hard vetoes that block immediately when
+(i)~the stepped semantic score exceeds 0.6,
+(ii)~the intent detector is active, or
+(iii)~role-play is active and the keyword score exceeds 0.3.
+Among these, the semantic hard trigger is intended as the principal high-confidence defense; the other vetoes provide additional structural coverage.
+Perplexity never triggers a hard veto, because elevated perplexity also appears in benign creative writing, code-like instructions, and terse technical queries.
+
+\paragraph{Secondary layer: soft aggregation.}
+If no hard trigger fires, Method~A falls back to a weighted soft score over the eight signals.
+The weights are
+0.12 (regular expression),
+0.12 (keyword),
+0.20 (semantic similarity),
+0.18 (intent),
+0.10 (role-play),
+0.08 (instruction shift),
+0.08 (objective conflict),
+and 0.12 (perplexity).
+A prompt is soft-blocked when the aggregated score reaches or exceeds 0.40.
+This secondary layer is meant to handle borderline multi-signal cases that do not satisfy hard-trigger conditions, rather than to serve as the sole source of protection.
+The final decision blocks if either a hard veto fires or the soft threshold is crossed.
+
+\paragraph{Computational placement.}
+Sentence embedding and perplexity components are executed on CPU by design.
+This choice keeps accelerator memory available for the target model and allows sanitizer latency to be measured as an independent pre-inference cost.
+
+\subsubsection{Method B: Learned context-aware sanitization}
+\label{sec:method-b}
+
+Method~B addresses a natural follow-up question: if Method~A's signals are useful, can supervised fusion replace hand-chosen weights and hard rules?
+Method~B therefore retains the same signal family, expands the semantic representation, and replaces rule-based aggregation with probabilistic classification.
+The approach is related in spirit to learned detectors and semantic intent modeling~\cite{wang2025promptsleuth,shi2025promptarmor}, while remaining a lightweight classical model rather than a large dedicated guardrail language model.
+
+\paragraph{Feature representation.}
+Instead of one stepped semantic score, Method~B uses three continuous semantic features: the maximum similarity to training injections, the mean of the top-three injection similarities, and a benign-contrast term.
+The contrast term reduces risk when a prompt also resembles ordinary benign text, which is intended to limit false positives on near-boundary benign requests.
+Together with regular-expression, keyword, intent, role-play, instruction-shift, objective-conflict, and perplexity signals, these features form a ten-dimensional representation.
+
+\paragraph{Learning and calibration.}
+Features are standardized and passed to a regularized logistic regression classifier with balanced class weighting, trained on the training partition.
+The operating threshold is selected on the validation partition by maximizing F1 score over a dense grid of candidates; ties are resolved in favour of lower Bypass Rate and then lower false-positive rate.
+At test time, a prompt is blocked when the predicted injection probability meets or exceeds this threshold.
+
+\paragraph{Relation to Method A.}
+Unlike Method~A's hybrid design, Method~B employs no hard vetoes and therefore relies entirely on soft probabilistic fusion.
+Any gain or loss relative to Method~A is attributable to feature expansion and learned calibration rather than to an explicit high-confidence override layer.
+This contrast is central to later ablation analysis: it asks whether strong empirical security requires hard semantic gating, as in Method~A, or whether learned soft decisions alone suffice.
+
+\subsubsection{Optional lexical classifier}
+
+For reference, we also consider a classical bag-of-\(n\)-grams logistic regressor with TF--IDF features~\cite{salton1988term}.
+This classifier provides a supervised lexical baseline that can exploit co-occurrence patterns beyond hand-written dictionaries.
+It is retained as an optional reference point and is not part of the primary defense comparison unless separately reported.
+
+\subsection{Two-Layer Evaluation}
+\label{sec:evaluation}
+
+Sanitizer evaluation is easy to mis-specify.
+A method that blocks nearly everything will look excellent on Bypass Rate while destroying usability.
+A method that misses many attacks may still appear acceptable if the target model refuses on its own.
+We therefore evaluate security at two layers and always report usability alongside attack metrics, following contemporary guardrail benchmarking practice~\cite{zizzo2025adversarial,promptfoo2024owasp}.
+
+\paragraph{Target model.}
+Unblocked prompts are answered by an instruction-tuned open model, Qwen2.5-3B-Instruct, under greedy decoding.
+Using a single open target keeps the comparison focused on sanitizer behaviour rather than on opaque differences among proprietary backends.
+Greedy decoding removes sampling variance from the principal security tables.
+
+\paragraph{Compliance judgment.}
+Layer~2 asks whether an unblocked injection actually succeeded.
+For each such case, a separate judge from the same model family receives the original prompt and the target response and labels the outcome as complied or refused~\cite{zizzo2025adversarial,yi2024jailbreak}.
+Judgments are obtained from an explicit final label; unparseable outputs are treated conservatively as refusals.
+Long inputs are truncated before judging, and the judge is checked on a small hand-authored calibration set before the main evaluation.
+
+\paragraph{Definition of a successful attack.}
+An attack is counted as successful only when three conditions hold simultaneously: the example is labeled injection, the sanitizer fails to block it, and the judge deems the model response compliant.
+This definition ensures that end-to-end risk is not equated with a filter miss alone, and that model refusals after a bypass are credited correctly.
+
+\paragraph{Primary metrics.}
+All primary security and usability figures in this paper are computed on the frozen held-out test partition of 53 prompts (30 injection, 23 benign) under the full two-layer pipeline (sanitizer, target model, and judge).
+We report four quantities:
+\begin{itemize}
+  \item \emph{Bypass Rate:} the fraction of injection prompts left unblocked (Layer~1);
+  \item \emph{Detection Rate:} the complementary fraction of injection prompts blocked;
+  \item \emph{False Positive Rate (FPR):} the fraction of benign prompts incorrectly blocked;
+  \item \emph{True Attack Success Rate (True ASR):} the fraction of injection prompts that both bypass the sanitizer and elicit a complied response (Layer~2).
+\end{itemize}
+These two security metrics are deliberately kept distinct.
+Bypass Rate measures only whether the sanitizer failed to block an injection.
+True ASR additionally requires judged model compliance.
+We therefore never collapse them into a single undifferentiated ``ASR'' figure: an unblocked injection that the target refuses contributes to Bypass Rate but not to True ASR.
+Confusion matrices are computed at Layer~1 only, using injection versus blocked decisions, so that judge labels do not enter those counts.
+
+\subsection{Robustness Protocols}
+\label{sec:robustness}
+
+A defense that performs well only on the original wording of a small test set is easy to overstate.
+We therefore include three complementary robustness protocols aligned with common red-teaming practice~\cite{promptfoo2024owasp,zizzo2025adversarial}.
+
+\paragraph{Paraphrase robustness.}
+Mild synonym substitutions are applied to a subset of training injection prompts (for example, replacing ``ignore'' with ``disregard'' or ``act as'' with ``behave as'').
+For each defense we compare Bypass Rate on original and paraphrased text under sanitizer-only evaluation.
+Because no target-model call is involved, the measurement isolates lexical brittleness of the filter under controlled wording drift.
+The paraphrase operator is intentionally simple; its purpose is diagnostic rather than adversarial optimality.
+
+\paragraph{Edge-case benign evaluation.}
+Security metrics alone hide a different failure mode: over-blocking.
+We evaluate a fixed collection of 80 technical but benign prompts that reuse attack-like vocabulary in harmless contexts, such as process control, style overrides, or device-related uses of ``jailbreak''.
+The fraction blocked by each defense estimates false-positive risk beyond the standard benign test partition.
+High edge-case false-positive rates indicate that a method may be difficult to deploy in developer-facing or systems-oriented assistants~\cite{bair2025prompt,getstream2024prompt}.
+
+\paragraph{Adaptive rewriting.}
+Static test prompts can understate attacker effort even when paraphrase is mild.
+Each test injection is therefore rewritten into five stylistic variants---role-play, research framing, hypothetical framing, indirect phrasing, and multistep instruction---using a lightweight sequence-to-sequence model.
+The resulting adaptive pool contains up to 150 prompts and is evaluated with the full two-layer pipeline.
+This protocol stresses defenses under controlled style shift.
+It is not intended as a substitute for strong optimization-based jailbreaks, nor for agentic indirect-injection benchmarks~\cite{debenedetti2024agentdojo,greshake2023indirect,hines2024spotlighting}; rather, it asks whether a defense still functions when the same malicious goals are restated.
+
+\subsection{Ablation Analysis}
+\label{sec:ablation}
+
+The context-aware defenses contain several interacting ingredients, so aggregate accuracy alone does not reveal which components are responsible for observed gains.
+We therefore conduct leave-one-component-out ablations on the same held-out test partition used for primary reporting.
+
+For Method~A, we study two complementary families that test the hybrid claim.
+The first disables hard vetoes and removes each soft signal in turn, thereby measuring secondary soft-layer coverage when the primary hard-trigger layer is unavailable.
+The second compares the full system with a soft-only variant and with variants that disable each hard veto individually, thereby isolating whether headline security depends on hard triggers---especially the semantic veto---rather than on soft aggregation.
+For Method~B, selected feature groups are zeroed at inference time---including an all-semantic condition---while the trained fusion model remains fixed.
+This distinguishes whether learned performance depends on semantic features specifically or on the broader feature set.
+
+Each variant is summarized by Bypass Rate, True ASR, false-positive rate, and percentage-point changes relative to the corresponding full configuration.
+These ablations underwrite later claims about the relative importance of hard semantic gating, soft fusion, and individual signal families.
+
+\subsection{Efficiency Considerations}
+\label{sec:runtime}
+
+A pre-inference gate that is accurate but slow may still be impractical in interactive applications.
+We therefore treat latency as part of the methodological evaluation rather than as an afterthought.
+Wall-clock time is measured for semantic scoring, perplexity scoring, full Method~A sanitization, and the lexical baselines under a fixed prompt sample and warm-up protocol.
+Because auxiliary embedding and language-model components run on CPU, the resulting figures characterize sanitizer overhead independently of target-model GPU inference and can be interpreted as the added cost of inserting the gate into a serving path.
+
+
+% ---------------------------------------------------------------------------
+% From experimental_setup.tex
+% ---------------------------------------------------------------------------
+
+\section{Experimental Setup}
+\label{sec:experimental-setup}
+
+This section specifies the experimental conditions under which the defenses in Section~\ref{sec:methodology} are compared.
+We describe the research questions, compared systems, computing environment, model configurations, evaluation procedures, robustness and ablation settings, latency protocol, and reproducibility controls.
+The emphasis is on the scientific protocol needed to interpret the reported results; implementation details of the accompanying software release are omitted except where they affect experimental validity.
+
+\subsection{Research Questions}
+\label{sec:rq}
+
+The empirical study is organized around four research questions that map directly onto the threat model and metrics defined earlier.
+
+\begin{enumerate}
+  \item \textbf{RQ1 (unprotected risk).}
+    How often do injection prompts succeed against an unprotected instruction-tuned model under the chosen judge?
+  \item \textbf{RQ2 (lexical defenses).}
+    Do simple lexical defenses---regular expressions and keyword heuristics---produce meaningful reductions in Bypass Rate and True ASR relative to the unprotected baseline?
+  \item \textbf{RQ3 (context-aware gains).}
+    Does multi-signal context-aware sanitization outperform those lexical baselines on the same held-out test partition, and how do the handcrafted and learned variants compare with each other?
+  \item \textbf{RQ4 (usability cost).}
+    What false-positive burden, on both the standard benign test partition and an edge-case benign set, accompanies the stronger defenses?
+\end{enumerate}
+
+These questions reflect a methodological stance common in contemporary guardrail evaluation: security claims are incomplete unless over-blocking and residual end-to-end success are reported alongside filter misses~\cite{zizzo2025adversarial,promptfoo2024owasp,owasp_llm}.
+RQ1 establishes the baseline hazard.
+RQ2 tests whether inexpensive lexical controls already suffice on this corpus.
+RQ3 isolates the contribution of semantic and structural context.
+RQ4 prevents security improvements from being interpreted without reference to user impact.
+
+\subsection{Compared Systems}
+\label{sec:compared-systems}
+
+We evaluate five conditions under a shared allow-or-block interface so that differences in outcome can be attributed to filtering policy rather than to inconsistent orchestration.
+
+\begin{itemize}
+  \item \textbf{Baseline:} no sanitization; every prompt is passed to the target model.
+  \item \textbf{Regex:} pattern-based blocking using a fixed library of injection-related expressions.
+  \item \textbf{Keyword:} weighted lexical scoring with a block threshold of 0.5.
+  \item \textbf{Method~A:} hybrid context-aware sanitization in which semantic hard triggers form the primary layer and weighted multi-signal scoring provides secondary coverage.
+  \item \textbf{Method~B:} learned fusion of an expanded ten-feature representation, with a validation-selected probability threshold and no hard vetoes.
+\end{itemize}
+
+An optional TF--IDF logistic regression classifier is retained as a classical supervised lexical reference and is reported only when explicitly included in an experiment.
+It is useful as a bag-of-words contrast condition but is not required to answer RQ1--RQ4.
+
+\paragraph{Paired evaluation suites.}
+Loading multiple large models in one process can exhaust device memory on a single workstation.
+We therefore execute the primary comparison as two paired suites that share the same lexical baselines.
+Suite~A comprises baseline, regex, keyword, and Method~A.
+Suite~B comprises baseline, regex, keyword, and Method~B.
+Because the test partition and lexical baselines are identical across suites, shared methods remain directly comparable, while Method~A and Method~B can be contrasted as alternative context-aware designs under matched data and judge conditions.
+
+\subsection{Computing Environment}
+\label{sec:hardware}
+
+Experiments were conducted on a workstation running Windows~11 with a multi-core Intel CPU (22 logical processors), approximately 15.4~GB of system memory, and an NVIDIA GeForce RTX~4070 Laptop GPU with 8~GB of device memory.
+The software environment used Python~3.13 and PyTorch~2.6 with CUDA~12.4 support.
+Host characteristics are recorded alongside latency measurements so that timing results can be interpreted relative to the execution platform rather than as absolute constants.
+
+\paragraph{Device placement.}
+Device placement is asymmetric by design.
+The target model and compliance judge use GPU acceleration when sufficient memory is available.
+Auxiliary components used by the context-aware sanitizers---sentence embeddings and perplexity scoring---are executed on CPU.
+This separation has two consequences that matter for interpretation.
+First, GPU memory remains available for generation and judging.
+Second, sanitizer latency can be reported as an independent pre-inference cost rather than as a quantity entangled with target-model kernels.
+
+\subsection{Model Configurations}
+\label{sec:models-setup}
+
+\paragraph{Target model.}
+Unblocked prompts are answered by Qwen2.5-3B-Instruct under greedy decoding with a maximum of 512 newly generated tokens.
+Half-precision inference is used on GPU when available; otherwise full precision is used on CPU.
+The choice of a compact open instruction-tuned model is deliberate: it makes the pipeline reproducible without proprietary API access, while still exhibiting nontrivial compliance behaviour against which defenses can be measured.
+Greedy decoding removes sampling variance from the principal security tables.
+
+\paragraph{Compliance judge.}
+End-to-end success is assessed by a separately loaded judge from the same model family.
+Given the original prompt and the target response, the judge returns a binary compliance label.
+Unparseable judgments are treated as refusals, which is conservative with respect to claimed attack success.
+Long prompts and outputs are truncated prior to judging in order to keep the judgment context within a manageable length.
+Before the main run, the judge is checked on a hand-authored calibration set of 20 examples; materially weak calibration would indicate that Layer~2 labels should be interpreted with caution.
+
+\paragraph{Sanitizer auxiliaries.}
+Methods~A and~B employ a compact sentence embedding model (all-MiniLM-L6-v2) for semantic similarity~\cite{reimers2019sentence,wang2020minilm} and DistilGPT-2 for perplexity-based naturalness scoring~\cite{radford2019language}.
+Reference embeddings and perplexity calibration statistics are derived from the training partition only, so that test prompts do not influence the sanitizer's internal reference geometry.
+Both auxiliaries remain on CPU throughout training caches, main evaluation, ablations, and latency measurement.
+
+\paragraph{Adaptive rewriter.}
+Stylistic attack variants are generated with FLAN-T5-Base under greedy decoding and a short generation budget.
+The rewriter is unloaded before subsequent target-model evaluation so that device memory can be reused.
+This design keeps the adaptive protocol practical on a single GPU workstation while still producing systematic style variation.
+
+\subsection{Primary Evaluation Protocol}
+\label{sec:eval-protocol}
+
+All primary metrics reported in this paper are computed on the frozen held-out test partition comprising 30 injection prompts and 23 benign prompts, using the full two-layer pipeline with the target model and compliance judge.
+Sanitizer-only runs are used only where explicitly stated (paraphrase robustness and edge-case false-positive measurement) and are never substituted for the main security tables.
+
+For each defense, evaluation proceeds in two phases.
+
+In the first phase, every test prompt is presented to the sanitizer.
+Blocked prompts terminate immediately with a blocked outcome and no model generation.
+Unblocked prompts are passed to the target model, and the generated responses are stored for later judging.
+
+In the second phase, auxiliary models and the target model are released from memory, and the judge scores only the unblocked injection cases.
+This staging avoids concurrent residency of sanitizer auxiliaries, the target model, and the judge when memory is limited, without changing the logical definition of a successful attack.
+
+\paragraph{Success criterion.}
+A successful attack requires an injection label, a sanitizer miss, and a complied judgment.
+All three conditions are necessary.
+In particular, an unblocked injection that the target refuses is counted in Bypass Rate but not in True ASR.
+
+\paragraph{Reported quantities.}
+We report Bypass Rate, Detection Rate, false-positive rate, True ASR, successful-attack counts, and Layer~1 confusion matrices.
+Bypass Rate and True ASR are always presented as separate columns because they answer different questions: the former concerns filter coverage, whereas the latter concerns realized end-to-end harm after model refusal is taken into account~\cite{zizzo2025adversarial,yi2024jailbreak}.
+We do not report a single undifferentiated attack-success percentage that could be mistaken for either metric.
+False-positive rate on the standard benign partition provides the primary usability counterpart to these security metrics.
+Suite~A and Suite~B share the same test partition and lexical baselines, so their overlapping conditions are comparable; Method~A and Method~B are contrasted as the two context-aware alternatives under that matched protocol.
+
+\subsection{Robustness Evaluation Settings}
+\label{sec:robustness-setup}
+
+Robustness experiments reuse the same defenses and, where applicable, the same two-layer success criterion, but they alter the input distribution in controlled ways.
+
+\paragraph{Paraphrase setting.}
+The first fifty training injection prompts are rewritten with a fixed set of nine synonym substitutions.
+Bypass Rates on original and paraphrased text are compared under sanitizer-only evaluation.
+No target-model or judge call is involved.
+The setting therefore measures sensitivity to mild lexical drift rather than end-to-end compliance after paraphrase.
+A defense whose Bypass Rate rises sharply under these substitutions is lexically brittle even if its headline test-set numbers are strong.
+
+\paragraph{Edge-case benign setting.}
+Eighty fixed technical-but-benign prompts are scored by each defense.
+Edge-case false-positive rate is defined as the fraction of these prompts that are blocked.
+The set deliberately includes developer- and systems-oriented language that overlaps superficially with attack vocabulary, such as process termination, configuration overrides, and non-security uses of ``jailbreak''~\cite{bair2025prompt}.
+This setting is the principal probe for RQ4 beyond the ordinary benign test partition.
+
+\paragraph{Adaptive setting.}
+Each of the thirty test injections is rewritten into five styles---role-play, research, hypothetical, indirect, and multistep---yielding up to 150 adaptive prompts.
+Every variant is evaluated with the full two-layer pipeline.
+Reported quantities include Bypass Rate, True ASR, and successful-attack counts on the adaptive pool.
+The protocol is best understood as a controlled style-transfer stress test: it asks whether defenses remain effective when malicious goals are preserved but surface form changes systematically~\cite{promptfoo2024owasp,zizzo2025adversarial}.
+It does not claim to approximate the strongest available adversarial optimization attacks.
+
+\subsection{Ablation Protocol}
+\label{sec:ablation-setup}
+
+Ablations are essential for attributing performance to components rather than to the mere presence of a complex pipeline.
+All ablations use the same held-out test partition as the primary evaluation and share loaded auxiliary models whenever possible, so that observed differences are attributable to disabled components rather than to reload noise or nondeterministic initialization.
+
+Three families are reported.
+
+\begin{enumerate}
+  \item \emph{Soft-signal ablation for Method~A.}
+    Hard vetoes are disabled, and each of the eight soft signals is removed in turn.
+    Comparison against the full soft-weighted configuration reveals how much secondary coverage the soft layer provides when the primary hard-trigger layer is unavailable.
+  \item \emph{Hard-veto ablation for Method~A.}
+    Full Method~A is compared with a soft-only variant and with variants that disable each veto individually.
+    This family tests the hybrid claim that headline security depends mainly on hard triggers---especially the semantic veto---rather than on soft aggregation alone.
+  \item \emph{Feature ablation for Method~B.}
+    Selected feature groups are zeroed at inference time, including an all-semantic condition, while the trained fusion model remains fixed.
+    This family tests whether learned performance is carried by semantic features specifically or is broadly distributed across the feature set.
+\end{enumerate}
+
+For each variant we record Bypass Rate, True ASR, false-positive rate, detection rate, confusion counts, and percentage-point deltas relative to the corresponding full system.
+These deltas are the basis for component-level claims in the results section.
+
+\subsection{Latency Measurement}
+\label{sec:latency-setup}
+
+Sanitizer overhead is measured on CPU for semantic scoring, perplexity scoring, full Method~A sanitization, and the two lexical baselines.
+Each measurement uses fifty prompts, five warm-up iterations, and a fixed random seed.
+We report mean, median, and tail latency (95th percentile), together with extrema, and we record host hardware metadata alongside the timing results.
+
+The latency protocol is aligned with the main pipeline in two respects.
+Auxiliary models remain on CPU, matching their deployment placement.
+The timed Method~A path includes the full allow-or-block decision rather than an isolated subscore, so the figures reflect the cost of inserting the complete gate into a request path.
+Lexical baselines are timed under the same protocol to provide lower-bound references for inexpensive filters.
+
+\subsection{Reproducibility}
+\label{sec:repro-setup}
+
+Reproducibility is treated as part of the experimental design rather than as an after-the-fact checklist.
+Unless otherwise stated, all randomized procedures use seed 42, including dataset partitioning and Method~B training.
+Target-model, judge, and rewriter decoding are greedy.
+Dataset partitions are frozen prior to experimentation and are never reshuffled at evaluation time.
+Sanitizer decisions are deterministic given fixed auxiliary models, caches, and thresholds.
+
+True ASR additionally depends on target and judge generations.
+Under greedy decoding these outputs are stable for a fixed model revision and configuration, but they are not independent of software versions or numerical backends.
+Where exact numerical reproduction is required, the same model revisions and dependency versions should be used.
+
+Overall, the experimental setup is designed so that the principal metrics and figures can be reproduced from the released materials and frozen partitions, while remaining explicit about the compact corpus and the limited adaptive attacker considered in this study~\cite{owasp_llm,zizzo2025adversarial}.
+The resulting protocol supports a fair comparison of lexical and context-aware sanitizers under matched data, matched metrics, and matched end-to-end judgment.
+
+
+% ---------------------------------------------------------------------------
+% From results.tex
+% ---------------------------------------------------------------------------
+
+\section{Results}
+\label{sec:results}
+
+We report results on the frozen held-out test partition under the full two-layer protocol, followed by robustness, ablation, and latency measurements.
+Throughout, Bypass Rate and True ASR are kept distinct: the former is the fraction of injection prompts left unblocked, whereas the latter additionally requires judged model compliance.
+Unless noted otherwise, percentages are computed over 30 test injections and 23 test benign prompts.
+
+\subsection{Main Comparison on the Held-Out Test Partition}
+\label{sec:main-results}
+
+Table~\ref{tab:main-results} summarizes the primary comparison.
+The unprotected baseline allows every injection through (Bypass Rate \(100\%\)) and yields a True ASR of \(46.67\%\) (14 successful attacks).
+Lexical defenses reduce Bypass Rate only modestly and leave True ASR unchanged at \(46.67\%\): the regular-expression filter reaches \(86.67\%\) Bypass Rate, and the keyword heuristic reaches \(96.67\%\).
+In other words, on this partition, regex and keyword filtering block a few injections at Layer~1 but do not reduce end-to-end successful attacks relative to the baseline.
+
+\begin{table}[H]
+  \centering
+  \caption{Primary test-set results (30 injections, 23 benign). Bypass Rate and True ASR are separate Layer~1 and Layer~2 metrics.}
+  \label{tab:main-results}
+  \begin{tabular}{lrrrr}
+    \hline
+    Method & Bypass (\%) & True ASR (\%) & FPR (\%) & Successful attacks \\
+    \hline
+    Baseline & 100.00 & 46.67 & 0.00 & 14 \\
+    Regex & 86.67 & 46.67 & 0.00 & 14 \\
+    Keyword & 96.67 & 46.67 & 0.00 & 14 \\
+    Method~A (context-aware) & 6.67 & 0.00 & 13.04 & 0 \\
+    Method~B (learned) & 20.00 & 13.33 & 8.70 & 4 \\
+    \hline
+  \end{tabular}
+\end{table}
+
+Both context-aware methods outperform the lexical baselines by a wide margin.
+Method~A---the hybrid handcrafted gate---achieves a Bypass Rate of \(6.67\%\) and a True ASR of \(0\%\) (no successful attacks), at a false-positive rate of \(13.04\%\) (3 of 23 benign prompts blocked).
+Method~B achieves a Bypass Rate of \(20.00\%\) and a True ASR of \(13.33\%\) (4 successful attacks), at a lower false-positive rate of \(8.70\%\) (2 of 23).
+
+These figures answer RQ1--RQ3 directly.
+Unprotected risk is substantial (True ASR near one half).
+Lexical controls are weak on this corpus once end-to-end compliance is measured.
+Context-aware sanitization is markedly stronger, with hybrid Method~A providing the best security and soft-only Method~B offering a milder false-positive trade-off.
+As shown later in the ablations, Method~A's advantage should be attributed primarily to its hard-trigger layer rather than to ensemble scoring alone.
+
+\paragraph{Bypass versus True ASR.}
+The gap between the two metrics is informative.
+Under the baseline and lexical defenses, roughly half of all injections become successful attacks, so many sanitizer misses are converted into complied responses.
+Under Method~A, the two residual bypasses do not produce judged compliance, so True ASR falls to zero.
+Under Method~B, four of the six bypasses become successful attacks.
+Reporting only Bypass Rate would therefore overstate residual harm for Method~A and would understate the distinction between filter misses and realized end-to-end success.
+
+\subsection{Usability: Standard and Edge-Case False Positives}
+\label{sec:fpr-results}
+
+On the standard benign test partition, regex and keyword filtering incur no false positives, while Method~A and Method~B incur \(13.04\%\) and \(8.70\%\) FPR, respectively (Table~\ref{tab:main-results}).
+The more revealing usability probe is the edge-case benign set of 80 technical-but-harmless prompts (Table~\ref{tab:edge-fpr}).
+
+\begin{table}[H]
+  \centering
+  \caption{Edge-case benign false-positive rates (\(n=80\)).}
+  \label{tab:edge-fpr}
+  \begin{tabular}{lrr}
+    \hline
+    Method & Edge FPR (\%) & Blocked / 80 \\
+    \hline
+    Baseline & 0.0 & 0 \\
+    Regex & 2.5 & 2 \\
+    Keyword & 0.0 & 0 \\
+    Method~A & 36.25 & 29 \\
+    Method~B & 7.5 & 6 \\
+    \hline
+  \end{tabular}
+\end{table}
+
+Lexical methods remain nearly inert on this set.
+Method~A, however, blocks 29 of 80 edge prompts (\(36.25\%\)), indicating substantial over-triggering on technical language that overlaps superficially with attack vocabulary.
+Method~B is far gentler, blocking 6 of 80 (\(7.5\%\)).
+Together with the standard-test FPR figures, these results address RQ4: Method~A purchases stronger security at a clear usability cost, whereas Method~B reduces that cost while allowing a nonzero residual True ASR.
+
+\subsection{Paraphrase Robustness}
+\label{sec:para-results}
+
+Table~\ref{tab:paraphrase} reports Bypass Rate before and after mild synonym substitution on 50 training injections (sanitizer-only evaluation).
+Both context-aware methods remain at \(0\%\) Bypass Rate on the original and paraphrased variants in this diagnostic setting.
+Lexical methods degrade slightly: keyword Bypass Rate rises from \(86\%\) to \(90\%\) (\(+4\) percentage points), and regex from \(74\%\) to \(76\%\) (\(+2\) percentage points).
+
+\begin{table}[H]
+  \centering
+  \caption{Paraphrase robustness (sanitizer-only Bypass Rate on 50 training injections).}
+  \label{tab:paraphrase}
+  \begin{tabular}{lrrr}
+    \hline
+    Method & Original Bypass & Paraphrased Bypass & \(\Delta\) (pp) \\
+    \hline
+    Baseline & 1.00 & 1.00 & 0.00 \\
+    Regex & 0.74 & 0.76 & \(+0.02\) \\
+    Keyword & 0.86 & 0.90 & \(+0.04\) \\
+    Method~A & 0.00 & 0.00 & 0.00 \\
+    Method~B & 0.00 & 0.00 & 0.00 \\
+    \hline
+  \end{tabular}
+\end{table}
+
+The paraphrase operator is intentionally mild, so these results should be read as evidence against shallow lexical brittleness rather than as proof of invariance to arbitrary rewriting.
+Even under this limited stress, the lexical baselines move in the expected direction, while the context-aware methods do not.
+
+\subsection{Adaptive Rewriting}
+\label{sec:adaptive-results}
+
+Adaptive evaluation rewrites each of the 30 test injections into five styles, yielding up to 150 prompts evaluated with the full two-layer pipeline (Table~\ref{tab:adaptive}).
+Relative to the static test set, all active defenses degrade, but the ordering is preserved.
+
+\begin{table}[H]
+  \centering
+  \caption{Adaptive FLAN-T5 rewriting results (up to 150 prompts; full two-layer evaluation).}
+  \label{tab:adaptive}
+  \begin{tabular}{lrrr}
+    \hline
+    Method & Bypass (\%) & True ASR (\%) & Successful attacks \\
+    \hline
+    Baseline & 100.00 & 45.33 & 68 \\
+    Regex & 93.33 & 42.00 & 63 \\
+    Keyword & 96.67 & 45.33 & 68 \\
+    Method~A & 16.67 & 8.67 & 13 \\
+    Method~B & 40.00 & 15.33 & 23 \\
+    \hline
+  \end{tabular}
+\end{table}
+
+Under adaptive rewriting, Method~A Bypass Rate rises from \(6.67\%\) on the static test set to \(16.67\%\), and True ASR rises from \(0\%\) to \(8.67\%\) (13 successful attacks).
+Method~B Bypass Rate rises from \(20\%\) to \(40\%\), and True ASR from \(13.33\%\) to \(15.33\%\) (23 successful attacks).
+Lexical defenses remain close to the unprotected baseline (True ASR \(42.00\%\)--\(45.33\%\)).
+Thus Method~A remains the strongest defense under style shift, while Method~B retains a substantial but smaller advantage over regex and keyword filtering.
+The increase relative to the static test set confirms that adaptive restatement is a harder condition than the original wording, even when the rewriter is a compact sequence-to-sequence model rather than an unbounded optimizer.
+
+\subsection{Ablation Studies}
+\label{sec:ablation-results}
+
+Ablations attribute the main-table gains to specific components on the same held-out test partition.
+
+\subsubsection{Hard-veto ablation for Method A}
+
+Table~\ref{tab:hard-ablation} confirms the hybrid interpretation of Method~A.
+The full system achieves \(6.67\%\) Bypass Rate and \(0\%\) True ASR.
+Removing all hard vetoes (soft-only Method~A) raises Bypass Rate to \(83.33\%\) and True ASR to \(40.00\%\) (\(+76.66\) percentage points in Bypass Rate), collapsing performance into the same weak regime as soft-weighted scoring alone and showing that the secondary soft layer is insufficient as a primary defense.
+Disabling only the semantic hard veto already raises Bypass Rate to \(63.33\%\) and True ASR to \(23.33\%\), identifying that veto as the principal high-confidence component.
+Disabling the intent veto or the role-play--keyword veto individually leaves the full-system metrics unchanged on this partition.
+
+\begin{table}[H]
+  \centering
+  \caption{Hard-veto ablation for Method~A on the held-out test partition.}
+  \label{tab:hard-ablation}
+  \begin{tabular}{lrrrr}
+    \hline
+    Variant & Bypass (\%) & True ASR (\%) & FPR (\%) & \(\Delta\) Bypass (pp) \\
+    \hline
+    Full Method~A & 6.67 & 0.00 & 13.04 & 0.00 \\
+    Soft-only (no hard vetoes) & 83.33 & 40.00 & 0.00 & \(+76.66\) \\
+    $-$ semantic hard veto & 63.33 & 23.33 & 0.00 & \(+56.66\) \\
+    $-$ intent hard veto & 6.67 & 0.00 & 13.04 & 0.00 \\
+    $-$ role-play+keyword hard veto & 6.67 & 0.00 & 13.04 & 0.00 \\
+    \hline
+  \end{tabular}
+\end{table}
+
+Two conclusions follow.
+First, Method~A should not be presented as a purely ensemble-based scoring system: soft aggregation alone does not deliver its reported security.
+Second, among hard vetoes, the semantic trigger is the decisive primary layer under the present test distribution; the other two vetoes contribute comparatively little once that semantic trigger is present.
+
+\subsubsection{Soft-weighted ablation for Method A}
+
+With hard vetoes disabled, leave-one-signal-out soft ablations remain in a weak band (Table~\ref{tab:soft-ablation}).
+The full soft-weighted model already allows \(83.33\%\) Bypass Rate and \(40.00\%\) True ASR.
+Removing the semantic soft signal produces the largest further degradation (\(+10.00\) percentage points Bypass Rate).
+Removing intent or role-play each adds \(6.67\) percentage points.
+Removing regular expression, keyword, or perplexity each adds \(3.34\) percentage points.
+Removing instruction shift or objective conflict leaves the soft-only totals unchanged on this partition.
+
+\begin{table}[H]
+  \centering
+  \caption{Soft-weighted ablation for Method~A (hard vetoes off).}
+  \label{tab:soft-ablation}
+  \begin{tabular}{lrrr}
+    \hline
+    Variant & Bypass (\%) & True ASR (\%) & \(\Delta\) Bypass (pp) \\
+    \hline
+    Full soft-weighted & 83.33 & 40.00 & 0.00 \\
+    $-$ semantic & 93.33 & 46.67 & \(+10.00\) \\
+    $-$ intent & 90.00 & 46.67 & \(+6.67\) \\
+    $-$ role-play & 90.00 & 46.67 & \(+6.67\) \\
+    $-$ regex / keyword / perplexity & 86.67 & 40.00 & \(+3.34\) \\
+    $-$ instruction shift & 83.33 & 40.00 & 0.00 \\
+    $-$ objective conflict & 83.33 & 40.00 & 0.00 \\
+    \hline
+  \end{tabular}
+\end{table}
+
+These results reinforce the hybrid claim: soft fusion contributes some secondary signal, especially through semantics, but does not by itself approach the security of full Method~A.
+
+\subsubsection{Feature ablation for Method B}
+
+Table~\ref{tab:learned-ablation} summarizes Method~B feature ablations.
+The full learned model matches the Suite~B main result (\(20.00\%\) Bypass Rate, \(13.33\%\) True ASR, \(8.70\%\) FPR).
+Semantic features dominate.
+Removing all semantic features raises Bypass Rate to \(100\%\) and True ASR to \(46.67\%\), identical to the unprotected baseline on this partition.
+Among individual semantic features, removing the top-three mean causes the largest single increase in Bypass Rate (\(+50.00\) percentage points), followed by the maximum similarity (\(+36.67\)) and the benign-contrast term (\(+30.00\)).
+Removing intent produces a small increase (\(+3.33\)).
+Removing regular expression, keyword, role-play, instruction shift, objective conflict, or perplexity leaves the full-model metrics unchanged on this test partition.
+
+\begin{table}[H]
+  \centering
+  \caption{Learned feature ablation for Method~B on the held-out test partition.}
+  \label{tab:learned-ablation}
+  \begin{tabular}{lrrrr}
+    \hline
+    Variant & Bypass (\%) & True ASR (\%) & FPR (\%) & \(\Delta\) Bypass (pp) \\
+    \hline
+    Full Method~B & 20.00 & 13.33 & 8.70 & 0.00 \\
+    $-$ all semantic & 100.00 & 46.67 & 0.00 & \(+80.00\) \\
+    $-$ semantic top-3 & 70.00 & 33.33 & 0.00 & \(+50.00\) \\
+    $-$ semantic max & 56.67 & 26.67 & 0.00 & \(+36.67\) \\
+    $-$ semantic contrast & 50.00 & 23.33 & 0.00 & \(+30.00\) \\
+    $-$ intent & 23.33 & 16.67 & 8.70 & \(+3.33\) \\
+    $-$ regex / keyword / role-play / shift / conflict / perplexity & 20.00 & 13.33 & 8.70 & 0.00 \\
+    \hline
+  \end{tabular}
+\end{table}
+
+A zero change on this partition does not prove that a feature is useless in general; it indicates only that the feature did not alter decisions on these 53 test prompts when the remaining features were present.
+The positive conclusion is sharper: semantic features are necessary for Method~B's observed gains, and the expanded semantic representation (maximum, top-three, and contrast) carries most of the learned defense.
+
+\subsection{Runtime Overhead}
+\label{sec:latency-results}
+
+Table~\ref{tab:latency} reports CPU latency over 50 prompts.
+Lexical filters are negligible (keyword mean \(0.02\)~ms; regex mean \(0.22\)~ms).
+MiniLM semantic scoring averages \(20.98\)~ms per prompt, and DistilGPT-2 perplexity scoring averages \(45.03\)~ms.
+Full Method~A sanitization averages \(64.79\)~ms (median \(46.68\)~ms; 95th percentile \(147.04\)~ms).
+
+\begin{table}[H]
+  \centering
+  \caption{CPU latency per prompt (\(n=50\)).}
+  \label{tab:latency}
+  \begin{tabular}{lrrr}
+    \hline
+    Component & Mean (ms) & Median (ms) & p95 (ms) \\
+    \hline
+    Keyword & 0.02 & 0.01 & 0.05 \\
+    Regex & 0.22 & 0.07 & 0.78 \\
+    MiniLM semantic & 20.98 & 17.42 & 35.61 \\
+    DistilGPT-2 perplexity & 45.03 & 29.10 & 111.36 \\
+    Full Method~A & 64.79 & 46.68 & 147.04 \\
+    \hline
+  \end{tabular}
+\end{table}
+
+Relative to lexical baselines, Method~A therefore adds tens of milliseconds of pre-inference cost on CPU.
+This overhead is small compared with typical large-model generation latency, but it is no longer free: the security gains of context-aware sanitization come with a measurable compute premium concentrated in the embedding and perplexity auxiliaries.
+
+\subsection{Summary of Findings}
+\label{sec:results-summary}
+
+Across the held-out test partition, robustness suites, and ablations, five empirical findings stand out.
+\begin{enumerate}
+  \item Lexical defenses alone do not reduce True ASR relative to the unprotected baseline on this corpus.
+  \item Method~A achieves the strongest security (True ASR \(0\%\) on the static test set; \(8.67\%\) under adaptive rewriting), but incurs the highest false-positive burden, especially on edge-case benign prompts.
+  \item Method~B improves substantially over lexical baselines with a milder usability cost, yet leaves residual successful attacks (\(13.33\%\) True ASR on the static test set).
+  \item Method~A behaves as a hybrid defense: hard semantic vetoes provide most protection, while soft weighted scoring is only a complementary layer (soft-only detection falls to roughly \(17\%\), and True ASR rises to \(40\%\)).
+  \item Method~B's gains are driven primarily by semantic features; removing them returns performance to the unprotected baseline on this partition.
+\end{enumerate}
+These findings motivate framing Method~A as a hybrid architecture rather than a pure ensemble scorer.
+Scope boundaries and limitations of the evaluation are stated in Section~\ref{sec:limitations}.
+
+
+% ---------------------------------------------------------------------------
+% From limitations_and_scope.tex
+% ---------------------------------------------------------------------------
+
+\section{Limitations and Scope}
+\label{sec:limitations}
+
+This section clarifies what the present study does and does not claim.
+We first state the intended scope of the threat model, data, and evaluation protocol, then enumerate limitations that qualify the empirical conclusions.
+
+\subsection{Scope}
+\label{sec:scope}
+
+The study addresses \emph{direct} textual prompt injection against an instruction-tuned chat model under a model-agnostic pre-inference gate.
+The defender may inspect and optionally block the user prompt before generation, but may not retrain the backend model or redesign the application interface into structured queries~\cite{struq2024,secalign2024}.
+Within that setting we compare lexical baselines with two context-aware sanitizers: hybrid Method~A, in which semantic hard triggers form the primary layer and weighted multi-signal scoring provides secondary coverage, and Method~B, which relies on learned soft fusion without hard vetoes.
+
+The evaluation corpus is intentionally compact and curated for controlled comparison.
+Primary metrics are reported on a frozen held-out test partition using a two-layer protocol that separates Bypass Rate from True ASR, complemented by paraphrase, edge-case benign, adaptive rewriting, ablation, and latency analyses.
+The contribution is therefore a reproducible proof-of-concept account of where defensive capability originates in a lightweight sanitization pipeline, not a production security certification.
+
+Out of scope for the present experiments are agentic tool-use settings~\cite{debenedetti2024agentdojo}, long-context indirect injection through retrieved documents or web content as the primary attack channel~\cite{greshake2023indirect,hines2024spotlighting}, multimodal injection~\cite{yeo2025multimodal}, and unbounded optimization-based jailbreak search~\cite{yi2024jailbreak}.
+Training-time alignment and structured-query redesign are treated as complementary defenses rather than competing systems under evaluation.
+
+\subsection{Limitations}
+\label{sec:limitations-detail}
+
+Several limitations qualify the reported results.
+
+\paragraph{Data scale and statistical power.}
+The corpus contains 350 prompts with a 53-prompt test partition.
+On a set of this size, leave-one-component ablations that show zero change should not be over-interpreted as proof that a signal is universally useless; they indicate only that the component did not alter decisions on this particular hold-out when the remaining cues were present.
+Larger and more diverse benchmarks would be needed for confident estimates of ablation deltas and confidence intervals.
+
+\paragraph{Threat-model coverage.}
+We evaluate direct single-turn textual injection.
+Indirect poisoning, multi-turn manipulation, retrieval-mediated attacks, and tool-diverting agent attacks may expose failure modes that the present suite does not stress~\cite{greshake2023indirect,debenedetti2024agentdojo,wu2025epistemic}.
+Adaptive rewriting uses a compact sequence-to-sequence model and therefore probes controlled style transfer rather than the strongest available adversarial optimizers~\cite{yi2024jailbreak,zizzo2025adversarial}.
+
+\paragraph{Judge and target dependence.}
+True ASR depends on an LLM-as-a-judge from the same model family as the target.
+Under greedy decoding the protocol is reproducible for a fixed model revision, but the judge is not a human gold standard and may disagree with other models or annotators~\cite{zizzo2025adversarial}.
+Results may also shift if a stronger or differently aligned backend replaces Qwen2.5-3B-Instruct.
+
+\paragraph{Architectural interpretation.}
+Method~A is a hybrid system: ablations show that semantic hard triggers provide most of the observed protection, while soft weighted scoring is complementary.
+Claims that would present Method~A as a balanced multi-signal ensemble would overstate the role of soft aggregation on this benchmark.
+Method~B improves over lexical baselines with milder false positives, but does not match Method~A's static-test True ASR; soft fusion alone is therefore not a drop-in substitute for the hybrid gate under the present evaluation.
+
+\paragraph{Usability cost.}
+Method~A's stronger security coincides with higher false-positive rates on ordinary benign prompts and especially on technical edge-case prompts.
+This trade-off is intrinsic to the current operating point and may limit deployment in product settings where over-blocking is costly~\cite{bair2025prompt,kholkar2025capture}.
+Threshold retuning or benign whitelisting could reduce that cost, but such changes were not explored here in order to keep the architecture and evaluation fixed.
+
+\paragraph{Efficiency and deployment.}
+Sanitizer auxiliaries run on CPU by design; Method~A adds tens of milliseconds of pre-inference latency relative to lexical filters.
+This overhead is modest compared with large-model generation, but it is not free, and wall-clock cost will vary with hardware and batching.
+The study does not evaluate multi-tenant serving, streaming interfaces, or privacy constraints on prompt logging.
+
+Taken together, these limitations imply that the results should be read as evidence about hybrid versus soft context-aware sanitization under a constrained direct-injection protocol.
+They support retaining and transparently reporting the present architecture, while leaving broader generalization, adaptive weighting, and reduced hard-trigger reliance to future work.
+
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+This paper studied model-agnostic pre-inference sanitization for direct prompt injection.
+We compared an unprotected baseline and two lexical filters with a hybrid handcrafted context-aware gate (Method~A) and a learned soft-fusion variant (Method~B), under a two-layer protocol that separates Bypass Rate from True ASR and reports false positives, robustness, ablations, and latency.
+
+Lexical defenses alone proved insufficient on the held-out test partition once end-to-end compliance was measured: they reduced Bypass Rate only modestly and left True ASR unchanged relative to the unprotected baseline.
+Both context-aware methods improved security substantially.
+Method~A achieved the strongest protection, including zero successful attacks on the static test set, but incurred higher false-positive rates, especially on technical edge-case prompts.
+Method~B offered a milder usability cost while leaving residual True ASR.
+Under adaptive stylistic rewriting, all active defenses degraded, yet the same ordering was preserved.
+
+Ablation analysis clarifies where these gains originate.
+Method~A should be understood as a hybrid defense rather than a pure ensemble scorer: semantic hard triggers provide the majority of protection, while weighted multi-signal scoring serves as a complementary layer for borderline cases.
+Method~B's gains depend primarily on semantic features; removing them returns performance to unprotected baseline levels on this partition.
+We therefore retain the present architecture and report it transparently, rather than redesigning the sanitizer around an inaccurate ensemble narrative.
+
+Within the stated scope---direct textual injection, a compact curated corpus, and a single open instruction-tuned target---the results support three practical conclusions.
+First, portable context-aware sanitization can outperform standard regex and keyword controls when security is measured end-to-end.
+Second, hybrid hard-trigger designs can deliver stronger static protection than soft fusion alone, at an explicit usability cost.
+Third, semantic evidence is central to both handcrafted and learned variants in this setting.
+
+Future work may reduce Method~A's edge-case over-blocking, explore adaptive or learned fusion that balances signal contributions more evenly, strengthen adaptive attackers, and extend evaluation to indirect and agentic benchmarks.
+Even under the present constraints, the study provides an evidence-oriented account of a deployable pre-inference sanitizer and of the architectural choices that drive its defensive capability.
+
+\nocite{*}
+\bibliographystyle{unsrt}
+\bibliography{references}  %%% Uncomment this line and comment out the ``thebibliography'' section below to use the external .bib file (using bibtex) .
+
+
+%%% Uncomment this section and comment out the \bibliography{references} line above to use inline references.
+% \begin{thebibliography}{1}
+
+% 	\bibitem{kour2014real}
+% 	George Kour and Raid Saabne.
+% 	\newblock Real-time segmentation of on-line handwritten arabic script.
+% 	\newblock In {\em Frontiers in Handwriting Recognition (ICFHR), 2014 14th
+% 			International Conference on}, pages 417--422. IEEE, 2014.
+
+% 	\bibitem{kour2014fast}
+% 	George Kour and Raid Saabne.
+% 	\newblock Fast classification of handwritten on-line arabic characters.
+% 	\newblock In {\em Soft Computing and Pattern Recognition (SoCPaR), 2014 6th
+% 			International Conference of}, pages 312--318. IEEE, 2014.
+
+% 	\bibitem{hadash2018estimate}
+% 	Guy Hadash, Einat Kermany, Boaz Carmeli, Ofer Lavi, George Kour, and Alon
+% 	Jacovi.
+% 	\newblock Estimate and replace: A novel approach to integrating deep neural
+% 	networks with existing applications.
+% 	\newblock {\em arXiv preprint arXiv:1804.09028}, 2018.
+
+% \end{thebibliography}
+
+
+\end{document}
