@@ -16,3 +16,4 @@ __pycache__/
 data/raw/Bravanskycompact-jailbreaks.csv
 
 report/
+results_old/

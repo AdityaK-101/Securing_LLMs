@@ -1,2 +1,0 @@
-val_accuracy,val_f1,val_Bypass_Rate,val_FPR,test_accuracy,test_f1,test_Bypass_Rate,test_FPR
-0.973,0.9778,0.0,0.0667,0.8158,0.8679,0.0,0.4667
