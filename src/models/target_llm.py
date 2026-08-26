@@ -117,8 +117,14 @@ class LLMRunner:
                 raise
             except Exception as e:
                 print(f"[LLMRunner] ERROR loading {MODEL_NAME}: {e}")
-                print("[LLMRunner] Falling back to mock. Set SKIP_LLM=1 to suppress this.")
-                self.mock = True
+                print(
+                    "[LLMRunner] Refusing silent mock fallback. "
+                    "Fix the load error, or set SKIP_LLM=1 / pass --no-llm for sanitizer-only mode."
+                )
+                raise RuntimeError(
+                    f"Failed to load target LLM {MODEL_NAME}. "
+                    "Set SKIP_LLM=1 or use --no-llm for sanitizer-only runs."
+                ) from e
 
     def run(self, prompt: str) -> str:
         """Run prompt through the configured target LLM."""

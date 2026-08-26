@@ -1,19 +1,31 @@
-# Virtual environment
+# Virtual environments
 venv/
+.venv/
+env/
 
 # Python cache
 __pycache__/
+*.py[cod]
+*$py.class
 *.pyc
 
-# Environment variables
+# Environment variables / secrets
 .env
+.env.*
 
-# Jupyter notebook checkpoints
+# Jupyter
 .ipynb_checkpoints/
 
-.env
-
+# Large raw source (cleaned 50-sample slice is enough to evaluate)
 data/raw/Bravanskycompact-jailbreaks.csv
 
+# Paper drafts (not part of the code artifact)
 report/
 results_old/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

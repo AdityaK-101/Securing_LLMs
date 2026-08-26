@@ -1,7 +1,7 @@
 """
 src/run_experiments.py
 ======================
-CLI entrypoint for Milestone 3 experiments.
+CLI entrypoint for experiment suites and ablations.
 
 Suites (context-aware method selection):
   --suite a      baseline + regex + keyword + Method A  → results/suite_a/
@@ -20,6 +20,8 @@ Usage:
 import os
 import json
 import argparse
+import subprocess
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -31,6 +33,7 @@ from .config import (
     VAL_CSV,
     TARGET_MODEL_NAME,
     JUDGE_MODEL_NAME,
+    PROJECT_ROOT,
 )
 from .evaluation.ablation import (
     run_ab_comparison_study,
@@ -123,7 +126,7 @@ def _run_full_pipeline(
     include_b = cfg["include_method_b"]
     results_dir, figures_dir = _resolve_output_dirs(suite_key)
 
-    _banner(f"Milestone 3 — {cfg['label']}")
+    _banner(cfg["label"])
     print(f"  Target : {TARGET_MODEL_NAME} ({'enabled' if use_llm else 'SKIP (--no-llm)'})")
     print(f"  Judge  : {JUDGE_MODEL_NAME} ({'enabled' if use_llm and not no_judge else 'SKIP'})")
     print(f"  Seed   : 42 (fixed for reproducibility)")
@@ -273,17 +276,17 @@ def _run_full_pipeline(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Milestone 3 experiment runner")
+    parser = argparse.ArgumentParser(description="Experiment runner")
     parser.add_argument(
         "--suite",
         choices=["a", "b", "ab", "both"],
         default="ab",
         help=(
             "Which methods to run: "
-            "a = full+Method A → results/suite_a/; "
-            "b = full+Method B → results/suite_b/; "
+            "a = full+Method A -> results/suite_a/; "
+            "b = full+Method B -> results/suite_b/; "
             "ab = run a then b separately (default); "
-            "both = all 5 methods in one run → results/"
+            "both = all 5 methods in one run -> results/"
         ),
     )
     parser.add_argument("--no-llm", action="store_true",
@@ -312,10 +315,32 @@ def main():
         action="store_true",
         help="Skip runtime overhead benchmark during the full pipeline",
     )
+    parser.add_argument(
+        "--portable-baselines",
+        action="store_true",
+        help=(
+            "Run ProtectAI + Prompt Guard static (+ adaptive) gate-only scripts. "
+            "Not part of suite A/B (gated HF models / separate cost)."
+        ),
+    )
     args = parser.parse_args()
 
     RESULTS_DIR.mkdir(exist_ok=True)
     (RESULTS_DIR / "figures").mkdir(exist_ok=True)
+
+    if args.portable_baselines:
+        _banner("Portable baselines (ProtectAI / Prompt Guard)")
+        scripts = [
+            "scripts/eval_protectai.py",
+            "scripts/eval_prompt_guard.py",
+            "scripts/eval_portable_adaptive.py",
+        ]
+        for rel in scripts:
+            cmd = [sys.executable, str(PROJECT_ROOT / rel)]
+            print(f"[portable] Running: {' '.join(cmd)}")
+            subprocess.run(cmd, check=True, cwd=str(PROJECT_ROOT))
+        print("[OK] Portable baseline metrics under results/protectai/ and results/prompt_guard/")
+        return
 
     use_llm = not args.no_llm
     if args.no_judge:

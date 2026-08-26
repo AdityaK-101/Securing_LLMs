@@ -2,7 +2,7 @@
 ================================================================================
 LICENSE LOG
 PROJECT: Securing LLMs Against Prompt Injection
-LAST UPDATED: 2026-01-10
+LAST UPDATED: 2026-08-26
 ================================================================================
 
 --------------------------------------------------------------------------------
@@ -12,7 +12,7 @@ LAST UPDATED: 2026-01-10
 * License: MIT License
 * Acquired Date: 2026-01-02
 * Access Method: Public HuggingFace/GitHub repository download
-* Usage in Project: Used as part of the 'Jailbreak' dataset slice (50 random samples)
+* Usage in Project: Jailbreak slice (50 random samples)
 * Attribution Required: Yes
 * Commercial Use Allowed: Yes
 * Notes: Community curated jailbreak prompts.
@@ -24,10 +24,11 @@ LAST UPDATED: 2026-01-10
 * License: MIT License
 * Acquired Date: 2026-01-02
 * Access Method: Public HuggingFace download
-* Usage in Project: Used as part of the 'Jailbreak' dataset slice (50 random samples)
+* Usage in Project: Jailbreak slice (50 random samples)
 * Attribution Required: Yes
 * Commercial Use Allowed: Likely Yes (Research)
-* Notes: Large scale jailbreak dataset.
+* Notes: Large-scale jailbreak dataset. Raw CSV (~431 MB) is gitignored;
+  cleaned slice lives at data/cleaned/jailbreak_prompts_Bravansky.jsonl.
 
 --------------------------------------------------------------------------------
 3. MALICIOUS PROMPT DETECTION DATASET (MPDD) (50 prompts)
@@ -36,7 +37,8 @@ LAST UPDATED: 2026-01-10
 * License: CC0 Public Domain
 * Acquired Date: 2026-01-02
 * Access Method: Public Kaggle download
-* Usage in Project: Used as 'Malicious' dataset slice (50 samples from 'malicious_deepset.csv')
+* Usage in Project: Malicious slice (50 samples from 'malicous_deepset.csv';
+  upstream filename typo preserved)
 * Attribution Required: Yes
 * Commercial Use Allowed: Likely Yes (Research)
 * Notes: Focused on malicious prompts.
@@ -47,26 +49,31 @@ LAST UPDATED: 2026-01-10
 * Source: Self-generated using ChatGPT / Synthetic
 * License: Public Domain / CC0 1.0 (Self-assigned for this project)
 * Acquired Date: 2026-01-02
-* Usage in Project: Used as benign baseline (50 samples)
+* Usage in Project: Benign baseline (50 samples)
 * Attribution Required: No
 * Commercial Use Allowed: Yes
 * Notes: Standard benign queries (creative writing, Q&A).
 
 --------------------------------------------------------------------------------
-5. PROMPT INJECTION & BENIGN PROMPT DATASET (50 prompts)
+5. PROMPT INJECTION & BENIGN PROMPT DATASET
 --------------------------------------------------------------------------------
 * Source URL: https://huggingface.co/datasets/darkknight25/Prompt_Injection_Benign_Prompt_Dataset
 * License: MIT License
 * Acquired Date: 2026-01-02
 * Access Method: Public HuggingFace download
-* Usage in Project: Used as benign baseline (50 samples)
+* Usage in Project (v2.0 corpus):
+  - 50 injection/jailbreak samples
+  - 100 benign samples
 * Attribution Required: Yes
 * Commercial Use Allowed: Likely Yes (Research)
-* Notes: Subset of benign labeled data.
 
 ================================================================================
 COMBINED DATASET LICENSE
 ================================================================================
-* Final Dataset Name: Securing LLMs Combined Dataset v1.0
-* Overall License: CC BY-NC 4.0 (Due to mixed sources/unknowns)
+* Final Dataset Name: Securing LLMs Combined Dataset v2.0
+* Canonical file: data/cleaned/combined_dataset.csv (350 prompts:
+  200 injection / 150 benign)
+* Overall License: CC BY-NC 4.0 (Due to mixed sources)
 * Redistribution: Shareable for research with attribution and license log.
+* Legacy v1.0 (250 prompts): data/cleaned/legacy/
+* Code license: MIT (repository root LICENSE)

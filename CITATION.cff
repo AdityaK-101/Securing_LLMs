@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: "If you use this software or dataset, please cite it as below."
+title: "Where Does the Security Come From? A Controlled Evaluation of Context-Aware Input Sanitization Against Direct Prompt Injection"
+authors:
+  - family-names: Kulkarni
+    given-names: Aditya
+type: software
+license: MIT
+version: "1.0.0"
+date-released: "2026-08-26"
+abstract: >
+  Controlled evaluation of two context-aware pre-inference sanitizers (Method A:
+  hybrid hard triggers; Method B: learned fusion) against lexical baselines and
+  off-the-shelf portable classifiers for direct prompt injection. Two-layer
+  protocol (Bypass Rate, True ASR), dual false-positive reporting, ablations,
+  and robustness on a frozen 350-prompt corpus (53-prompt test partition).
+keywords:
+  - prompt injection
+  - direct prompt injection
+  - input sanitization
+  - context-aware defense
+  - LLM security
+preferred-citation:
+  type: article
+  authors:
+    - family-names: Kulkarni
+      given-names: Aditya
+  title: "Where Does the Security Come From? A Controlled Evaluation of Context-Aware Input Sanitization Against Direct Prompt Injection"
+  year: 2026

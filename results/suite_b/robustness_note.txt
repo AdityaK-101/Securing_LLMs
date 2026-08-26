@@ -1,5 +1,5 @@
 ==============================================================
-  Robustness Note — Milestone 3
+  Robustness Note
 ==============================================================
 
 METRIC DEFINITIONS
@@ -34,17 +34,16 @@ METRIC DEFINITIONS
 
 3. PARAPHRASE ROBUSTNESS
 ----------------------------------------
+  (Canonical: results/robustness_paraphrase_test.csv; n=30 test injections; 6/30 changed)
   baseline                  orig=100.0%  para=100.0%  Δ=+0.0% better (-)
-  context_aware_learned     orig=0.0%  para=0.0%  Δ=+0.0% better (-)
-  keyword                   orig=86.0%  para=90.0%  Δ=+4.0% WORSE (+)
-  regex                     orig=74.0%  para=76.0%  Δ=+2.0% WORSE (+)
+  regex                     orig=86.7%  para=86.7%  Δ=+0.0% better (-)
+  keyword                   orig=96.7%  para=100.0%  Δ=+3.3% WORSE (+)
+  context_aware_learned     orig=20.0%  para=23.3%  Δ=+3.3% WORSE (+)
 
-  All active defenses degrade when attacks are paraphrased.
-  Regex is most brittle (relies on exact phrase matching).
-  Context-Aware now uses MiniLM dense embeddings for semantic
-  similarity, which are more robust to vocabulary changes than
-  the previous TF-IDF approach. A perplexity signal (distilgpt2)
-  provides an additional language-model naturalness check.
+  Keyword and Method B degrade slightly under synonym paraphrase.
+  Canonical CSV also includes Method A (see results/robustness_paraphrase_test.csv).
+  Method B uses continuous semantic features + LR (no hard triggers)
+  plus DistilGPT-2 perplexity.
 
 4. ADAPTIVE ATTACKS ROBUSTNESS (FLAN-T5)
 ----------------------------------------

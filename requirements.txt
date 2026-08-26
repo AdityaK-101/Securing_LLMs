@@ -1,11 +1,14 @@
-pandas
-numpy
-tqdm
-scikit-learn
-matplotlib
-nltk
-transformers
-torch
-scipy
-huggingface_hub
-sentence-transformers
+# Pinned to versions used for the paper artifact runs (2026-08).
+# For CUDA torch wheels, install torch from the matching PyTorch index first if needed:
+#   pip install torch==2.6.0 --index-url https://download.pytorch.org/whl/cu124
+
+pandas==2.3.3
+numpy==2.4.3
+tqdm==4.67.1
+scikit-learn==1.7.2
+matplotlib==3.10.7
+transformers==4.57.1
+torch==2.6.0
+scipy==1.16.3
+huggingface_hub==0.36.0
+sentence-transformers==5.2.3

@@ -6,10 +6,26 @@ from pathlib import Path
 
 import numpy as np
 
-# Fixed seed for reproducibility (§4.4 functional test requirement)
+# Fixed seed for reproducibility
 RANDOM_SEED = 42
 random.seed(RANDOM_SEED)
 np.random.seed(RANDOM_SEED)
+
+try:
+    import torch
+
+    torch.manual_seed(RANDOM_SEED)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(RANDOM_SEED)
+except ImportError:
+    pass
+
+try:
+    from transformers import set_seed as _hf_set_seed
+
+    _hf_set_seed(RANDOM_SEED)
+except ImportError:
+    pass
 
 _ROOT = os.path.join(os.path.dirname(__file__), "..")
 PROJECT_ROOT = Path(_ROOT)

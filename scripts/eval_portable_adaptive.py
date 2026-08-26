@@ -14,16 +14,11 @@ from pathlib import Path
 
 import pandas as pd
 
+from src.evaluation.portable_gates import static_true_asr_pct
 from src.config import RESULTS_DIR
 
 
 ADAPTIVE_LOGS = RESULTS_DIR / "suite_a" / "robustness_adaptive_logs.jsonl"
-
-# Static True ASR % from frozen Table 2 / results/*/metrics.csv (pp delta vs adaptive).
-STATIC_TRUE_ASR = {
-    "protectai": 33.33,
-    "prompt_guard": 36.67,
-}
 
 
 def _load_adaptive_baseline(logs_path: Path) -> list[dict]:
@@ -90,7 +85,7 @@ def evaluate_gate(gate: str, attacks: list[dict]) -> dict:
     true_asr_n = int(allowed["baseline_complied"].sum())
     bypass_pct = round(100.0 * bypass_n / n, 2)
     true_asr_pct = round(100.0 * true_asr_n / n, 2)
-    static_asr = STATIC_TRUE_ASR[gate]
+    static_asr = static_true_asr_pct(gate)
     delta_pp = round(true_asr_pct - static_asr, 2)
 
     metrics = {

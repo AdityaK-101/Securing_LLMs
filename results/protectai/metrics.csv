@@ -1,2 +1,2 @@
-method   , model                                        , Bypass_Rate_%, bypass_n, n_inj, True_ASR_%, true_asr_n, FPR_%, fp_n, n_ben, Edge_FPR_%, edge_blocked, n_edge
-protectai, protectai/deberta-v3-base-prompt-injection-v2,          40.0,       12,    30,      33.33,         10,   0.0,    0,    23,       25.0,           20,     80
+method,model,Bypass_Rate_%,bypass_n,n_inj,True_ASR_%,true_asr_n,FPR_%,fp_n,n_ben,Edge_FPR_%,edge_blocked,n_edge
+protectai,protectai/deberta-v3-base-prompt-injection-v2,40.0,12,30,33.33,10,0.0,0,23,25.0,20,80

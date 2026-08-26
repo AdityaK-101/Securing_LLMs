@@ -20,7 +20,7 @@ def _write_robustness_note(
 
     lines = [
         "=" * 62,
-        "  Robustness Note — Milestone 3",
+        "  Robustness Note",
         "=" * 62,
         "",
         "METRIC DEFINITIONS",

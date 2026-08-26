@@ -25,6 +25,8 @@ from .keyword import (
     KEYWORD_WEIGHTS,
     KeywordHeuristicSanitizer,
 )
+from .prompt_guard import PromptGuardSanitizer
+from .protectai import ProtectAISanitizer
 from .regex import (
     REGEX_PATTERNS,
     RegexSanitizer,
@@ -79,6 +81,8 @@ __all__ = [
     "KeywordHeuristicSanitizer",
     "ContextAwareSanitizer",
     "ContextAwareLearnedSanitizer",
+    "ProtectAISanitizer",
+    "PromptGuardSanitizer",
     "get_all_sanitizers",
     "REGEX_PATTERNS",
     "KEYWORD_WEIGHTS",

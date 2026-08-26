@@ -489,8 +489,14 @@ class ComplianceJudge:
                 raise
             except Exception as e:
                 print(f"[ComplianceJudge] ERROR loading judge: {e}")
-                print("[ComplianceJudge] Falling back to mock. Set SKIP_JUDGE=1 to suppress.")
-                self.mock = True
+                print(
+                    "[ComplianceJudge] Refusing silent mock fallback. "
+                    "Fix the load error, or set SKIP_JUDGE=1 / pass --no-judge."
+                )
+                raise RuntimeError(
+                    f"Failed to load judge model {JUDGE_MODEL_NAME}. "
+                    "Set SKIP_JUDGE=1 or use --no-judge."
+                ) from e
 
     def is_mock(self) -> bool:
         return self.mock

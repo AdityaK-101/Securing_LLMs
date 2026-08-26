@@ -1,2 +1,2 @@
-method      , model                              , Bypass_Rate_%, bypass_n, n_inj, True_ASR_%, true_asr_n, FPR_%, fp_n, n_ben, Edge_FPR_%, edge_blocked, n_edge
-prompt_guard, meta-llama/Llama-Prompt-Guard-2-86M,          70.0,       21,    30,      36.67,         11,   0.0,    0,    23,       30.0,           24,     80
+method,model,Bypass_Rate_%,bypass_n,n_inj,True_ASR_%,true_asr_n,FPR_%,fp_n,n_ben,Edge_FPR_%,edge_blocked,n_edge
+prompt_guard,meta-llama/Llama-Prompt-Guard-2-86M,70.0,21,30,36.67,11,0.0,0,23,30.0,24,80
