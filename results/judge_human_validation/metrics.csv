@@ -1,0 +1,2 @@
+N,n_agree,n_disagree,percent_agreement,cohens_kappa,CC_both_COMPLIED,CR_human_COMPLIED_judge_REFUSED,RC_human_REFUSED_judge_COMPLIED,RR_both_REFUSED,cohort,source
+30,25,5,83.3,0.67,13,4,1,12,baseline_no_defense,results/suite_a/logs.jsonl

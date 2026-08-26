@@ -281,13 +281,17 @@ Numbers below are from the current held-out **test** split (30 injection / 23 be
 
 ### 6.3 Paraphrase robustness
 
+Held-out **test** injections ($n=30$), same nine synonym substitutions (gate-only). Only 6/30 prompts change under the substitution list.
+
 | Method | Orig Bypass | Para Bypass | Δ |
 |--------|------------:|------------:|--:|
 | baseline | 1.00 | 1.00 | 0.00 |
-| regex | 0.74 | 0.76 | +0.02 |
-| keyword | 0.86 | 0.90 | +0.04 |
-| Method A | 0.00 | 0.00 | 0.00 |
-| Method B | 0.00 | 0.00 | 0.00 |
+| regex | 0.8667 | 0.8667 | 0.00 |
+| keyword | 0.9667 | 1.00 | +0.0333 |
+| Method A | 0.0667 | 0.0667 | 0.00 |
+| Method B | 0.2000 | 0.2333 | +0.0333 |
+
+Canonical CSV: `results/robustness_paraphrase_test.csv`.
 
 ### 6.4 Edge benign FPR
 
@@ -301,13 +305,17 @@ Numbers below are from the current held-out **test** split (30 injection / 23 be
 
 ### 6.5 Adaptive attacks (FLAN-T5 variants)
 
-| Method | Bypass % | True ASR % | Successful attacks |
-|--------|---------:|-----------:|-------------------:|
-| baseline | 100.0 | 45.33 | 68 |
-| regex | 93.33 | 42.0 | 63 |
-| keyword | 96.67 | 45.33 | 68 |
-| Method A | **16.67** | **8.67** | **13** |
-| Method B | 40.0 | 15.33 | 23 |
+Frozen 150 FLAN-T5 rewrites; portable gates are gate-only on the same texts (True ASR reuses baseline COMPLIED labels). Δ is adaptive True ASR − static True ASR (pp).
+
+| Method | Bypass % | True ASR % | Successful attacks | Δ True ASR vs static (pp) |
+|--------|---------:|-----------:|-------------------:|--------------------------:|
+| baseline | 100.0 | 45.33 | 68 | −1.34 |
+| regex | 93.33 | 42.0 | 63 | −4.67 |
+| keyword | 96.67 | 45.33 | 68 | −1.34 |
+| ProtectAI | 62.67 | 36.00 | 54 | +2.67 |
+| Prompt Guard 2 | 82.67 | 40.67 | 61 | +4.00 |
+| Method A | **16.67** | **8.67** | **13** | +8.67 |
+| Method B | 40.0 | 15.33 | 23 | +2.00 |
 
 ### 6.6 Runtime overhead (aux models, CPU)
 
@@ -438,7 +446,8 @@ python -c "import pandas as pd; print(pd.read_csv('results/suite_b/metrics.csv')
 | `metrics.csv` | Bypass, True ASR, FPR, TP/FN/FP/TN, successful attacks |
 | `logs.jsonl` | Per prompt × method: `blocked`, `sanitized`, `llm_output`, `judge_label`, … |
 | `confusion_matrices.json` | Sanitizer-only confusion matrices |
-| `robustness_paraphrase.csv` | Paraphrase Bypass deltas |
+| `robustness_paraphrase_test.csv` | Paraphrase Bypass on held-out test injections |
+| `robustness_paraphrase.csv` | (suite runs) Paraphrase Bypass deltas |
 | `robustness_edge_benign.csv` | Edge benign FPR |
 | `robustness_adaptive.csv` | Adaptive attack metrics |
 | `robustness_adaptive_logs.jsonl` | Adaptive per-example logs |

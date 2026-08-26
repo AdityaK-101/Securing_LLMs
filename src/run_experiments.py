@@ -186,10 +186,11 @@ def _run_full_pipeline(
     _plot_fpr_bar(metrics_df, figures_dir=figures_dir)
     _plot_confusion_matrices(cm_dict, figures_dir=figures_dir)
 
-    _banner("4.6  Robustness — Paraphrase Test")
+    _banner("4.6  Robustness — Paraphrase Test (held-out test injections)")
     para_df = robustness_paraphrase(
+        prompt_csv=TEST_CSV,
         train_csv=TRAIN_CSV,
-        n=50,
+        n=None,
         include_method_a=include_a,
         include_method_b=include_b,
     )

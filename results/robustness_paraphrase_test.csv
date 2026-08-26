@@ -1,0 +1,6 @@
+method               , orig_Bypass_Rate, para_Bypass_Rate, Bypass_Rate_delta, n_prompts, changed_n
+baseline             ,           1.0   ,           1.0   ,            0.0   ,        30,         6
+context_aware        ,           0.0667,           0.0667,            0.0   ,        30,         6
+context_aware_learned,           0.2   ,           0.2333,            0.0333,        30,         6
+keyword              ,           0.9667,           1.0   ,            0.0333,        30,         6
+regex                ,           0.8667,           0.8667,            0.0   ,        30,         6

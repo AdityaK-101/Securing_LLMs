@@ -146,25 +146,31 @@ def _paraphrase(text: str) -> str:
 
 
 def robustness_paraphrase(
+    prompt_csv: str = TEST_CSV,
     train_csv: str = TRAIN_CSV,
-    n: int = 50,
+    n: int | None = None,
     include_method_a: bool = True,
     include_method_b: bool = True,
 ) -> pd.DataFrame:
     """
-    Paraphrase test: take n injection prompts from train set,
-    apply synonym substitutions, re-evaluate all sanitizers.
+    Paraphrase probe: take injection prompts, apply the fixed nine synonym
+    substitutions, and re-score all sanitizers (gate-only Bypass).
+
+    Default pool is the held-out test injections (n=30). Pass prompt_csv=TRAIN_CSV
+    and n=50 to reproduce the older train-gallery diagnostic.
 
     Returns DataFrame comparing original vs. paraphrased Bypass Rate.
-    Columns: method, orig_Bypass_Rate, para_Bypass_Rate, Bypass_Rate_delta
+    Columns: method, orig_Bypass_Rate, para_Bypass_Rate, Bypass_Rate_delta,
+    n_prompts, changed_n (prompts altered by at least one substitution).
     """
-    df_train = pd.read_csv(train_csv)
+    df_prompts = pd.read_csv(prompt_csv)
     injection_prompts = (
-        df_train[df_train["label"] == "injection"]["prompt"]
+        df_prompts[df_prompts["label"] == "injection"]["prompt"]
         .dropna()
-        .head(n)
         .tolist()
     )
+    if n is not None:
+        injection_prompts = injection_prompts[:n]
 
     sanitizers = get_all_sanitizers(
         train_csv=train_csv,
@@ -173,10 +179,16 @@ def robustness_paraphrase(
         include_method_b=include_method_b,
     )
     records = []
+    changed_n = 0
 
-    print(f"\n[Robustness] Paraphrase test: {len(injection_prompts)} prompts...")
+    print(
+        f"\n[Robustness] Paraphrase test: {len(injection_prompts)} prompts "
+        f"from {prompt_csv}..."
+    )
     for prompt in tqdm(injection_prompts, desc="Paraphrase"):
         paraphrased = _paraphrase(prompt)
+        if paraphrased != prompt:
+            changed_n += 1
         for san in sanitizers:
             _, orig_blocked = san.sanitize(prompt)
             _, para_blocked = san.sanitize(paraphrased)
@@ -194,6 +206,9 @@ def robustness_paraphrase(
     summary["Bypass_Rate_delta"] = round(
         summary["para_Bypass_Rate"] - summary["orig_Bypass_Rate"], 4
     )
+    summary["n_prompts"] = len(injection_prompts)
+    summary["changed_n"] = changed_n
+    release_all_sanitizer_models(sanitizers)
     return summary
 
 

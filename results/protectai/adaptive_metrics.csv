@@ -1,0 +1,2 @@
+method   , model                                        , n_adaptive, Bypass_Rate_%, bypass_n, True_ASR_%, true_asr_n, static_True_ASR_%, delta_True_ASR_pp, baseline_complied_n
+protectai, protectai/deberta-v3-base-prompt-injection-v2,        150,         62.67,       94,       36.0,         54,             33.33,              2.67,                  68
