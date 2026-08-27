@@ -392,6 +392,7 @@ def format_overhead_for_note(report: dict) -> list[str]:
         f"CUDA={hw.get('cuda_available')}"
         + (f" ({hw.get('gpu_name')})" if hw.get("gpu_name") else ""),
         "  Aux models (MiniLM, DistilGPT-2) run on CPU by design.",
+        "  Paper runtime paragraph uses the suite_b overhead CSV as canonical.",
     ]
     for key, label in (
         ("minilm_semantic", "MiniLM semantic"),

@@ -1,7 +1,7 @@
 component,model,device,n,mean_ms_per_prompt,median_ms_per_prompt,p95_ms_per_prompt,std_ms,min_ms,max_ms
-minilm_semantic,sentence-transformers/all-MiniLM-L6-v2,cpu,50,14.731,12.69,26.305,5.525,9.491,28.436
-distilgpt2_perplexity,distilgpt2,cpu,50,34.278,21.348,88.533,30.213,15.491,158.302
-method_a_full_sanitize,context_aware (all 8 signals + hard triggers),cpu,50,47.135,31.667,117.952,35.121,25.316,182.096
-regex_sanitize,regex,cpu,50,0.13,0.046,0.524,0.189,0.034,0.991
-keyword_sanitize,keyword,cpu,50,0.015,0.009,0.04,0.012,0.008,0.067
-minilm_plus_distilgpt2,MiniLM + DistilGPT-2 (sum of separate timings),cpu,50,49.009,32.696,114.84,35.458,25.287,186.738
+minilm_semantic,sentence-transformers/all-MiniLM-L6-v2,cpu,50,20.977,17.415,35.611,6.925,14.994,38.305
+distilgpt2_perplexity,distilgpt2,cpu,50,45.028,29.095,111.359,37.333,21.808,205.398
+method_a_full_sanitize,context_aware (all 8 signals + hard triggers),cpu,50,64.785,46.678,147.037,42.943,37.238,236.746
+regex_sanitize,regex,cpu,50,0.216,0.07,0.777,0.334,0.038,1.873
+keyword_sanitize,keyword,cpu,50,0.022,0.014,0.051,0.018,0.009,0.108
+minilm_plus_distilgpt2,MiniLM + DistilGPT-2 (sum of separate timings),cpu,50,66.005,45.977,146.42,43.876,36.845,243.703

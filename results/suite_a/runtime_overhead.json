@@ -25,72 +25,72 @@
       "device": "cpu",
       "path": "ContextAwareSanitizer._semantic_signal",
       "n": 50,
-      "mean_ms": 14.731,
-      "median_ms": 12.69,
-      "p95_ms": 26.305,
-      "std_ms": 5.525,
-      "min_ms": 9.491,
-      "max_ms": 28.436
+      "mean_ms": 20.977,
+      "median_ms": 17.415,
+      "p95_ms": 35.611,
+      "std_ms": 6.925,
+      "min_ms": 14.994,
+      "max_ms": 38.305
     },
     "distilgpt2_perplexity": {
       "model": "distilgpt2",
       "device": "cpu",
       "path": "ContextAwareSanitizer._perplexity_signal",
       "n": 50,
-      "mean_ms": 34.278,
-      "median_ms": 21.348,
-      "p95_ms": 88.533,
-      "std_ms": 30.213,
-      "min_ms": 15.491,
-      "max_ms": 158.302
+      "mean_ms": 45.028,
+      "median_ms": 29.095,
+      "p95_ms": 111.359,
+      "std_ms": 37.333,
+      "min_ms": 21.808,
+      "max_ms": 205.398
     },
     "method_a_full_sanitize": {
       "model": "context_aware (all 8 signals + hard triggers)",
       "device": "cpu",
       "path": "ContextAwareSanitizer.sanitize",
       "n": 50,
-      "mean_ms": 47.135,
-      "median_ms": 31.667,
-      "p95_ms": 117.952,
-      "std_ms": 35.121,
-      "min_ms": 25.316,
-      "max_ms": 182.096
+      "mean_ms": 64.785,
+      "median_ms": 46.678,
+      "p95_ms": 147.037,
+      "std_ms": 42.943,
+      "min_ms": 37.238,
+      "max_ms": 236.746
     },
     "regex_sanitize": {
       "model": "regex",
       "device": "cpu",
       "path": "RegexSanitizer.sanitize",
       "n": 50,
-      "mean_ms": 0.13,
-      "median_ms": 0.046,
-      "p95_ms": 0.524,
-      "std_ms": 0.189,
-      "min_ms": 0.034,
-      "max_ms": 0.991
+      "mean_ms": 0.216,
+      "median_ms": 0.07,
+      "p95_ms": 0.777,
+      "std_ms": 0.334,
+      "min_ms": 0.038,
+      "max_ms": 1.873
     },
     "keyword_sanitize": {
       "model": "keyword",
       "device": "cpu",
       "path": "KeywordHeuristicSanitizer.sanitize",
       "n": 50,
-      "mean_ms": 0.015,
-      "median_ms": 0.009,
-      "p95_ms": 0.04,
-      "std_ms": 0.012,
-      "min_ms": 0.008,
-      "max_ms": 0.067
+      "mean_ms": 0.022,
+      "median_ms": 0.014,
+      "p95_ms": 0.051,
+      "std_ms": 0.018,
+      "min_ms": 0.009,
+      "max_ms": 0.108
     },
     "minilm_plus_distilgpt2": {
       "model": "MiniLM + DistilGPT-2 (sum of separate timings)",
       "device": "cpu",
       "path": "_semantic_signal + _perplexity_signal",
       "n": 50,
-      "mean_ms": 49.009,
-      "median_ms": 32.696,
-      "p95_ms": 114.84,
-      "std_ms": 35.458,
-      "min_ms": 25.287,
-      "max_ms": 186.738
+      "mean_ms": 66.005,
+      "median_ms": 45.977,
+      "p95_ms": 146.42,
+      "std_ms": 43.876,
+      "min_ms": 36.845,
+      "max_ms": 243.703
     }
   }
 }

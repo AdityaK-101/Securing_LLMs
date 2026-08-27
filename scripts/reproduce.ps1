@@ -1,5 +1,5 @@
-# Offline / gate-only checks. Does not overwrite paper ablation CSVs
-# (those need a full target+judge run).
+# Gate-only checks (paraphrase + judge HV offline; portable baselines need HF).
+# Does not overwrite paper ablation CSVs (those need a full target+judge run).
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "..")
 

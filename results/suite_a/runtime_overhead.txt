@@ -24,11 +24,11 @@ SETTINGS
 
 LATENCY (ms per prompt)
 ----------------------------------------
-  minilm_semantic               mean=   14.73  median=   12.69  p95=   26.30  n=50
-  distilgpt2_perplexity         mean=   34.28  median=   21.35  p95=   88.53  n=50
-  method_a_full_sanitize        mean=   47.13  median=   31.67  p95=  117.95  n=50
-  regex_sanitize                mean=    0.13  median=    0.05  p95=    0.52  n=50
-  keyword_sanitize              mean=    0.01  median=    0.01  p95=    0.04  n=50
-  minilm_plus_distilgpt2        mean=   49.01  median=   32.70  p95=  114.84  n=50
+  minilm_semantic               mean=   20.98  median=   17.41  p95=   35.61  n=50
+  distilgpt2_perplexity         mean=   45.03  median=   29.09  p95=  111.36  n=50
+  method_a_full_sanitize        mean=   64.78  median=   46.68  p95=  147.04  n=50
+  regex_sanitize                mean=    0.22  median=    0.07  p95=    0.78  n=50
+  keyword_sanitize              mean=    0.02  median=    0.01  p95=    0.05  n=50
+  minilm_plus_distilgpt2        mean=   66.00  median=   45.98  p95=  146.42  n=50
 
 ==============================================================

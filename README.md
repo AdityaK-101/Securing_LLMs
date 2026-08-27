@@ -319,7 +319,12 @@ python scripts/build_judge_human_validation.py
 python scripts/score_judge_human_validation.py
 ```
 
-### One-shot offline reproduce
+### One-shot gate checks (`reproduce.*`)
+
+Runs paraphrase gate-only scoring, offline judge HV scoring, and portable baselines.
+Steps 1–2 need no model download beyond what you already use for scoring; step 3
+downloads ProtectAI / Prompt Guard from Hugging Face if not cached (`HF_TOKEN` may
+be required for Prompt Guard). Does **not** rebuild suite/ablation paper tables.
 
 ```powershell
 .\scripts\reproduce.ps1
