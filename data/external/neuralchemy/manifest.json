@@ -1,0 +1,104 @@
+{
+  "dataset": "neuralchemy/Prompt-injection-dataset",
+  "config": "core",
+  "split": "test",
+  "license_card": "Apache-2.0",
+  "constituent_sources": {
+    "neuralchemy_v1": "Apache-2.0 (dataset card: NeurAlchemy original)",
+    "hackaprompt": "CC BY 4.0",
+    "harmbench": "MIT",
+    "harmbench_benign": "MIT",
+    "wildguard_judgecomp": "research use; see WildGuard / JudgeComparison",
+    "original": "Apache-2.0 (dataset card)"
+  },
+  "downloaded_rows": 942,
+  "dropped_exact_overlaps": [
+    {
+      "group_id": "grp_ac8b5e61aabc",
+      "category": "adversarial",
+      "source": "neuralchemy_v1",
+      "overlap_split": "train"
+    },
+    {
+      "group_id": "grp_090ad3da07b4",
+      "category": "adversarial",
+      "source": "neuralchemy_v1",
+      "overlap_split": "test"
+    },
+    {
+      "group_id": "grp_e94410dd6fe1",
+      "category": "adversarial",
+      "source": "neuralchemy_v1",
+      "overlap_split": "train"
+    },
+    {
+      "group_id": "grp_b8827676fe03",
+      "category": "jailbreak",
+      "source": "neuralchemy_v1",
+      "overlap_split": "val"
+    },
+    {
+      "group_id": "grp_d323788b1ee4",
+      "category": "adversarial",
+      "source": "neuralchemy_v1",
+      "overlap_split": "train"
+    },
+    {
+      "group_id": "grp_b87a5fa40c17",
+      "category": "training_extraction",
+      "source": "neuralchemy_v1",
+      "overlap_split": "train"
+    }
+  ],
+  "test_core": {
+    "rows": 936,
+    "injection": 546,
+    "benign": 390,
+    "by_category": {
+      "adversarial": 75,
+      "agent_manipulation": 8,
+      "benign": 381,
+      "context_confusion": 6,
+      "control": 5,
+      "direct_injection": 314,
+      "edge_case": 9,
+      "encoding": 30,
+      "encoding_obfuscation": 1,
+      "indirect_injection": 1,
+      "instruction_override": 4,
+      "jailbreak": 49,
+      "many_shot": 1,
+      "multi_turn": 4,
+      "output_manipulation": 5,
+      "payload_injection": 2,
+      "persona_replacement": 3,
+      "prompt_extraction": 3,
+      "prompt_injection": 4,
+      "rag_poisoning": 4,
+      "response_manipulation": 4,
+      "system_extraction": 2,
+      "system_manipulation": 4,
+      "token_injection": 1,
+      "token_smuggling": 7,
+      "training_extraction": 9
+    }
+  },
+  "test_main": {
+    "rows": 753,
+    "injection": 363,
+    "benign": 390,
+    "by_category": {
+      "benign": 381,
+      "direct_injection": 314,
+      "edge_case": 9,
+      "jailbreak": 49
+    }
+  },
+  "main_categories": [
+    "benign",
+    "direct_injection",
+    "edge_case",
+    "jailbreak"
+  ],
+  "note": "External test only. Do not add these rows to train.csv, val.csv, or the Method A embedding gallery."
+}

@@ -1,7 +1,7 @@
 # Where Does the Security Come From?
 ### A Controlled Evaluation of Context-Aware Input Sanitization Against Direct Prompt Injection
 
-> **Scope note:** Controlled evaluation of **direct, single-turn** prompt injection on a research-scale corpus (~350 prompts; 53-prompt test partition). Not production-grade security guarantees.
+> **Scope note:** Controlled evaluation of **direct, single-turn** prompt injection on a research-scale mixed corpus (~700 prompts; ~105-prompt test) plus leave-one-source-out holdouts. Not production-grade security guarantees.
 >
 > **Licenses:** Code = MIT (`LICENSE`); compiled dataset = CC BY-NC 4.0 (`data_cards/`). Cite via `CITATION.cff`. See also `ARTIFACT.md`.
 
@@ -61,36 +61,35 @@ Securing_LLMs/
 ├── .github/workflows/smoke.yml      ← CI smoke (offline judge score + compare-ab)
 ├── data/
 │   ├── raw/                         ← Original downloads (Bravansky raw gitignored)
-│   ├── cleaned/                     ← combined_dataset.csv (350) + JSONL slices
-│   ├── cleaned/legacy/              ← deprecated 250-row v1.0 snapshot
-│   ├── splits/                      ← train / val / test + split.ipynb
+│   ├── cleaned/                     ← combined_dataset.csv (~700) + JSONL slices
+│   ├── cleaned/legacy/              ← v1.0 250 + v2.0 350 snapshots
+│   ├── splits/                      ← mixed train/val/test + source_holdout/ + legacy_v2.0_350/
+│   ├── external/neuralchemy/        ← held-out core/test (not in mixed corpus)
 │   └── judge_human_validation/      ← blind sheet, rubric, meta
 ├── data_cards/                      ← Data_Card.md + license_log.txt
-├── notebooks/                       ← preprocess + EDA (provenance)
+├── notebooks/                       ← preprocess + EDA + build_source_holdout.ipynb
 │   └── archive/                     ← superseded exploratory notebooks
 ├── scripts/
-│   ├── eval_protectai.py
-│   ├── eval_prompt_guard.py
-│   ├── eval_portable_adaptive.py
-│   ├── eval_paraphrase_test.py
-│   ├── build_judge_human_validation.py
-│   ├── score_judge_human_validation.py
+│   ├── build_source_holdout.py      ← runs notebooks/build_source_holdout.ipynb
+│   ├── build_loo_splits.py          ← alias → build_source_holdout.py
+│   ├── eval_loo_holdout.py          ← gate Bypass/FPR on source_holdout
+│   ├── eval_matched_fpr.py          ← val-tuned FPR≤5% fair compare
+│   ├── verify_source_holdout.py
+│   ├── build_external_neuralchemy.py
+│   ├── eval_protectai.py / eval_prompt_guard.py / …
 │   ├── reproduce.sh / reproduce.ps1
 ├── src/
 │   ├── config.py                    ← seed=42, model names, paths
-│   ├── run_experiments.py           ← Main CLI
-│   ├── classifier.py                ← Optional stretch LR+TF-IDF
-│   ├── sanitizers/                  ← baseline, regex, keyword, A, B, ProtectAI, Prompt Guard
-│   ├── models/                      ← target LLM, judge, FLAN-T5 attack gen
-│   ├── evaluation/                  ← pipeline, metrics, robustness, ablation, portable_gates
-│   ├── visualization/
-│   └── utils/
+│   ├── run_experiments.py           ← Main CLI (--loo / --matched-fpr)
+│   ├── splits/                      ← holdout loaders + helpers
+│   ├── sanitizers/                  ← baseline, regex, keyword, A, B, fair + portables
+│   ├── models/ / evaluation/ / visualization/ / utils/
 ├── results/
-│   ├── suite_a/ / suite_b/
+│   ├── suite_a/ / suite_b/          ← paper mixed-split suites
+│   ├── matched_fpr/                 ← matched operating-point table
+│   ├── source_holdout/              ← LOO gate scores (re-run after split rebuild)
 │   ├── protectai/ / prompt_guard/
 │   ├── judge_human_validation/
-│   ├── robustness_paraphrase_test.csv   ← canonical paraphrase table
-│   ├── runtime_overhead.*           ← last latency-only run (see RUNTIME_NOTE.md)
 │   └── figures/
 ├── load_dataset.py                  ← Print split sizes
 ├── ARTIFACT.md
@@ -106,16 +105,53 @@ Securing_LLMs/
 ## 3. Dataset
 
 Schema: `{id, prompt, label}` with `label ∈ {injection, benign}`.  
-Canonical: `data/cleaned/combined_dataset.csv` (see `data_cards/Data_Card.md`).
+Canonical: `data/cleaned/combined_dataset.csv` (v3.0; see `data_cards/Data_Card.md`).  
+Rebuild: `python scripts/build_combined_dataset.py`. Exact counts in `combined_manifest.json`.
 
 | Split | Total | Injection | Benign |
 |-------|------:|----------:|-------:|
-| train | 245 | 140 | 105 |
-| val | 52 | 30 | 22 |
-| test | 53 | 30 | 23 |
-| **Total** | **350** | **200** | **150** |
+| train | ~489 | ~280 | ~209 |
+| val | ~105 | ~60 | ~45 |
+| test | ~105 | ~60 | ~45 |
+| **Total** | **~699** | **400** | **~299** |
+
+v2.0 (350 / 53-test) is archived under `data/cleaned/legacy/` and `data/splits/legacy_v2.0_350/`. Suite CSVs under `results/suite_*` need a re-run against the grown test.
 
 Sources and licensing: `data_cards/`. Bravansky raw CSV is **not shipped**; cleaned 50-sample JSONL is enough to evaluate.
+
+### External held-out test
+
+`neuralchemy/Prompt-injection-dataset`, config `core`, published `test` split only. These rows are not in train, validation, or the embedding gallery. Exact overlaps with the mixed corpus are dropped at build time (see `manifest.json`).
+
+| File | Total | Injection | Benign | What it keeps |
+|------|------:|----------:|-------:|---------------|
+| `data/external/neuralchemy/test_main.csv` | 753 | 363 | 390 | `direct_injection` (314), `jailbreak` (49), `benign` (381), `edge_case` (9) |
+| `data/external/neuralchemy/test_core.csv` | 936 | 546 | 390 | full kept test split; other categories are `eval_slice=appendix` |
+
+Rebuild with `python scripts/build_external_neuralchemy.py`. Counts: `data/external/neuralchemy/manifest.json`.
+
+### Leave-one-source-out (final mentor holdout)
+
+Canonical splits: `data/splits/source_holdout/`. **Build in the notebook** `notebooks/build_source_holdout.ipynb` (run all cells). Optional CLI wrapper that executes those cells: `python scripts/build_source_holdout.py`.
+
+| Rule | Behavior |
+|------|----------|
+| Hold out | Entire source: attacks **and** its native benign (PI fold trains on ChatGPT benign only) |
+| Shared benign | Fixed **200** PI-benign on every four-source test; never in train/val |
+| Four-source sizes | Identical **520 / 130 / 400** (incl. `prompt_injection`) |
+| Attacks | Test **200** held-out; train pool **200 from each** other raw source; val 20% within each source |
+| Fit benign | **50** every fold |
+| Fifth set | Neuralchemy test 200+200; fit uses 200 from each of four sources → 680/170/400 |
+| Inventory | `train_benign_by_fold.csv` + `manifest.json` |
+
+Near-dup filter (MiniLM > 0.9) in `manifest.json`. Gate scores: `python scripts/eval_loo_holdout.py` → `results/source_holdout/` (**re-run** — committed scores may be stale). Bypass/FPR only; True ASR needs `--loo` with LLM.
+
+```powershell
+# preferred: run notebooks/build_source_holdout.ipynb
+python scripts/build_source_holdout.py
+python scripts/verify_source_holdout.py
+python scripts/eval_loo_holdout.py
+```
 
 ---
 
@@ -128,6 +164,9 @@ Every sanitizer implements `sanitize(prompt) -> (sanitized_text, blocked)` (bina
 - **Method A** — eight shared signals (regex, keyword, semantic, intent, roleplay, instruction shift, objective conflict, perplexity). Hard triggers: semantic stepped score > 0.6, intent = 1.0, or roleplay = 1.0 with keyword > 0.3. Else soft aggregate (weights in paper §Method A) blocks at ≥ 0.40.
 - **Method B** — same evidence; three continuous semantic features + LR on train, threshold tuned on val (F1, tie-break lower Bypass/FPR); **no hard triggers**.
 - **ProtectAI / Prompt Guard 2** — published classifiers on CPU; no fine-tuning on our split (`src/sanitizers/protectai.py`, `prompt_guard.py`). Run via scripts / `--portable-baselines`.
+- **Similarity-only** — MiniLM max-cosine to the train injection gallery; threshold F1-tuned on val (`similarity_only.py`). Fair baseline on mixed suites and LOO.
+- **DeBERTa (fine-tuned)** — ProtectAI DeBERTa checkpoint fine-tuned on our train split; threshold on val (`deberta_finetuned.py`). Fair baseline distinct from the off-the-shelf ProtectAI gate.
+- **Matched FPR (~5%)** — continuous scores retuned on val to FPR ≤ 5%, then test Bypass/FPR (`src/evaluation/matched_fpr.py`). Off-the-shelf ProtectAI / Prompt Guard keep published weights; only the decision threshold is retuned. Run: `python scripts/eval_matched_fpr.py` or `python -m src.run_experiments --matched-fpr`.
 
 ---
 
@@ -138,21 +177,28 @@ Target and judge: **`Qwen/Qwen2.5-3B-Instruct`**. Adaptive paraphrases: **`googl
 ```
 Phase 1 — sanitize (+ target LLM if not blocked)
 Phase 2 — judge COMPLIED / REFUSED on unblocked injections
-Robustness — paraphrase, edge-benign, FLAN-T5 adaptive
+Robustness — expanded paraphrase, edge-benign, FLAN-T5 adaptive
+             (+ similarity-evasion rewrite minimizing max cosine to train gallery)
 ```
+
+**Speed path (default with LLM):** one greedy Qwen reply + judge label per unique *injection* prompt (`results/prompt_cache/`), then True ASR is a per-method lookup; benign prompts never call Qwen/judge; MiniLM embeddings + DistilGPT-2 PPL are cached and reused across methods/folds; generate-all → unload → judge-all with append-only resume. Batch with `--llm-batch-size N` (or `LLM_CACHE_BATCH_SIZE`). Opt out with `--no-outcome-cache`.
+
+Same phases on `--loo` (per `data/splits/source_holdout/<fold>/`), writing under `results/loo/`. Adaptive logs include `attack_style` (`similarity_evasion` is the filter-targeting variant) and gallery similarity fields.
 
 | `--suite` | Methods | Output |
 |-----------|---------|--------|
-| `a` | baseline, regex, keyword, Method A | `results/suite_a/` |
-| `b` | baseline, regex, keyword, Method B | `results/suite_b/` |
-| `ab` (default) | A then B | both folders |
-| `both` | all five in one run | `results/` |
+| `a` | baseline, regex, keyword, Method A + similarity_only + deberta_finetuned | `results/suite_a/` |
+| `b` | baseline, regex, keyword, Method B + similarity_only + deberta_finetuned | `results/suite_b/` |
+| `ab` (default) | A then B (each with fair baselines) | both folders |
+| `both` | A + B + fair baselines in one run | `results/` |
+| `--loo` | fold fair baselines + A/B + after-main | `results/loo/` |
+| `--matched-fpr` | score retune at val FPR ≤ 5% | `results/matched_fpr/` |
 
 ---
 
 ## 6. Results
 
-Numbers below are from the held-out **test** split (30 injection / 23 benign) unless noted.
+Numbers below are from the **archived v2.0** held-out test (30 injection / 23 benign) unless noted. Re-run suites on the grown v3.0 test (~60 / 45) before citing new figures.
 
 ### 6.0 Primary comparison (paper Table 1)
 
@@ -195,7 +241,9 @@ Source: `results/protectai/metrics.csv`, `results/prompt_guard/metrics.csv`.
 
 ### 6.4 Paraphrase robustness
 
-Canonical: `results/robustness_paraphrase_test.csv` (n=30; 6/30 prompts change under synonym list).
+Canonical: `results/robustness_paraphrase_test.csv` (n=30).
+
+Probe uses an **expanded synonym list** plus **FLAN-T5 paraphrase fallback** for any prompt synonyms leave unchanged (addresses the prior 6/30 change rate). Re-run `python scripts/eval_paraphrase_test.py` after this change — committed numbers below are from the old nine-pair list and are stale until refreshed.
 
 | Method | Orig Bypass | Para Bypass | Δ |
 |--------|------------:|------------:|--:|
@@ -306,7 +354,17 @@ python -m src.run_experiments --suite a --no-llm
 python -m src.run_experiments --suite b --no-llm
 python -m src.run_experiments --latency-only
 python -m src.run_experiments --portable-baselines
+python -m src.run_experiments --matched-fpr                 # val FPR≤5% fair Bypass table
+python -m src.run_experiments --matched-fpr --matched-fpr-skip-deberta
+python -m src.run_experiments --loo
+python -m src.run_experiments --loo --no-llm
+python -m src.run_experiments --loo --loo-skip-robustness   # main metrics only
+python -m src.run_experiments --loo --loo-adaptive-max 50   # cap adaptive rewrites
+python -m src.run_experiments --loo --llm-batch-size 8      # faster GPU batched generate
+# Crash-safe: re-run the same command; OutcomeCache / FeatureCache resume under results/prompt_cache/
 ```
+
+`--loo` keeps the regular scorer (sanitizer, target LLM, judge) and points it at `data/splits/source_holdout/<fold>/`. Each fold trains only on the other attack sources. After the main metrics, each fold also runs the same after-main stages as the suite: paraphrase, edge-benign, and FLAN-T5 adaptive (fit on that fold's train/val). Per-fold outputs live under `results/loo/<fold>/`; cross-fold tables and four-source averages are in `results/loo/summary.csv` and `results/loo/robustness_*{,_summary}.csv`. Use `--loo-skip-robustness` for main-only, or `--loo-adaptive-max N` to limit adaptive cost on ~200-injection tests. The mixed suite uses the grown combined corpus (`data/splits/test.csv`, ~105 rows).
 
 ### Scripts
 
@@ -314,8 +372,14 @@ python -m src.run_experiments --portable-baselines
 python scripts/eval_protectai.py
 python scripts/eval_prompt_guard.py
 python scripts/eval_portable_adaptive.py --gate all
+python scripts/eval_matched_fpr.py
 python scripts/eval_paraphrase_test.py
 python scripts/build_judge_human_validation.py
+python scripts/build_external_neuralchemy.py
+python scripts/build_combined_dataset.py
+python scripts/build_source_holdout.py
+python scripts/eval_loo_holdout.py
+python scripts/verify_source_holdout.py
 python scripts/score_judge_human_validation.py
 ```
 
@@ -338,6 +402,7 @@ be required for Prompt Guard). Does **not** rebuild suite/ablation paper tables.
 | Paper table / section | Artifact | Regenerate |
 |-----------------------|----------|------------|
 | Main comparison (Table 1) | `results/suite_a/metrics.csv`, `results/suite_b/metrics.csv`, `results/protectai/metrics.csv`, `results/prompt_guard/metrics.csv` | Suites + `--portable-baselines` |
+| Matched-FPR fair baselines | `results/matched_fpr/metrics.csv` | `--matched-fpr` or `python scripts/eval_matched_fpr.py` |
 | Ablation (Table 2) | `results/hard_trigger_ablation.csv`, `results/learned_ablation_metrics.csv`, `results/weighted_ablation_metrics.csv` | `--hard-trigger-ablation`, `--learned-ablation`, `--weighted-ablation` (full LLM+judge; `--no-llm` is sanitizer-only and zeros True ASR) |
 | Adaptive rewriting (Table 3) | `results/suite_a/robustness_adaptive.csv`, `results/*/adaptive_metrics.csv` | Suite run + `--portable-baselines` |
 | Paraphrase robustness | `results/robustness_paraphrase_test.csv` | `python scripts/eval_paraphrase_test.py` |
@@ -346,7 +411,7 @@ be required for Prompt Guard). Does **not** rebuild suite/ablation paper tables.
 | Judge human validation | `results/judge_human_validation/metrics_summary.txt` | `python scripts/score_judge_human_validation.py` |
 | Runtime overhead | `results/suite_b/runtime_overhead.csv` | `--latency-only` or suite without `--skip-latency` |
 
-Committed `results/` match the paper. `--no-llm` is sanitizer-only: Bypass/FPR are live; True ASR is 0 because there is no judge. Do not mix that run with paper True ASR tables.
+Committed `results/suite_*` and `results/source_holdout/` may still reflect the archived v2.0 / pre-uniform protocols — re-run after v3.0 / current holdout before citing. `--no-llm` is sanitizer-only: Bypass/FPR are live; True ASR is 0 because there is no judge.
 
 ---
 
@@ -383,7 +448,7 @@ Models load sequentially to reduce OOM risk. See `ARTIFACT.md`.
 
 Aligned with paper §Limitations:
 
-- Small test partition (30 injection, 23 benign); Wilson intervals are wide — we do not rank Method A vs Method B statistically
+- Mixed test is larger in v3.0 (~60 injection / ~45 benign) but still research-scale; Wilson intervals remain wide — we do not rank Method A vs Method B statistically. Archived v2.0 was 30 / 23.
 - Train/test injections share four public sources (distribution overlap); adaptive FLAN-T5 rewriting is the main shift probe
 - **Direct, single-turn, English, text-only** injection only; indirect / agentic / multimodal out of scope
 - True ASR depends on an LLM judge (same checkpoint as target); blind author labeling: 83.3% agreement, κ = 0.67

@@ -126,41 +126,69 @@ class LLMRunner:
                     "Set SKIP_LLM=1 or use --no-llm for sanitizer-only runs."
                 ) from e
 
+    def _format_chat(self, prompt: str) -> str:
+        messages = [{"role": "user", "content": prompt}]
+        return self._pipe.tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+
     def run(self, prompt: str) -> str:
-        """Run prompt through the configured target LLM."""
+        """Run prompt through the configured target LLM (greedy)."""
 
         if self.mock:
             return f"[LLM_MOCK] (set SKIP_LLM=0 or unset env var to use {MODEL_NAME})"
 
         try:
-            messages = [
-                {
-                    "role": "user",
-                    "content": prompt,
-                }
-            ]
-
-            formatted = self._pipe.tokenizer.apply_chat_template(
-                messages,
-                tokenize=False,
-                add_generation_prompt=True,
-            )
-
             result = self._pipe(
-                formatted,
+                self._format_chat(prompt),
                 max_new_tokens=512,
                 do_sample=False,
                 temperature=None,
                 top_p=None,
                 pad_token_id=self._pipe.tokenizer.eos_token_id,
             )
-
             generated = result[0]["generated_text"].strip()
-
             return generated if generated else "[empty response]"
-
         except Exception as e:
             return f"[LLM_ERROR] {e}"
+
+    def run_batch(self, prompts: list[str], batch_size: int | None = None) -> list[str]:
+        """Greedy batched generation (same decoding as ``run``)."""
+        if self.mock:
+            return [
+                f"[LLM_MOCK] (set SKIP_LLM=0 or unset env var to use {MODEL_NAME})"
+                for _ in prompts
+            ]
+        if not prompts:
+            return []
+        bs = int(batch_size) if batch_size else len(prompts)
+        bs = max(1, bs)
+        outs: list[str] = []
+        try:
+            for start in range(0, len(prompts), bs):
+                chunk = prompts[start : start + bs]
+                formatted = [self._format_chat(p) for p in chunk]
+                results = self._pipe(
+                    formatted,
+                    max_new_tokens=512,
+                    do_sample=False,
+                    temperature=None,
+                    top_p=None,
+                    batch_size=len(formatted),
+                    pad_token_id=self._pipe.tokenizer.eos_token_id,
+                )
+                # pipeline returns list[list[dict]] when given a list
+                for item in results:
+                    row = item[0] if isinstance(item, list) else item
+                    text = str(row.get("generated_text", "")).strip()
+                    outs.append(text if text else "[empty response]")
+        except Exception as e:
+            # Fall back to sequential so a batch failure does not lose the run
+            print(f"[LLMRunner] batch failed ({e}); falling back to sequential.")
+            outs = [self.run(p) for p in prompts]
+        return outs
 
     def is_mock(self) -> bool:
         return self.mock

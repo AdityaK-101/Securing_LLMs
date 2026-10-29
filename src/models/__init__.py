@@ -6,9 +6,14 @@ to avoid behavioural changes.
 """
 
 from .attack_generator import (
+    EVASION_PROMPTS,
     STYLE_PROMPTS,
     generate_adaptive_variants,
     generate_attack,
+    generate_paraphrase_rewrite,
+    generate_similarity_evasion_attack,
+    load_attack_gallery,
+    max_gallery_similarity,
     release_generator,
 )
 from .judge import (
@@ -33,7 +38,12 @@ __all__ = [
     "release_judge",
     "run_calibration",
     "STYLE_PROMPTS",
+    "EVASION_PROMPTS",
     "generate_attack",
     "generate_adaptive_variants",
+    "generate_paraphrase_rewrite",
+    "generate_similarity_evasion_attack",
+    "load_attack_gallery",
+    "max_gallery_similarity",
     "release_generator",
 ]

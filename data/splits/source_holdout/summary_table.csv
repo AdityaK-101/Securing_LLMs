@@ -1,0 +1,6 @@
+fold            , train, val, test, test_injection, test_benign, test_shared_benign
+simsonsun       ,   520, 130,  400,            200,         200,                200
+mpdd            ,   520, 130,  400,            200,         200,                200
+prompt_injection,   520, 130,  400,            200,         200,                200
+bravansky       ,   520, 130,  400,            200,         200,                200
+neuralchemy     ,   680, 170,  400,            200,         200,                   

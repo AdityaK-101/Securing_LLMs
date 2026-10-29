@@ -163,6 +163,16 @@ def _run_pipeline_on_sanitizers(
             runner.release()
         empty_cuda_cache()
 
+    from ..config import LLM_CACHE_BATCH_SIZE, PROMPT_CACHE_DIR
+    from .prompt_cache import OutcomeCache
+
+    use_cached = bool(use_llm)
+    # Ablation variants change sanitizer behavior only; one Qwen+judge pass
+    # per injection still applies (greedy reply is filter-independent).
+    if use_cached and runner is not None:
+        runner.release()
+        runner = None
+
     return run_two_phase_pipeline(
         df_test.iterrows(),
         sanitizers,
@@ -178,6 +188,10 @@ def _run_pipeline_on_sanitizers(
         phase2_log_prefix="[Ablation]",
         phase2_item_name="unblocked injections",
         cleanup_after_phase1=_cleanup_after_phase1,
+        use_cached_lookup=use_cached,
+        outcome_cache=OutcomeCache(PROMPT_CACHE_DIR / "outcomes.jsonl") if use_cached else None,
+        cache_use_llm=use_llm,
+        batch_size=LLM_CACHE_BATCH_SIZE,
     )
 
 

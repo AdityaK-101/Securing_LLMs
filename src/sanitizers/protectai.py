@@ -37,6 +37,27 @@ class ProtectAISanitizer:
         self.id2label = {int(k): v for k, v in self.model.config.id2label.items()}
         print(f"[ProtectAI] Ready. labels={self.id2label}")
 
+    def _injection_label_id(self) -> int:
+        for i, name in self.id2label.items():
+            if str(name).upper() in {"INJECTION", "INJECT", "MALICIOUS", "LABEL_1", "1"}:
+                return int(i)
+        return 1 if 1 in self.id2label else max(self.id2label)
+
+    def injection_score(self, prompt: str) -> float:
+        """Softmax probability of the injection / malicious class (for matched-FPR)."""
+        text = "" if prompt is None else str(prompt)
+        inputs = self.tokenizer(
+            text,
+            return_tensors="pt",
+            truncation=True,
+            max_length=MAX_LENGTH,
+        )
+        inputs = {k: v.to(self.device) for k, v in inputs.items()}
+        with torch.no_grad():
+            logits = self.model(**inputs).logits
+            probs = torch.softmax(logits, dim=-1)
+            return float(probs[0, self._injection_label_id()].item())
+
     def sanitize(self, prompt: str):
         text = "" if prompt is None else str(prompt)
         inputs = self.tokenizer(

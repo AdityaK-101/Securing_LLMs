@@ -92,6 +92,7 @@ class ContextAwareSanitizer:
         disable_semantic_hard_trigger: bool = False,
         disable_intent_hard_trigger: bool = False,
         disable_roleplay_keyword_hard_trigger: bool = False,
+        feature_cache=None,
         _skip_train: bool = False,
     ):
         self.threshold = threshold
@@ -120,9 +121,15 @@ class ContextAwareSanitizer:
         self._ppl_low = None   # 5th percentile of train perplexities (calibration)
         self._ppl_high = None  # 95th percentile of train perplexities (calibration)
         self._device = "cpu"
+        # Optional shared MiniLM/PPL prompt cache (reuse across folds)
+        self._feature_cache = feature_cache
 
         if not _skip_train:
             self._train(train_csv)
+
+    def set_feature_cache(self, feature_cache) -> None:
+        """Attach a shared FeatureCache (embeddings + raw PPL) for reuse."""
+        self._feature_cache = feature_cache
 
     def _train(self, train_csv: str):
         """Load models, encode injection prompts, and calibrate perplexity."""
@@ -150,10 +157,18 @@ class ContextAwareSanitizer:
                 "sentence-transformers/all-MiniLM-L6-v2",
                 device="cpu",
             )
-            # Encode all injection prompts once and cache as numpy array
-            self._injection_embeddings = self._embed_model.encode(
-                injections, convert_to_numpy=True, show_progress_bar=False
-            )
+            if self._feature_cache is not None:
+                self._feature_cache.ensure_embeddings(injections, self._embed_model)
+                vectors = [
+                    self._feature_cache.get_embedding(p) for p in injections
+                ]
+                self._injection_embeddings = np.stack(
+                    [np.asarray(v, dtype=np.float32) for v in vectors]
+                )
+            else:
+                self._injection_embeddings = self._embed_model.encode(
+                    injections, convert_to_numpy=True, show_progress_bar=False
+                )
             print(f"[ContextAwareSanitizer] MiniLM loaded — encoded {len(injections)} injection embeddings.")
         except Exception as e:
             print(f"[ContextAwareSanitizer] Warning: MiniLM loading failed — {e}")
@@ -212,7 +227,12 @@ class ContextAwareSanitizer:
 
         Returns float perplexity value, or None if computation fails.
         Truncates input to 512 tokens to keep inference fast on CPU.
+        Uses FeatureCache raw PPL when available.
         """
+        if self._feature_cache is not None:
+            cached = self._feature_cache.get_raw_ppl(text)
+            if cached is not None:
+                return float(cached)
         if self._ppl_model is None or self._ppl_tokenizer is None:
             return None
         try:
@@ -253,17 +273,27 @@ class ContextAwareSanitizer:
 
         Falls back to 0.0 if embedding model is unavailable.
         """
-        if self._embed_model is None or self._injection_embeddings is None:
+        if self._injection_embeddings is None:
+            return 0.0
+        if self._embed_model is None and self._feature_cache is None:
             return 0.0
         try:
-            # Encode new prompt (returns numpy array of shape (1, dim))
-            prompt_emb = self._embed_model.encode(
-                [prompt], convert_to_numpy=True, show_progress_bar=False
-            )
-            # Cosine similarity: dot product of normalized vectors
-            # MiniLM outputs are already L2-normalized by default
             from numpy.linalg import norm
-            # Normalize to be safe (in case model config changes)
+
+            cached = (
+                self._feature_cache.get_embedding(prompt)
+                if self._feature_cache is not None
+                else None
+            )
+            if cached is not None:
+                prompt_emb = np.asarray(cached, dtype=float).reshape(1, -1)
+            elif self._embed_model is not None:
+                prompt_emb = self._embed_model.encode(
+                    [prompt], convert_to_numpy=True, show_progress_bar=False
+                )
+            else:
+                return 0.0
+            # Cosine similarity: dot product of normalized vectors
             prompt_norm = prompt_emb / (norm(prompt_emb, axis=1, keepdims=True) + 1e-10)
             inj_norm = self._injection_embeddings / (
                 norm(self._injection_embeddings, axis=1, keepdims=True) + 1e-10
@@ -404,6 +434,10 @@ class ContextAwareSanitizer:
         ):
             return True
         return False
+
+    def injection_score(self, prompt: str) -> float:
+        """Soft aggregate score (no hard triggers) for matched-FPR retuning."""
+        return float(self.score(prompt)["total"])
 
     def sanitize(self, prompt: str):
         signals = self.score(prompt)

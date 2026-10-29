@@ -6,16 +6,21 @@ LAST UPDATED: 2026-08-26
 ================================================================================
 
 --------------------------------------------------------------------------------
-1. SIMSONSUN JAILBREAKPROMPTS (50 prompts)
+1. SIMSONSUN JAILBREAKPROMPTS
 --------------------------------------------------------------------------------
 * Source URL: https://huggingface.co/datasets/Simsonsun/JailbreakPrompts
 * License: MIT License
-* Acquired Date: 2026-01-02
-* Access Method: Public HuggingFace/GitHub repository download
-* Usage in Project: Jailbreak slice (50 random samples)
+* Acquired Date: 2026-01-02; Dataset_2 acquired 2026-10-27
+* Access Method: Public HuggingFace download
+* Usage in Project:
+  - v2.0 combined corpus: 50 random samples from Dataset_1 (67 rows)
+  - Source-holdout / uniform holdout: Dataset_2
+    (data/raw/SimsonsunJailbreakPrompts_Dataset2.csv, ~2359 rows / 2305 unique after normalize)
+  - Dataset_1 kept at data/raw/SimsonsunJailbreakPrompts.csv for provenance
 * Attribution Required: Yes
 * Commercial Use Allowed: Yes
-* Notes: Community curated jailbreak prompts.
+* Notes: Community curated jailbreak prompts. Dataset_1 is the small split;
+  Dataset_2 is the large split used for held-out evaluation.
 
 --------------------------------------------------------------------------------
 2. BRAVANSKY COMPACT-JAILBREAKS (50 prompts)
@@ -67,13 +72,49 @@ LAST UPDATED: 2026-08-26
 * Attribution Required: Yes
 * Commercial Use Allowed: Likely Yes (Research)
 
+--------------------------------------------------------------------------------
+6. NEURALCHEMY PROMPT-INJECTION DATASET (external test only)
+--------------------------------------------------------------------------------
+* Source URL: https://huggingface.co/datasets/neuralchemy/Prompt-injection-dataset
+* Dataset-card license: Apache-2.0
+* Acquired Date: 2026-10-21
+* Access Method: Hugging Face `datasets` load, config `core`, split `test`
+* Usage in Project: Held-out evaluation only.
+  - data/external/neuralchemy/test_core.csv (936 rows after dropping 6 overlaps)
+  - data/external/neuralchemy/test_main.csv (753-row direct/jailbreak + benign slice)
+  - Not added to combined_dataset.csv, train.csv, or val.csv
+* Constituent sources named on the dataset card:
+  - NeurAlchemy original / neuralchemy_v1 — Apache-2.0
+  - HackAPrompt — CC BY 4.0
+  - HarmBench behavior goals and benign counterparts — MIT
+  - WildGuard / JudgeComparison — research use
+  - Hand-crafted hard negatives — Apache-2.0
+* Attribution Required: Yes. Cite the NeurAlchemy dataset card and this log.
+* Notes: Do not train Method A or Method B on this file. The published
+  Neuralchemy train split is intentionally not shipped here.
+
+--------------------------------------------------------------------------------
+7. LEAVE-ONE-SOURCE-OUT SPLITS
+--------------------------------------------------------------------------------
+* Files: data/splits/source_holdout/
+* Built by: python scripts/build_loo_splits.py
+* Uses the full local copies of sources 1, 3, and 5 (not only the 50-row
+  samples), the cleaned Bravansky 50, and extra Bravansky attacks drawn from
+  the local raw file for that source's test fold only.
+* Neuralchemy rows stay out of every training file.
+* Licenses: same as the source entries above. Distinct from the mixed
+  combined corpus (CC BY-NC).
+
 ================================================================================
 COMBINED DATASET LICENSE
 ================================================================================
-* Final Dataset Name: Securing LLMs Combined Dataset v2.0
-* Canonical file: data/cleaned/combined_dataset.csv (350 prompts:
-  200 injection / 150 benign)
+* Final Dataset Name: Securing LLMs Combined Dataset v3.0
+* Canonical file: data/cleaned/combined_dataset.csv (~700 prompts:
+  400 injection / ~299 benign; see combined_manifest.json)
+* Rebuild: python scripts/build_combined_dataset.py
 * Overall License: CC BY-NC 4.0 (Due to mixed sources)
 * Redistribution: Shareable for research with attribution and license log.
+* Legacy v2.0 (350 prompts): data/cleaned/legacy/combined_dataset_v2.0_350.csv
+  and data/splits/legacy_v2.0_350/
 * Legacy v1.0 (250 prompts): data/cleaned/legacy/
 * Code license: MIT (repository root LICENSE)

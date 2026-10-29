@@ -103,9 +103,13 @@ def _write_robustness_note(
     if "n_prompts" in para_df.columns and len(para_df):
         n_prompts = int(para_df["n_prompts"].iloc[0])
     if changed_n is not None and n_prompts is not None:
-        lines.append(
-            f"  (n={n_prompts} test injections; {changed_n}/{n_prompts} changed surface form)"
-        )
+        detail = f"  (n={n_prompts} test injections; {changed_n}/{n_prompts} changed surface form"
+        if "changed_n_synonym" in para_df.columns and "changed_n_llm" in para_df.columns:
+            detail += (
+                f"; synonym={int(para_df['changed_n_synonym'].iloc[0])}, "
+                f"llm_fallback={int(para_df['changed_n_llm'].iloc[0])}"
+            )
+        lines.append(detail + ")")
 
     for _, row in para_df.iterrows():
         delta = float(row["Bypass_Rate_delta"]) * 100
@@ -127,7 +131,7 @@ def _write_robustness_note(
         names = ", ".join(degraded["method"].astype(str).tolist())
         lines += [
             "",
-            f"  Bypass Rate rises under this synonym paraphrase for: {names}.",
+            f"  Bypass Rate rises under this paraphrase probe for: {names}.",
         ]
     else:
         lines += [
@@ -137,7 +141,7 @@ def _write_robustness_note(
 
     lines += [
         "",
-        "4. ADAPTIVE ATTACKS ROBUSTNESS (FLAN-T5)",
+        "4. ADAPTIVE ATTACKS ROBUSTNESS (FLAN-T5 + similarity evasion)",
         "-" * 40,
     ]
     for _, row in adaptive_df.iterrows():
@@ -153,9 +157,12 @@ def _write_robustness_note(
         )
     lines += [
         "",
-        "  Adaptive texts: FLAN-T5-Base, 5 styles per held-out injection (n above).",
+        "  Adaptive texts: FLAN-T5-Base style rewrites (roleplay/research/hypothetical/",
+        "  indirect/multistep) plus a similarity-evasion rewrite that minimizes max",
+        "  MiniLM cosine to the train injection gallery (filter-targeting attacker).",
         f"  Pipeline: sanitizer -> {TARGET_MODEL_NAME} -> judge ({JUDGE_MODEL_NAME},",
-        "  separately loaded same checkpoint). Numbers are from this suite CSV only.",
+        "  separately loaded same checkpoint). See robustness_adaptive_by_style.csv.",
+        "  Numbers are from this suite CSV only.",
     ]
 
     if overhead_report is not None:

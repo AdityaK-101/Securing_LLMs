@@ -56,6 +56,7 @@ class ContextAwareLearnedSanitizer:
         val_csv: str = VAL_CSV,
         share_from: ContextAwareSanitizer | None = None,
         target_fpr: float | None = None,
+        feature_cache=None,
         _skip_train: bool = False,
     ):
         self.threshold = 0.5
@@ -84,6 +85,7 @@ class ContextAwareLearnedSanitizer:
         self._is_trained = False
         self.val_metrics: dict = {}
         self._disabled_features: set[str] = set()
+        self._feature_cache = feature_cache
 
         if share_from is not None:
             self._adopt_shared_models(share_from)
@@ -91,12 +93,17 @@ class ContextAwareLearnedSanitizer:
         if not _skip_train:
             self._train(train_csv, val_csv)
 
+    def set_feature_cache(self, feature_cache) -> None:
+        self._feature_cache = feature_cache
+
     def _adopt_shared_models(self, donor: ContextAwareSanitizer) -> None:
         """Reuse MiniLM / distilgpt2 already loaded by Method A."""
         self._embed_model = donor._embed_model
         self._injection_embeddings = donor._injection_embeddings
         self._ppl_model = donor._ppl_model
         self._ppl_tokenizer = donor._ppl_tokenizer
+        if getattr(donor, "_feature_cache", None) is not None:
+            self._feature_cache = donor._feature_cache
         self._ppl_low = donor._ppl_low
         self._ppl_high = donor._ppl_high
         self._device = getattr(donor, "_device", "cpu")
@@ -230,6 +237,10 @@ class ContextAwareLearnedSanitizer:
             self._ppl_tokenizer = None
 
     def _compute_perplexity(self, text: str):
+        if self._feature_cache is not None:
+            cached = self._feature_cache.get_raw_ppl(text)
+            if cached is not None:
+                return float(cached)
         if self._ppl_model is None or self._ppl_tokenizer is None:
             return None
         try:
@@ -275,12 +286,24 @@ class ContextAwareLearnedSanitizer:
 
     def _semantic_features(self, prompt: str) -> tuple[float, float, float]:
         """Return (max_inj, top3_inj, contrast) as continuous scores."""
-        if self._embed_model is None or self._injection_embeddings is None:
+        if self._injection_embeddings is None:
+            return 0.0, 0.0, 0.0
+        if self._embed_model is None and self._feature_cache is None:
             return 0.0, 0.0, 0.0
         try:
-            prompt_emb = self._embed_model.encode(
-                [prompt], convert_to_numpy=True, show_progress_bar=False
+            cached = (
+                self._feature_cache.get_embedding(prompt)
+                if self._feature_cache is not None
+                else None
             )
+            if cached is not None:
+                prompt_emb = np.asarray(cached, dtype=float).reshape(1, -1)
+            elif self._embed_model is not None:
+                prompt_emb = self._embed_model.encode(
+                    [prompt], convert_to_numpy=True, show_progress_bar=False
+                )
+            else:
+                return 0.0, 0.0, 0.0
             inj_max = self._max_cosine(prompt_emb, self._injection_embeddings)
             inj_top3 = self._top_k_mean_cosine(
                 prompt_emb, self._injection_embeddings, k=3
@@ -294,7 +317,9 @@ class ContextAwareLearnedSanitizer:
             return 0.0, 0.0, 0.0
 
     def _perplexity_feature(self, prompt: str) -> float:
-        if self._ppl_model is None or self._ppl_low is None:
+        if self._ppl_low is None:
+            return 0.0
+        if self._ppl_model is None and self._feature_cache is None:
             return 0.0
         ppl = self._compute_perplexity(prompt)
         if ppl is None:
@@ -428,6 +453,10 @@ class ContextAwareLearnedSanitizer:
         feats["probability"] = prob
         feats["total"] = prob
         return feats
+
+    def injection_score(self, prompt: str) -> float:
+        """LR injection probability (for matched-FPR retuning)."""
+        return float(self.score(prompt)["probability"])
 
     def sanitize(self, prompt: str):
         signals = self.score(prompt)

@@ -16,11 +16,20 @@ from .ablation import (
     run_weighted_ablation_study,
 )
 from .evaluate import evaluate, evaluate_sanitizer
+from .matched_fpr import DEFAULT_TARGET_FPR, run_matched_fpr_study
 from .metrics import attack_success, compute_metrics
 from .pipeline import (
     release_all_sanitizer_models,
+    run_cached_lookup_pipeline,
     run_two_phase_pipeline,
     should_skip_judge,
+)
+from .prompt_cache import (
+    FeatureCache,
+    OutcomeCache,
+    attach_feature_cache,
+    collect_prompts_from_csvs,
+    warm_minilm_embeddings,
 )
 from .latency import (
     format_overhead_for_note,
@@ -46,11 +55,19 @@ __all__ = [
     "PARAPHRASE_SUBS",
     "evaluate",
     "evaluate_sanitizer",
+    "DEFAULT_TARGET_FPR",
+    "run_matched_fpr_study",
     "attack_success",
     "compute_metrics",
     "release_all_sanitizer_models",
     "run_two_phase_pipeline",
+    "run_cached_lookup_pipeline",
     "should_skip_judge",
+    "OutcomeCache",
+    "FeatureCache",
+    "attach_feature_cache",
+    "collect_prompts_from_csvs",
+    "warm_minilm_embeddings",
     "robustness_paraphrase",
     "robustness_adaptive",
     "robustness_edge_benign",

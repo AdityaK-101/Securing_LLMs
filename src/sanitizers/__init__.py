@@ -25,12 +25,14 @@ from .keyword import (
     KEYWORD_WEIGHTS,
     KeywordHeuristicSanitizer,
 )
+from .deberta_finetuned import DebertaFinetunedSanitizer
 from .prompt_guard import PromptGuardSanitizer
 from .protectai import ProtectAISanitizer
 from .regex import (
     REGEX_PATTERNS,
     RegexSanitizer,
 )
+from .similarity_only import SimilarityOnlySanitizer
 
 
 def get_all_sanitizers(
@@ -38,19 +40,38 @@ def get_all_sanitizers(
     val_csv: str = None,
     include_method_a: bool = True,
     include_method_b: bool = True,
+    include_similarity_only: bool = False,
+    include_deberta_finetuned: bool = False,
+    feature_cache=None,
 ):
     """
     Return baseline + regex + keyword + optional Method A / Method B.
 
     Method B reuses MiniLM / distilgpt2 from Method A when both are included;
     otherwise Method B loads its own auxiliary models.
+
+    ``include_similarity_only`` / ``include_deberta_finetuned`` add the
+    fold-trained fair baselines used by the source-holdout protocol.
+
+    ``feature_cache`` (optional) shares MiniLM embeddings / raw PPL across
+    methods and folds when the same FeatureCache instance is reused.
     """
-    if not include_method_a and not include_method_b:
-        raise ValueError("At least one of include_method_a / include_method_b must be True")
+    if (
+        not include_method_a
+        and not include_method_b
+        and not include_similarity_only
+        and not include_deberta_finetuned
+    ):
+        raise ValueError(
+            "At least one of include_method_a / include_method_b / "
+            "include_similarity_only / include_deberta_finetuned must be True"
+        )
 
     kwargs = {}
     if train_csv is not None:
         kwargs["train_csv"] = train_csv
+    if feature_cache is not None:
+        kwargs["feature_cache"] = feature_cache
 
     sanitizers = [
         BaselineSanitizer(),
@@ -72,6 +93,22 @@ def get_all_sanitizers(
             ContextAwareLearnedSanitizer(share_from=share_from, **learned_kwargs)
         )
 
+    if include_similarity_only:
+        sim_kwargs = dict(kwargs)
+        if val_csv is not None:
+            sim_kwargs["val_csv"] = val_csv
+        sanitizers.append(
+            SimilarityOnlySanitizer(share_embed_from=context, **sim_kwargs)
+        )
+
+    if include_deberta_finetuned:
+        deb_kwargs = {}
+        if train_csv is not None:
+            deb_kwargs["train_csv"] = train_csv
+        if val_csv is not None:
+            deb_kwargs["val_csv"] = val_csv
+        sanitizers.append(DebertaFinetunedSanitizer(**deb_kwargs))
+
     return sanitizers
 
 
@@ -83,6 +120,8 @@ __all__ = [
     "ContextAwareLearnedSanitizer",
     "ProtectAISanitizer",
     "PromptGuardSanitizer",
+    "SimilarityOnlySanitizer",
+    "DebertaFinetunedSanitizer",
     "get_all_sanitizers",
     "REGEX_PATTERNS",
     "KEYWORD_WEIGHTS",

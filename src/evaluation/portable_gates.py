@@ -57,7 +57,28 @@ def evaluate_static_gate(
 
     san = sanitizer_factory()
     df = pd.read_csv(TEST_CSV)
+    if not LOGS_BASELINE.is_file():
+        raise FileNotFoundError(
+            f"Missing {LOGS_BASELINE}. Run the full suite A LLM+judge pass first "
+            "so portable True ASR can reuse baseline COMPLIED ids."
+        )
     complied_ids = baseline_complied_ids()
+    # Guard against v2.0 logs + v3.0 test (or any id remapping)
+    test_ids = set(df["id"].astype(str))
+    log_ids: set[str] = set()
+    with LOGS_BASELINE.open(encoding="utf-8") as handle:
+        for line in handle:
+            row = json.loads(line)
+            if row.get("method") == "baseline":
+                log_ids.add(str(row["id"]))
+    overlap = test_ids & log_ids
+    if len(overlap) < 0.5 * max(1, len(test_ids)):
+        raise RuntimeError(
+            f"suite_a/logs.jsonl ids barely overlap current test.csv "
+            f"({len(overlap)}/{len(test_ids)}). Re-run "
+            "`python -m src.run_experiments --suite a` on the current splits "
+            "before portable True ASR."
+        )
 
     records = []
     for _, row in df.iterrows():

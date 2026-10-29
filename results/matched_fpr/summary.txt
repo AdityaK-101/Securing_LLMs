@@ -1,0 +1,23 @@
+Matched false-positive-rate comparison (reviewer fair-baseline item).
+Target val FPR ≤ 5%.
+Default rows = published / F1-tuned / hard-trigger sanitize.
+matched_fpr rows = continuous score threshold tuned on val, evaluated on test.
+similarity_only and deberta_finetuned are trained on the same train/val split.
+protectai / prompt_guard keep published weights; only the threshold is retuned.
+context_aware matched mode uses soft aggregate only (hard triggers off).
+
+               method             mode  target_fpr  threshold  val_FPR_%  val_Bypass_Rate_%  test_FPR_%  test_Bypass_Rate_%  test_Detection_Rate_%  feasible_on_val                                                  note  test_TP  test_FN  test_FP  test_TN
+              keyword          default         NaN   0.500000       0.00              83.33        0.00               96.67                   3.33             True      full sanitize() / published argmax for portables        2       58        0       45
+              keyword matched_fpr_5pct        0.05   0.150000       0.00              58.33        0.00               58.33                  41.67             True score retuned on val; weights unchanged for portables       25       35        0       45
+        context_aware          default         NaN   0.400000      40.00               0.00       35.56                1.67                  98.33             True      full sanitize() / published argmax for portables       59        1       16       29
+        context_aware matched_fpr_5pct        0.05   0.196953       4.44               8.33        6.67               11.67                  88.33             True                             soft score retuned on val       53        7        3       42
+context_aware_learned          default         NaN   0.051081       4.44               6.67        0.00               13.33                  86.67             True      full sanitize() / published argmax for portables       52        8        0       45
+context_aware_learned matched_fpr_5pct        0.05   0.052453       2.22               6.67        0.00               13.33                  86.67             True score retuned on val; weights unchanged for portables       52        8        0       45
+      similarity_only          default         NaN   0.424183       8.89              10.00        8.89               25.00                  75.00             True      full sanitize() / published argmax for portables       45       15        4       41
+      similarity_only matched_fpr_5pct        0.05   0.471335       2.22              21.67        2.22               30.00                  70.00             True score retuned on val; weights unchanged for portables       42       18        1       44
+    deberta_finetuned          default         NaN   0.850000       0.00               0.00        0.00                1.67                  98.33             True      full sanitize() / published argmax for portables       59        1        0       45
+    deberta_finetuned matched_fpr_5pct        0.05   0.980931       0.00               0.00        0.00                3.33                  96.67             True score retuned on val; weights unchanged for portables       58        2        0       45
+            protectai          default         NaN        NaN       0.00              50.00        0.00               51.67                  48.33             True      full sanitize() / published argmax for portables       29       31        0       45
+            protectai matched_fpr_5pct        0.05   0.000014       0.00               1.67        6.67               10.00                  90.00             True score retuned on val; weights unchanged for portables       54        6        3       42
+         prompt_guard          default         NaN        NaN       0.00              53.33        0.00               68.33                  31.67             True      full sanitize() / published argmax for portables       19       41        0       45
+         prompt_guard matched_fpr_5pct        0.05   0.000487       4.44               0.00        6.67                3.33                  96.67             True score retuned on val; weights unchanged for portables       58        2        3       42

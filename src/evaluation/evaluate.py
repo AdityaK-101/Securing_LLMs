@@ -16,20 +16,44 @@ Two-layer evaluation design:
     The judge model evaluates the relationship between original prompt
     and target LLM output via semantic reasoning (no keyword heuristics).
 
+Speed path (default when use_llm=True):
+  - One greedy Qwen reply + judge label per unique *injection* prompt (OutcomeCache).
+  - Benign prompts: filters only (never Qwen / judge).
+  - Generate-all → unload Qwen → judge-all; disk-append for crash resume.
+  - Shared MiniLM / DistilGPT-2 FeatureCache across methods (and folds when shared).
+
 Confusion matrices remain sanitizer-only — judge output does not affect
 TP/TN/FP/FN computation.
 """
 
+from __future__ import annotations
+
+from pathlib import Path
+
 import pandas as pd
 
-from ..config import RANDOM_SEED, TEST_CSV, TRAIN_CSV, VAL_CSV
-from ..models.target_llm import LLMRunner
+from ..config import (
+    LLM_CACHE_BATCH_SIZE,
+    PROMPT_CACHE_DIR,
+    RANDOM_SEED,
+    TEST_CSV,
+    TRAIN_CSV,
+    VAL_CSV,
+)
 from ..sanitizers import get_all_sanitizers
 from .metrics import compute_metrics
 from .pipeline import (
     release_all_sanitizer_models,
     run_two_phase_pipeline,
     should_skip_judge,
+)
+from .prompt_cache import (
+    FeatureCache,
+    OutcomeCache,
+    attach_feature_cache,
+    find_context_sanitizer,
+    warm_minilm_embeddings,
+    warm_raw_ppl_from_sanitizer,
 )
 
 __all__ = [
@@ -50,32 +74,94 @@ def evaluate(
     judge=None,
     include_method_a: bool = True,
     include_method_b: bool = True,
+    include_similarity_only: bool = False,
+    include_deberta_finetuned: bool = False,
+    *,
+    use_cached_lookup: bool | None = None,
+    outcome_cache: OutcomeCache | None = None,
+    feature_cache: FeatureCache | None = None,
+    batch_size: int | None = None,
+    warm_features: bool = True,
 ) -> tuple:
     """
     Run the full two-layer evaluation pipeline.
 
-    Memory-safe two-phase flow (only one large model in RAM at a time):
-      Phase 1: prompt → sanitizer → target LLM (if not blocked)
-      Phase 2: release target LLM → load judge → COMPLIED/REFUSED on unblocked injections
+    Default LLM path uses the mentor speedup: one generate+judge pass per
+    unique injection prompt, benign = filters only, resumable OutcomeCache.
 
     Returns:
         logs_df    — per-prompt-per-method DataFrame
         metrics_df — per-method summary (Bypass Rate, True ASR, FPR, TP/TN/FP/FN)
+        cm_dict    — per-method confusion matrices
     """
+    if use_cached_lookup is None:
+        use_cached_lookup = bool(use_llm)
+    bs = int(batch_size) if batch_size is not None else LLM_CACHE_BATCH_SIZE
+
     df_test = pd.read_csv(test_csv)
+    feat = feature_cache
+    if feat is None and warm_features and (
+        include_method_a or include_method_b or include_similarity_only
+    ):
+        feat = FeatureCache(PROMPT_CACHE_DIR / "features.pkl")
+
+    # Pre-encode MiniLM before Method A/B train so galleries hit the disk cache
+    if feat is not None and warm_features:
+        prompts = df_test["prompt"].dropna().astype(str).tolist()
+        for path in (train_csv, val_csv):
+            if path and Path(path).is_file():
+                prompts.extend(
+                    pd.read_csv(path)["prompt"].dropna().astype(str).tolist()
+                )
+        warm_minilm_embeddings(feat, prompts)
+
     sanitizers = get_all_sanitizers(
         train_csv=train_csv,
         val_csv=val_csv,
         include_method_a=include_method_a,
         include_method_b=include_method_b,
+        include_similarity_only=include_similarity_only,
+        include_deberta_finetuned=include_deberta_finetuned,
+        feature_cache=feat,
     )
-    runner = LLMRunner() if use_llm else None
 
-    skip_judge = should_skip_judge(use_llm, runner)
+    if feat is not None and warm_features:
+        prompts = df_test["prompt"].dropna().astype(str).tolist()
+        for path in (train_csv, val_csv):
+            if path and Path(path).is_file():
+                prompts.extend(
+                    pd.read_csv(path)["prompt"].dropna().astype(str).tolist()
+                )
+        ctx = find_context_sanitizer(sanitizers)
+        warm_raw_ppl_from_sanitizer(feat, prompts, ctx)
 
-    print(f"\n[Evaluate] Running experiment on {len(df_test)} prompts × {len(sanitizers)} methods...")
-    print(f"[Evaluate] Phase 1: sanitizer + target LLM")
-    print(f"[Evaluate] Phase 2: judge (COMPLIED/REFUSED) — {'enabled' if not skip_judge else 'disabled'}")
+    skip_judge = should_skip_judge(use_llm, None)
+    cache = outcome_cache
+    if use_cached_lookup and cache is None:
+        cache = OutcomeCache(PROMPT_CACHE_DIR / "outcomes.jsonl")
+
+    print(
+        f"\n[Evaluate] Running experiment on {len(df_test)} prompts × "
+        f"{len(sanitizers)} methods..."
+    )
+    if use_cached_lookup:
+        print(
+            "[Evaluate] Speed path: generate-all → unload → judge-all "
+            f"(batch_size={bs}); benign = filters only; True ASR = lookup."
+        )
+    else:
+        print("[Evaluate] Legacy path: LLM per unblocked (method, prompt).")
+    print(
+        f"[Evaluate] Judge (COMPLIED/REFUSED) — "
+        f"{'enabled' if not skip_judge else 'disabled'}"
+    )
+
+    # Cached path loads/releases its own runner; do not double-load here.
+    runner = None
+    if use_llm and not use_cached_lookup:
+        from ..models.target_llm import LLMRunner
+
+        runner = LLMRunner()
 
     records = run_two_phase_pipeline(
         df_test.iterrows(),
@@ -91,6 +177,10 @@ def evaluate(
         phase1_total=len(df_test),
         phase2_log_prefix="[Evaluate]",
         phase2_item_name="unblocked injections",
+        use_cached_lookup=use_cached_lookup,
+        outcome_cache=cache,
+        cache_use_llm=use_llm,
+        batch_size=bs,
     )
 
     logs_df = pd.DataFrame(records)
@@ -103,6 +193,11 @@ def evaluate_sanitizer(
     sanitizer,
     test_csv: str = TEST_CSV,
     use_llm: bool = True,
+    *,
+    use_cached_lookup: bool | None = None,
+    outcome_cache: OutcomeCache | None = None,
+    feature_cache: FeatureCache | None = None,
+    batch_size: int | None = None,
 ) -> tuple:
     """
     Run the full two-layer evaluation pipeline for a single sanitizer.
@@ -110,20 +205,38 @@ def evaluate_sanitizer(
     Same logic as evaluate(), but accepts one sanitizer instance instead of
     calling get_all_sanitizers(). Used by ablation studies.
     """
-    df_test = pd.read_csv(test_csv)
-    runner = LLMRunner() if use_llm else None
+    if use_cached_lookup is None:
+        use_cached_lookup = bool(use_llm)
+    bs = int(batch_size) if batch_size is not None else LLM_CACHE_BATCH_SIZE
 
-    skip_judge = should_skip_judge(use_llm, runner)
+    df_test = pd.read_csv(test_csv)
+    if feature_cache is not None:
+        attach_feature_cache([sanitizer], feature_cache)
+
+    skip_judge = should_skip_judge(use_llm, None)
+    cache = outcome_cache
+    if use_cached_lookup and cache is None:
+        cache = OutcomeCache(PROMPT_CACHE_DIR / "outcomes.jsonl")
 
     print(
         f"\n[Evaluate] Running experiment on {len(df_test)} prompts "
         f"× 1 method ({sanitizer.name})..."
     )
-    print(f"[Evaluate] Phase 1: sanitizer + target LLM")
+    if use_cached_lookup:
+        print(
+            "[Evaluate] Speed path: generate-all → unload → judge-all; "
+            "benign = filters only."
+        )
     print(
-        f"[Evaluate] Phase 2: judge (COMPLIED/REFUSED) — "
+        f"[Evaluate] Judge (COMPLIED/REFUSED) — "
         f"{'enabled' if not skip_judge else 'disabled'}"
     )
+
+    runner = None
+    if use_llm and not use_cached_lookup:
+        from ..models.target_llm import LLMRunner
+
+        runner = LLMRunner()
 
     records = run_two_phase_pipeline(
         df_test.iterrows(),
@@ -139,6 +252,10 @@ def evaluate_sanitizer(
         phase1_total=len(df_test),
         phase2_log_prefix="[Evaluate]",
         phase2_item_name="unblocked injections",
+        use_cached_lookup=use_cached_lookup,
+        outcome_cache=cache,
+        cache_use_llm=use_llm,
+        batch_size=bs,
     )
 
     logs_df = pd.DataFrame(records)

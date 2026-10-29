@@ -7,6 +7,8 @@ This repository is the code / data / results companion for the paper
 
 - **Code:** MIT (`LICENSE`)
 - **Compiled dataset:** CC BY-NC 4.0 (`data_cards/Data_Card.md`, `data_cards/license_log.txt`)
+- **Mixed corpus:** v3.0 ~700 prompts (`data/cleaned/combined_dataset.csv`); v2.0 350 archived under `data/cleaned/legacy/`. Rebuild: `python scripts/build_combined_dataset.py`.
+- **External Neuralchemy test:** Apache-2.0 dataset card, with HackAPrompt (CC BY 4.0), HarmBench (MIT), and WildGuard constituents. Files under `data/external/neuralchemy/`. Not part of the mixed corpus and not used for training.
 
 ## Models
 
@@ -17,7 +19,8 @@ This repository is the code / data / results companion for the paper
 | Adaptive paraphrases | `google/flan-t5-base` | Frozen adaptive texts in suite logs |
 | Semantic aux | `sentence-transformers/all-MiniLM-L6-v2` | **CPU by design** |
 | Perplexity aux | `distilgpt2` | **CPU by design** |
-| ProtectAI gate | `protectai/deberta-v3-base-prompt-injection-v2` | Portable baseline |
+| ProtectAI gate | `protectai/deberta-v3-base-prompt-injection-v2` | Portable baseline (published weights) |
+| DeBERTa fine-tuned | same ProtectAI checkpoint + our train | Fair baseline (`deberta_finetuned`) |
 | Prompt Guard 2 | `meta-llama/Llama-Prompt-Guard-2-86M` | Gated HF access may require `HF_TOKEN` |
 
 ## Environment (paper §Experimental setup)
@@ -53,7 +56,9 @@ Mean ms/prompt on CPU, 50 prompts (`results/suite_b/runtime_overhead.csv`):
 |------|------|---------|
 | `--no-llm` suite / ablations | Sanitizer-only Bypass / FPR | minutes |
 | Full suite A or B | Target + judge on test + robustness | hours (GPU helps) |
+| `--loo` (5 folds) | Main + paraphrase / edge / adaptive per fold | many hours (GPU; default OutcomeCache / FeatureCache under `results/prompt_cache/` — resume-safe; `--llm-batch-size`, `--loo-adaptive-max`, `--loo-skip-robustness` to trim) |
 | Portable gates | Gate-only; reuse suite logs for True ASR | minutes–tens of minutes |
+| `--matched-fpr` | Val-tuned FPR≤5% score compare (+ optional DeBERTa FT) | tens of minutes–hours |
 | Judge human score | Offline CSV compare | seconds |
 
 Committed `results/` tables match the paper. Re-run full LLM suites only if you change methods or data.
@@ -64,12 +69,14 @@ Committed `results/` tables match the paper. Re-run full LLM suites only if you 
 
 | Paper table / section | Artifact path(s) |
 |-----------------------|------------------|
-| Main comparison (Table 1) | `results/suite_a/metrics.csv`, `results/suite_b/metrics.csv`, `results/protectai/metrics.csv`, `results/prompt_guard/metrics.csv` |
+| Main comparison (Table 1) | `results/suite_a/metrics.csv`, `results/suite_b/metrics.csv`, `results/protectai/metrics.csv`, `results/prompt_guard/metrics.csv` (suites include `similarity_only` + `deberta_finetuned`) |
+| Matched-FPR fair baselines | `results/matched_fpr/metrics.csv` (`python -m src.run_experiments --matched-fpr` or `scripts/eval_matched_fpr.py`) |
 | Ablation (Table 2) | `results/hard_trigger_ablation.csv`, `results/learned_ablation_metrics.csv`, `results/weighted_ablation_metrics.csv` |
-| Adaptive rewriting (Table 3) | `results/suite_a/robustness_adaptive.csv`, `results/protectai/adaptive_metrics.csv`, `results/prompt_guard/adaptive_metrics.csv` |
-| Paraphrase robustness | `results/robustness_paraphrase_test.csv` |
+| Adaptive rewriting (Table 3) | `results/suite_a/robustness_adaptive.csv`, `results/suite_a/robustness_adaptive_by_style.csv` (incl. `similarity_evasion`), `results/protectai/adaptive_metrics.csv`, `results/prompt_guard/adaptive_metrics.csv` |
+| Paraphrase robustness | `results/robustness_paraphrase_test.csv` (expanded synonyms + LLM fallback; re-run after probe change) |
 | Judge human validation | `results/judge_human_validation/metrics_summary.txt` |
 | A vs B matched comparison | `results/ab_comparison_metrics.csv` |
+| Source-holdout (mentor LOO) | `data/splits/source_holdout/`, gate scores in `results/source_holdout/` (re-run `eval_loo_holdout.py` after rebuilding splits); full LLM+robustness under `results/loo/` via `python -m src.run_experiments --loo` |
 
 ## Reproduce entry points
 

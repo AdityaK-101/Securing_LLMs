@@ -34,6 +34,15 @@ from .config import (
     TARGET_MODEL_NAME,
     JUDGE_MODEL_NAME,
     PROJECT_ROOT,
+    SOURCE_HOLDOUT_DIR,
+    PROMPT_CACHE_DIR,
+    LLM_CACHE_BATCH_SIZE,
+)
+from .evaluation.prompt_cache import (
+    FeatureCache,
+    OutcomeCache,
+    collect_prompts_from_csvs,
+    warm_minilm_embeddings,
 )
 from .evaluation.ablation import (
     run_ab_comparison_study,
@@ -120,6 +129,10 @@ def _run_full_pipeline(
     run_classifier: bool,
     overhead_report: dict | None = None,
     skip_latency: bool = False,
+    use_cached_lookup: bool = True,
+    llm_batch_size: int = LLM_CACHE_BATCH_SIZE,
+    outcome_cache: OutcomeCache | None = None,
+    feature_cache: FeatureCache | None = None,
 ):
     cfg = SUITE_CONFIG[suite_key]
     include_a = cfg["include_method_a"]
@@ -133,8 +146,17 @@ def _run_full_pipeline(
     print(f"  Test   : {TEST_CSV}")
     print(f"  Train  : {TRAIN_CSV}")
     print(f"  Val    : {VAL_CSV}  (Method B threshold tuning)")
-    print(f"  Suite  : {suite_key}  (A={include_a}, B={include_b})")
+    # Fair baselines (reviewer): MiniLM similarity-only + ProtectAI ckpt fine-tuned
+    # on this split — same train/val as Methods A/B (LOO already includes them).
+    include_sim = True
+    include_deb = True
+    print(f"  Suite  : {suite_key}  (A={include_a}, B={include_b}, sim={include_sim}, deberta={include_deb})")
     print(f"  Output : {results_dir}")
+    if use_llm and use_cached_lookup:
+        print(
+            f"  Cache  : generate-once lookup (batch={llm_batch_size}); "
+            f"benign=filters-only; resume under {PROMPT_CACHE_DIR}"
+        )
 
     # Per-suite copy of shared overhead report (measured once upstream)
     if overhead_report is not None:
@@ -159,13 +181,26 @@ def _run_full_pipeline(
             json.dump(cal_results, f, indent=2, ensure_ascii=False)
         print(f"[OK] Saved: {cal_path}")
 
+    suite_outcome = outcome_cache
+    suite_features = feature_cache
+    if use_llm and use_cached_lookup:
+        suite_outcome = suite_outcome or OutcomeCache(PROMPT_CACHE_DIR / "outcomes.jsonl")
+        suite_features = suite_features or FeatureCache(PROMPT_CACHE_DIR / "features.pkl")
+
     _banner("4.5  Main Experiment")
     logs_df, metrics_df, cm_dict = evaluate(
         test_csv=TEST_CSV,
         train_csv=TRAIN_CSV,
+        val_csv=VAL_CSV,
         use_llm=use_llm,
         include_method_a=include_a,
         include_method_b=include_b,
+        include_similarity_only=include_sim,
+        include_deberta_finetuned=include_deb,
+        use_cached_lookup=use_cached_lookup and use_llm,
+        outcome_cache=suite_outcome,
+        feature_cache=suite_features,
+        batch_size=llm_batch_size,
     )
 
     print("\n--- Bypass Rate / True ASR / FPR Summary ---")
@@ -193,9 +228,12 @@ def _run_full_pipeline(
     para_df = robustness_paraphrase(
         prompt_csv=TEST_CSV,
         train_csv=TRAIN_CSV,
+        val_csv=VAL_CSV,
         n=None,
         include_method_a=include_a,
         include_method_b=include_b,
+        include_similarity_only=include_sim,
+        include_deberta_finetuned=include_deb,
     )
     print("\n--- Paraphrase Bypass Rate Delta ---")
     print(para_df[["method", "orig_Bypass_Rate", "para_Bypass_Rate", "Bypass_Rate_delta"]].to_string(index=False))
@@ -205,8 +243,12 @@ def _run_full_pipeline(
 
     _banner("4.6  Robustness — Edge Benign Cases")
     edge_df = robustness_edge_benign(
+        train_csv=TRAIN_CSV,
+        val_csv=VAL_CSV,
         include_method_a=include_a,
         include_method_b=include_b,
+        include_similarity_only=include_sim,
+        include_deberta_finetuned=include_deb,
     )
     print("\n--- Edge Benign FPR ---")
     print(edge_df.to_string(index=False))
@@ -217,15 +259,33 @@ def _run_full_pipeline(
     adaptive_logs_df, adaptive_metrics_df, adaptive_cm_dict = robustness_adaptive(
         test_csv=TEST_CSV,
         train_csv=TRAIN_CSV,
+        val_csv=VAL_CSV,
         use_llm=use_llm,
         include_method_a=include_a,
         include_method_b=include_b,
+        include_similarity_only=include_sim,
+        include_deberta_finetuned=include_deb,
+        include_similarity_evasion=True,
+        use_cached_lookup=use_cached_lookup and use_llm,
+        outcome_cache=(
+            OutcomeCache(PROMPT_CACHE_DIR / "adaptive_outcomes.jsonl")
+            if use_llm and use_cached_lookup
+            else None
+        ),
+        feature_cache=suite_features,
+        batch_size=llm_batch_size,
     )
     print("\n--- Adaptive Bypass Rate / True ASR ---")
     print(adaptive_metrics_df[cols].to_string(index=False))
     _metrics_export_columns(adaptive_metrics_df).to_csv(
         results_dir / "robustness_adaptive.csv", index=False,
     )
+    by_style = adaptive_metrics_df.attrs.get("by_style")
+    if by_style is not None:
+        by_style.to_csv(results_dir / "robustness_adaptive_by_style.csv", index=False)
+        print("\n--- Adaptive Bypass by attack style (incl. similarity_evasion) ---")
+        print(by_style.to_string(index=False))
+        print(f"[OK] Saved: {results_dir / 'robustness_adaptive_by_style.csv'}")
     with open(results_dir / "robustness_adaptive_logs.jsonl", "w", encoding="utf-8") as f:
         for rec in adaptive_logs_df.to_dict(orient="records"):
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
@@ -273,6 +333,408 @@ def _run_full_pipeline(
     print(f"  Key file: {results_dir / 'robustness_note.txt'}\n")
     if overhead_report is not None:
         print(f"  Overhead: {results_dir / 'runtime_overhead.csv'}\n")
+
+
+LOO_FOLDS = (
+    "simsonsun",
+    "mpdd",
+    "prompt_injection",
+    "bravansky",
+    "neuralchemy",
+)
+LOO_SOURCE_FOLDS = LOO_FOLDS[:4]
+
+
+def _loo_fold_dir(fold: str) -> Path:
+    return SOURCE_HOLDOUT_DIR / fold
+
+
+def _run_loo(
+    folds: list[str],
+    use_llm: bool,
+    no_judge: bool,
+    include_method_a: bool,
+    include_method_b: bool,
+    rerun: bool,
+    skip_robustness: bool = False,
+    adaptive_max: int | None = None,
+    use_cached_lookup: bool = True,
+    llm_batch_size: int = LLM_CACHE_BATCH_SIZE,
+) -> None:
+    """Main two-layer experiment on each held-out source, then after-main stages.
+
+    Same scorer as the regular suite (sanitizer, then target LLM, then judge).
+    Train, val, and test for a fold all come from that fold's directory, so the
+    held-out attack source is absent from the gallery and from Method B's
+    threshold tune. After the main metrics, each fold also runs paraphrase,
+    edge-benign, and adaptive (FLAN-T5) robustness — same stages as the suite.
+
+    Speed path (default with LLM): one greedy Qwen+judge pass per unique attack
+    prompt (shared OutcomeCache across folds), benign = filters only, shared
+    MiniLM/PPL FeatureCache, resumable under results/prompt_cache/.
+    """
+    mode = "llm" if use_llm and not no_judge else "gate"
+    collected = []
+    para_collected = []
+    edge_collected = []
+    adaptive_collected = []
+    export_cols = [
+        "method", "Bypass_Rate_%", "True_ASR_%", "FPR_%",
+        "TP", "FN", "FP", "TN", "successful_attack_count",
+        "injections", "benign",
+    ]
+    loo_baselines = dict(
+        include_similarity_only=True,
+        include_deberta_finetuned=True,
+    )
+
+    cache_dir = PROMPT_CACHE_DIR / "loo"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    shared_outcome = (
+        OutcomeCache(cache_dir / "outcomes.jsonl")
+        if use_llm and use_cached_lookup
+        else None
+    )
+    shared_features = FeatureCache(cache_dir / "features.pkl")
+    shared_adaptive = (
+        OutcomeCache(cache_dir / "adaptive_outcomes.jsonl")
+        if use_llm and use_cached_lookup
+        else None
+    )
+
+    # Pre-warm MiniLM for all fold prompts once (reuse across folds)
+    fold_csv_paths = []
+    for fold in folds:
+        split_dir = _loo_fold_dir(fold)
+        for name in ("train.csv", "val.csv", "test.csv"):
+            path = split_dir / name
+            if path.is_file():
+                fold_csv_paths.append(path)
+    if fold_csv_paths:
+        _banner("LOO FeatureCache — MiniLM warm-up (all folds)")
+        all_prompts = collect_prompts_from_csvs(fold_csv_paths)
+        print(f"  Unique prompts across folds: {len(all_prompts)}")
+        warm_minilm_embeddings(shared_features, all_prompts)
+
+    for fold in folds:
+        split_dir = _loo_fold_dir(fold)
+        train_csv = split_dir / "train.csv"
+        val_csv = split_dir / "val.csv"
+        test_csv = split_dir / "test.csv"
+        for path in (train_csv, val_csv, test_csv):
+            if not path.is_file():
+                raise SystemExit(
+                    f"Missing {path}. Build the folds with: python scripts/build_source_holdout.py"
+                )
+
+        results_dir = RESULTS_DIR / "loo" / fold
+        figures_dir = results_dir / "figures"
+        results_dir.mkdir(parents=True, exist_ok=True)
+        figures_dir.mkdir(parents=True, exist_ok=True)
+        marker = results_dir / "run_mode.txt"
+        metrics_path = results_dir / "metrics.csv"
+        para_path = results_dir / "robustness_paraphrase.csv"
+        edge_path = results_dir / "robustness_edge_benign.csv"
+        adaptive_path = results_dir / "robustness_adaptive.csv"
+        rob_marker = results_dir / "robustness_run_mode.txt"
+
+        _banner(f"Leave-one-source-out — {fold}")
+        print(f"  Target : {TARGET_MODEL_NAME} ({'enabled' if use_llm else 'SKIP (--no-llm)'})")
+        print(f"  Judge  : {JUDGE_MODEL_NAME} ({'enabled' if use_llm and not no_judge else 'SKIP'})")
+        print(f"  Train  : {train_csv}")
+        print(f"  Val    : {val_csv}")
+        print(f"  Test   : {test_csv}")
+        print(f"  Output : {results_dir}")
+        if use_llm and use_cached_lookup:
+            print(
+                f"  Cache  : shared OutcomeCache + FeatureCache under {cache_dir} "
+                f"(batch={llm_batch_size})"
+            )
+
+        if (
+            not rerun
+            and metrics_path.is_file()
+            and marker.is_file()
+            and marker.read_text(encoding="utf-8").strip() == mode
+        ):
+            print(f"[skip] {fold} main already has a {mode} run. Pass --rerun to recompute.")
+            metrics_df = pd.read_csv(metrics_path)
+        else:
+            logs_df, metrics_df, cm_dict = evaluate(
+                test_csv=str(test_csv),
+                train_csv=str(train_csv),
+                val_csv=str(val_csv),
+                use_llm=use_llm,
+                include_method_a=include_method_a,
+                include_method_b=include_method_b,
+                use_cached_lookup=use_cached_lookup and use_llm,
+                outcome_cache=shared_outcome,
+                feature_cache=shared_features,
+                batch_size=llm_batch_size,
+                warm_features=True,
+                **loo_baselines,
+            )
+            keep = [col for col in export_cols if col in metrics_df.columns]
+            metrics_df[keep].to_csv(metrics_path, index=False)
+            with open(results_dir / "logs.jsonl", "w", encoding="utf-8") as handle:
+                for rec in logs_df.to_dict(orient="records"):
+                    handle.write(json.dumps(rec, ensure_ascii=False) + "\n")
+            with open(results_dir / "confusion_matrices.json", "w", encoding="utf-8") as handle:
+                json.dump(cm_dict, handle, indent=2)
+            marker.write_text(mode + "\n", encoding="utf-8")
+            _plot_bypass_rate_bar(metrics_df, figures_dir=figures_dir)
+            _plot_true_asr_bar(metrics_df, figures_dir=figures_dir)
+            _plot_fpr_bar(metrics_df, figures_dir=figures_dir)
+            _plot_confusion_matrices(cm_dict, figures_dir=figures_dir)
+            print(f"[OK] Saved: {metrics_path}")
+
+        metrics_df = metrics_df.copy()
+        metrics_df.insert(0, "fold", fold)
+        collected.append(metrics_df)
+        print(metrics_df[["fold", "method", "Bypass_Rate_%", "True_ASR_%", "FPR_%"]].to_string(index=False))
+
+        if skip_robustness:
+            continue
+
+        rob_ready = (
+            not rerun
+            and para_path.is_file()
+            and edge_path.is_file()
+            and adaptive_path.is_file()
+            and rob_marker.is_file()
+            and rob_marker.read_text(encoding="utf-8").strip() == mode
+        )
+        if rob_ready:
+            print(f"[skip] {fold} robustness already has a {mode} run. Pass --rerun to recompute.")
+            para_df = pd.read_csv(para_path)
+            edge_df = pd.read_csv(edge_path)
+            adaptive_metrics_df = pd.read_csv(adaptive_path)
+        else:
+            _banner(f"LOO Robustness — Paraphrase ({fold})")
+            para_df = robustness_paraphrase(
+                prompt_csv=str(test_csv),
+                train_csv=str(train_csv),
+                val_csv=str(val_csv),
+                n=None,
+                include_method_a=include_method_a,
+                include_method_b=include_method_b,
+                **loo_baselines,
+            )
+            print(para_df[["method", "orig_Bypass_Rate", "para_Bypass_Rate", "Bypass_Rate_delta"]].to_string(index=False))
+            para_df.to_csv(para_path, index=False)
+            _plot_paraphrase_robustness(para_df, figures_dir=figures_dir)
+            print(f"[OK] Saved: {para_path}")
+
+            _banner(f"LOO Robustness — Edge Benign ({fold})")
+            edge_df = robustness_edge_benign(
+                train_csv=str(train_csv),
+                val_csv=str(val_csv),
+                include_method_a=include_method_a,
+                include_method_b=include_method_b,
+                **loo_baselines,
+            )
+            print(edge_df.to_string(index=False))
+            edge_df.to_csv(edge_path, index=False)
+            print(f"[OK] Saved: {edge_path}")
+
+            _banner(f"LOO Robustness — Adaptive ({fold})")
+            if adaptive_max is not None:
+                print(f"  Cap: first {adaptive_max} test injections rewritten")
+            adaptive_logs_df, adaptive_metrics_df, adaptive_cm_dict = robustness_adaptive(
+                test_csv=str(test_csv),
+                train_csv=str(train_csv),
+                val_csv=str(val_csv),
+                use_llm=use_llm,
+                include_method_a=include_method_a,
+                include_method_b=include_method_b,
+                max_injections=adaptive_max,
+                include_similarity_evasion=True,
+                use_cached_lookup=use_cached_lookup and use_llm,
+                outcome_cache=shared_adaptive,
+                feature_cache=shared_features,
+                batch_size=llm_batch_size,
+                **loo_baselines,
+            )
+            keep_adapt = [c for c in export_cols if c in adaptive_metrics_df.columns]
+            if not keep_adapt:
+                keep_adapt = list(_metrics_export_columns(adaptive_metrics_df).columns)
+            adaptive_metrics_df[keep_adapt].to_csv(adaptive_path, index=False)
+            by_style = adaptive_metrics_df.attrs.get("by_style")
+            if by_style is not None:
+                by_style.to_csv(
+                    results_dir / "robustness_adaptive_by_style.csv", index=False
+                )
+                print(by_style.to_string(index=False))
+                print(f"[OK] Saved: {results_dir / 'robustness_adaptive_by_style.csv'}")
+            with open(results_dir / "robustness_adaptive_logs.jsonl", "w", encoding="utf-8") as handle:
+                for rec in adaptive_logs_df.to_dict(orient="records"):
+                    handle.write(json.dumps(rec, ensure_ascii=False) + "\n")
+            with open(
+                results_dir / "robustness_adaptive_confusion_matrices.json",
+                "w",
+                encoding="utf-8",
+            ) as handle:
+                json.dump(adaptive_cm_dict, handle, indent=2)
+            _plot_adaptive_robustness(adaptive_metrics_df, figures_dir=figures_dir)
+            print(f"[OK] Saved: {adaptive_path}")
+
+            _write_robustness_note(
+                metrics_df.drop(columns=["fold"], errors="ignore"),
+                para_df,
+                edge_df,
+                adaptive_metrics_df,
+                out_path=results_dir / "robustness_note.txt",
+                overhead_report=None,
+            )
+            rob_marker.write_text(mode + "\n", encoding="utf-8")
+
+        para_df = para_df.copy()
+        para_df.insert(0, "fold", fold)
+        para_collected.append(para_df)
+        edge_df = edge_df.copy()
+        edge_df.insert(0, "fold", fold)
+        edge_collected.append(edge_df)
+        adaptive_metrics_df = adaptive_metrics_df.copy()
+        adaptive_metrics_df.insert(0, "fold", fold)
+        adaptive_collected.append(adaptive_metrics_df)
+
+    summary = _loo_average(pd.concat(collected, ignore_index=True))
+    out_dir = RESULTS_DIR / "loo"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    summary.to_csv(out_dir / "summary.csv", index=False)
+    (out_dir / "summary.txt").write_text(_loo_summary_text(summary, mode), encoding="utf-8")
+    print(f"\n[OK] Saved: {out_dir / 'summary.csv'}")
+    print(_loo_summary_text(summary, mode))
+
+    if skip_robustness or not para_collected:
+        return
+
+    para_all = pd.concat(para_collected, ignore_index=True)
+    edge_all = pd.concat(edge_collected, ignore_index=True)
+    adaptive_all = pd.concat(adaptive_collected, ignore_index=True)
+    para_all.to_csv(out_dir / "robustness_paraphrase.csv", index=False)
+    edge_all.to_csv(out_dir / "robustness_edge_benign.csv", index=False)
+    adaptive_all.to_csv(out_dir / "robustness_adaptive.csv", index=False)
+
+    para_avg = _loo_paraphrase_average(para_all)
+    edge_avg = _loo_edge_average(edge_all)
+    adaptive_avg = _loo_average(adaptive_all)
+    para_avg.to_csv(out_dir / "robustness_paraphrase_summary.csv", index=False)
+    edge_avg.to_csv(out_dir / "robustness_edge_benign_summary.csv", index=False)
+    adaptive_avg.to_csv(out_dir / "robustness_adaptive_summary.csv", index=False)
+    print(f"[OK] Saved: {out_dir / 'robustness_paraphrase.csv'}")
+    print(f"[OK] Saved: {out_dir / 'robustness_edge_benign.csv'}")
+    print(f"[OK] Saved: {out_dir / 'robustness_adaptive.csv'}")
+    print(f"[OK] Saved: {out_dir / 'robustness_*_summary.csv'}")
+
+
+def _loo_paraphrase_average(metrics: pd.DataFrame) -> pd.DataFrame:
+    rows = [metrics]
+    source = metrics[metrics["fold"].isin(LOO_SOURCE_FOLDS)]
+    averaged = []
+    for method, group in source.groupby("method", sort=False):
+        row = {
+            "fold": "four_source_macro_avg",
+            "method": method,
+            "orig_Bypass_Rate": round(float(group["orig_Bypass_Rate"].mean()), 4),
+            "para_Bypass_Rate": round(float(group["para_Bypass_Rate"].mean()), 4),
+            "Bypass_Rate_delta": round(float(group["Bypass_Rate_delta"].mean()), 4),
+            "n_prompts": int(group["n_prompts"].sum()) if "n_prompts" in group else 0,
+            "changed_n": int(group["changed_n"].sum()) if "changed_n" in group else 0,
+        }
+        if "changed_n_synonym" in group:
+            row["changed_n_synonym"] = int(group["changed_n_synonym"].sum())
+        if "changed_n_llm" in group:
+            row["changed_n_llm"] = int(group["changed_n_llm"].sum())
+        averaged.append(row)
+    rows.append(pd.DataFrame(averaged))
+    return pd.concat(rows, ignore_index=True)
+
+
+def _loo_edge_average(metrics: pd.DataFrame) -> pd.DataFrame:
+    rows = [metrics]
+    source = metrics[metrics["fold"].isin(LOO_SOURCE_FOLDS)]
+    averaged = []
+    for method, group in source.groupby("method", sort=False):
+        averaged.append({
+            "fold": "four_source_macro_avg",
+            "method": method,
+            "edge_FPR": round(float(group["edge_FPR"].mean()), 4),
+            "blocked_count": int(group["blocked_count"].sum()) if "blocked_count" in group else 0,
+            "total": int(group["total"].sum()) if "total" in group else 0,
+        })
+    rows.append(pd.DataFrame(averaged))
+    return pd.concat(rows, ignore_index=True)
+
+
+def _loo_average(metrics: pd.DataFrame) -> pd.DataFrame:
+    rows = [metrics]
+    source = metrics[metrics["fold"].isin(LOO_SOURCE_FOLDS)]
+    averaged = []
+    for method, group in source.groupby("method", sort=False):
+        injections = int(group["injections"].sum()) if "injections" in group else 0
+        benign = int(group["benign"].sum()) if "benign" in group else 0
+        successes = (
+            int(group["successful_attack_count"].sum())
+            if "successful_attack_count" in group
+            else 0
+        )
+        missed = int(group["FN"].sum()) if "FN" in group else 0
+        false_pos = int(group["FP"].sum()) if "FP" in group else 0
+        tp = int(group["TP"].sum()) if "TP" in group else 0
+        tn = int(group["TN"].sum()) if "TN" in group else 0
+        true_asr_mean = (
+            round(float(group["True_ASR_%"].mean()), 2)
+            if "True_ASR_%" in group
+            else 0.0
+        )
+        fpr_mean = (
+            round(float(group["FPR_%"].mean()), 2) if "FPR_%" in group else 0.0
+        )
+        averaged.append({
+            "fold": "four_source_macro_avg",
+            "method": method,
+            "Bypass_Rate_%": round(float(group["Bypass_Rate_%"].mean()), 2),
+            "True_ASR_%": true_asr_mean,
+            "FPR_%": fpr_mean,
+            "TP": tp,
+            "FN": missed,
+            "FP": false_pos,
+            "TN": tn,
+            "successful_attack_count": successes,
+            "injections": injections,
+            "benign": benign,
+        })
+        averaged.append({
+            "fold": "four_source_micro",
+            "method": method,
+            "Bypass_Rate_%": round(100 * missed / injections, 2) if injections else 0.0,
+            "True_ASR_%": round(100 * successes / injections, 2) if injections else 0.0,
+            "FPR_%": round(100 * false_pos / benign, 2) if benign else 0.0,
+            "TP": tp,
+            "FN": missed,
+            "FP": false_pos,
+            "TN": tn,
+            "successful_attack_count": successes,
+            "injections": injections,
+            "benign": benign,
+        })
+    rows.append(pd.DataFrame(averaged))
+    return pd.concat(rows, ignore_index=True)
+
+
+def _loo_summary_text(summary: pd.DataFrame, mode: str) -> str:
+    lines = [
+        "Leave-one-source-out, same two-layer scorer as the regular suite.",
+        f"Run mode: {mode}.",
+        "four_source_macro_avg weights each of the four attack sources equally.",
+        "neuralchemy is the fifth dataset and is outside that average.",
+        "The benign prompts repeat across the four source folds, so micro FPR is not an independent sample.",
+        "",
+        summary[["fold", "method", "Bypass_Rate_%", "True_ASR_%", "FPR_%", "injections", "benign"]].to_string(index=False),
+        "",
+    ]
+    return "\n".join(lines) + "\n"
 
 
 def main():
@@ -323,6 +785,85 @@ def main():
             "Not part of suite A/B (gated HF models / separate cost)."
         ),
     )
+    parser.add_argument(
+        "--matched-fpr",
+        action="store_true",
+        help=(
+            "Fair operating-point comparison: tune each score-based filter on val "
+            "to FPR ≤ 5%%, then report test Bypass/FPR. Writes results/matched_fpr/. "
+            "Includes similarity_only, fold-trained DeBERTa, Methods A/B, keyword, "
+            "and threshold-retuned ProtectAI / Prompt Guard."
+        ),
+    )
+    parser.add_argument(
+        "--matched-fpr-target",
+        type=float,
+        default=0.05,
+        help="With --matched-fpr, max validation FPR (default 0.05).",
+    )
+    parser.add_argument(
+        "--matched-fpr-skip-deberta",
+        action="store_true",
+        help="With --matched-fpr, skip fine-tuning DeBERTa.",
+    )
+    parser.add_argument(
+        "--matched-fpr-skip-portable",
+        action="store_true",
+        help="With --matched-fpr, skip ProtectAI / Prompt Guard.",
+    )
+    parser.add_argument(
+        "--loo",
+        action="store_true",
+        help=(
+            "Run the main two-layer experiment once per held-out source "
+            "(simsonsun, mpdd, prompt_injection, bravansky, neuralchemy), "
+            "then paraphrase / edge-benign / adaptive robustness on each fold. "
+            "Uses that fold's train/val/test. Writes results/loo/."
+        ),
+    )
+    parser.add_argument(
+        "--loo-folds",
+        nargs="+",
+        default=None,
+        choices=list(LOO_FOLDS),
+        help="Subset of --loo folds. Default: all five.",
+    )
+    parser.add_argument(
+        "--loo-skip-robustness",
+        action="store_true",
+        help="With --loo, run only the main metrics (skip paraphrase / edge / adaptive).",
+    )
+    parser.add_argument(
+        "--loo-adaptive-max",
+        type=int,
+        default=None,
+        help=(
+            "With --loo, cap how many test injections are rewritten for adaptive "
+            "robustness (default: all injections in the fold test set)."
+        ),
+    )
+    parser.add_argument(
+        "--rerun",
+        action="store_true",
+        help="Recompute --loo folds even when a matching results/loo/<fold>/ run exists.",
+    )
+    parser.add_argument(
+        "--llm-batch-size",
+        type=int,
+        default=LLM_CACHE_BATCH_SIZE,
+        help=(
+            "Batch size for greedy target-LLM generation into the OutcomeCache "
+            f"(default {LLM_CACHE_BATCH_SIZE}; env LLM_CACHE_BATCH_SIZE)."
+        ),
+    )
+    parser.add_argument(
+        "--no-outcome-cache",
+        action="store_true",
+        help=(
+            "Disable mentor speed path (one Qwen+judge per unique attack). "
+            "Falls back to legacy per-(method, prompt) LLM calls."
+        ),
+    )
     args = parser.parse_args()
 
     RESULTS_DIR.mkdir(exist_ok=True)
@@ -342,9 +883,45 @@ def main():
         print("[OK] Portable baseline metrics under results/protectai/ and results/prompt_guard/")
         return
 
+    if args.matched_fpr:
+        _banner("Matched-FPR fair comparison (val ≤ target, test Bypass)")
+        from .evaluation.matched_fpr import run_matched_fpr_study
+
+        run_matched_fpr_study(
+            train_csv=TRAIN_CSV,
+            val_csv=VAL_CSV,
+            test_csv=TEST_CSV,
+            target_fpr=float(args.matched_fpr_target),
+            include_portables=not args.matched_fpr_skip_portable,
+            include_deberta=not args.matched_fpr_skip_deberta,
+            out_dir=RESULTS_DIR / "matched_fpr",
+        )
+        return
+
     use_llm = not args.no_llm
     if args.no_judge:
         os.environ["SKIP_JUDGE"] = "1"
+
+    if args.loo:
+        if args.suite in ("ab", "both"):
+            include_a, include_b = True, True
+        elif args.suite == "a":
+            include_a, include_b = True, False
+        else:
+            include_a, include_b = False, True
+        _run_loo(
+            folds=args.loo_folds or list(LOO_FOLDS),
+            use_llm=use_llm,
+            no_judge=args.no_judge,
+            include_method_a=include_a,
+            include_method_b=include_b,
+            rerun=args.rerun,
+            skip_robustness=args.loo_skip_robustness,
+            adaptive_max=args.loo_adaptive_max,
+            use_cached_lookup=not args.no_outcome_cache,
+            llm_batch_size=args.llm_batch_size,
+        )
+        return
 
     if args.latency_only:
         _banner("Runtime / Latency Overhead Only")
@@ -483,6 +1060,8 @@ def main():
             run_classifier=args.classifier,
             overhead_report=overhead_report,
             skip_latency=args.skip_latency,
+            use_cached_lookup=not args.no_outcome_cache,
+            llm_batch_size=args.llm_batch_size,
         )
 
 

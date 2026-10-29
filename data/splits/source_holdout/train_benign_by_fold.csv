@@ -1,0 +1,6 @@
+fold,train_chatgpt_benign,train_prompt_injection_benign
+simsonsun,21,19.0
+mpdd,25,15.0
+prompt_injection,40,0.0
+bravansky,19,21.0
+neuralchemy,19,21.0

@@ -1,0 +1,40 @@
+{
+  "version": "3.0",
+  "seed": 42,
+  "n_attack_per_source": 100,
+  "n_chatgpt_benign": 50,
+  "n_pi_benign": 249,
+  "total": 699,
+  "injection": 400,
+  "benign": 299,
+  "splits": {
+    "train": {
+      "total": 489,
+      "injection": 280,
+      "benign": 209
+    },
+    "val": {
+      "total": 105,
+      "injection": 60,
+      "benign": 45
+    },
+    "test": {
+      "total": 105,
+      "injection": 60,
+      "benign": 45
+    }
+  },
+  "by_source": {
+    "bravansky": 100,
+    "chatgpt_benign": 50,
+    "mpdd": 100,
+    "prompt_injection": 100,
+    "prompt_injection_benign": 249,
+    "simsonsun": 100
+  },
+  "legacy_v2_0": {
+    "combined": "C:\\Users\\kulka\\Downloads\\Research_paper\\Securing_LLMs\\data\\cleaned\\legacy\\combined_dataset_v2.0_350.csv",
+    "splits": "C:\\Users\\kulka\\Downloads\\Research_paper\\Securing_LLMs\\data\\splits\\legacy_v2.0_350"
+  },
+  "note": "Mixed in-distribution corpus grown from raw sources. Distinct from data/splits/source_holdout/ (leave-one-source-out)."
+}

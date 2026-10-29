@@ -72,6 +72,10 @@ class KeywordHeuristicSanitizer:
                 total += weight
         return total
 
+    def injection_score(self, prompt: str) -> float:
+        """Weighted keyword suspicion score."""
+        return float(self.score(prompt))
+
     def sanitize(self, prompt: str):
         s = self.score(prompt)
         blocked = s >= self.threshold

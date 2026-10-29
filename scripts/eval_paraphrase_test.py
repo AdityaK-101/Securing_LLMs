@@ -1,15 +1,15 @@
 """
-Paraphrase probe on the 30 held-out test injections (Priority 3).
+Paraphrase probe on mixed-suite test injections (v3.0 ~60).
 
-Same nine synonym substitutions as the train-pool diagnostic; gate-only Bypass.
-Loads Method A and Method B together (shared MiniLM/DistilGPT-2). No LLM/judge.
+Expanded synonym list + FLAN-T5 fallback for prompts synonyms leave unchanged.
+Gate-only Bypass. Loads Method A and Method B together (shared MiniLM/DistilGPT-2).
 """
 
 from __future__ import annotations
 
 import json
 
-from src.config import RESULTS_DIR, TEST_CSV, TRAIN_CSV
+from src.config import RESULTS_DIR, TEST_CSV, TRAIN_CSV, VAL_CSV
 from src.evaluation.robustness import robustness_paraphrase
 from src.visualization.plots import _plot_paraphrase_robustness
 
@@ -21,9 +21,11 @@ def main() -> None:
     para_df = robustness_paraphrase(
         prompt_csv=TEST_CSV,
         train_csv=TRAIN_CSV,
+        val_csv=VAL_CSV,
         n=None,
         include_method_a=True,
         include_method_b=True,
+        use_llm_fallback=True,
     )
     out_csv = out_dir / "robustness_paraphrase_test.csv"
     para_df.to_csv(out_csv, index=False)
@@ -37,8 +39,11 @@ def main() -> None:
         "Bypass_Rate_delta",
         "n_prompts",
         "changed_n",
+        "changed_n_synonym",
+        "changed_n_llm",
     ]
-    print(para_df[cols].to_string(index=False))
+    keep = [c for c in cols if c in para_df.columns]
+    print(para_df[keep].to_string(index=False))
     print(f"[OK] Wrote {out_csv}")
     print(json.dumps(para_df.to_dict(orient="records"), indent=2))
 
