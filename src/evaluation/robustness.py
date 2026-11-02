@@ -1,6 +1,10 @@
 """Robustness experiments: paraphrase, edge benign, and adaptive attacks."""
 
+from __future__ import annotations
+
+import json
 import re
+from pathlib import Path
 
 import pandas as pd
 from tqdm import tqdm
@@ -14,6 +18,89 @@ from .pipeline import (
     run_two_phase_pipeline,
     should_skip_judge,
 )
+
+
+def _load_adaptive_attack_cache(path: Path) -> dict[str, list[tuple]]:
+    """Load per-source adaptive variants keyed by prompt_id (resumable JSONL)."""
+    cached: dict[str, list[tuple]] = {}
+    if not path.is_file():
+        return cached
+    with open(path, encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            pid = str(row.get("prompt_id", ""))
+            variants = row.get("variants") or []
+            items = []
+            source_prompt = str(row.get("source_prompt", ""))
+            for variant_idx, attack in enumerate(variants):
+                items.append(
+                    (
+                        pid,
+                        source_prompt,
+                        str(attack.get("prompt", "")),
+                        int(attack.get("variant_idx", variant_idx)),
+                        attack.get("style", f"v{variant_idx}"),
+                        attack.get("gallery_sim"),
+                        attack.get("source_gallery_sim"),
+                        attack.get("sim_delta"),
+                    )
+                )
+            if pid and items:
+                cached[pid] = items
+    return cached
+
+
+def _append_adaptive_attack_cache(
+    path: Path,
+    prompt_id,
+    source_prompt: str,
+    attacks: list[dict],
+) -> list[tuple]:
+    """Append one source injection's variants and return attack_items tuples."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    variants = []
+    items = []
+    for variant_idx, attack in enumerate(attacks):
+        rec = {
+            "prompt": attack["prompt"],
+            "variant_idx": variant_idx,
+            "style": attack.get("style", f"v{variant_idx}"),
+            "gallery_sim": attack.get("gallery_sim"),
+            "source_gallery_sim": attack.get("source_gallery_sim"),
+            "sim_delta": attack.get("sim_delta"),
+        }
+        variants.append(rec)
+        items.append(
+            (
+                prompt_id,
+                source_prompt,
+                attack["prompt"],
+                variant_idx,
+                rec["style"],
+                rec["gallery_sim"],
+                rec["source_gallery_sim"],
+                rec["sim_delta"],
+            )
+        )
+    with open(path, "a", encoding="utf-8") as handle:
+        handle.write(
+            json.dumps(
+                {
+                    "prompt_id": prompt_id,
+                    "source_prompt": source_prompt,
+                    "variants": variants,
+                },
+                ensure_ascii=False,
+            )
+            + "\n"
+        )
+    return items
 
 # ---------------------------------------------------------------------------
 # Paraphrase substitutions for robustness test
@@ -336,6 +423,7 @@ def robustness_adaptive(
     outcome_cache=None,
     feature_cache=None,
     batch_size: int | None = None,
+    attacks_cache_path: str | Path | None = None,
 ) -> tuple:
     """
     Adaptive robustness evaluation using an independent LLM attack generator,
@@ -395,65 +483,91 @@ def robustness_adaptive(
     if use_llm and not use_cached_lookup:
         runner = LLMRunner()
 
-    embed_model = None
-    gallery_embeddings = None
-    if include_similarity_evasion:
+    attacks_path = Path(attacks_cache_path) if attacks_cache_path else None
+    cached_by_id = _load_adaptive_attack_cache(attacks_path) if attacks_path else {}
+    attack_items: list[tuple] = []
+    pending_rows = []
+    for _, row in injection_rows.iterrows():
+        pid = str(row["id"])
+        if pid in cached_by_id:
+            attack_items.extend(cached_by_id[pid])
+        else:
+            pending_rows.append(row)
+
+    if cached_by_id:
         print(
-            f"\n[Adaptive] Loading MiniLM attack gallery from {train_csv} "
-            "(similarity-evasion selector)..."
+            f"[Adaptive] Loaded attack variants for {len(cached_by_id)} source "
+            f"injections from {attacks_path}"
         )
-        embed_model, gallery_embeddings, gallery_prompts = load_attack_gallery(
-            train_csv
-        )
-        print(f"[Adaptive] Gallery size: {len(gallery_prompts)} train injections.")
-
-    attack_items = []
-    print(
-        f"\n[Adaptive] Generating attacks for "
-        f"{len(injection_rows)} injection prompts "
-        f"(styles + {'similarity-evasion' if include_similarity_evasion else 'no evasion'})..."
-    )
-    for _, row in tqdm(
-        injection_rows.iterrows(),
-        total=len(injection_rows),
-        desc="Adaptive Attack Generation",
-    ):
-        prompt_id = row["id"]
-        source_prompt = str(row["prompt"])
-        attacks = generate_adaptive_variants(
-            source_prompt,
-            embed_model=embed_model,
-            gallery_embeddings=gallery_embeddings,
-            include_similarity_evasion=include_similarity_evasion,
-        )
-        for variant_idx, attack in enumerate(attacks):
-            attack_items.append(
-                (
-                    prompt_id,
-                    source_prompt,
-                    attack["prompt"],
-                    variant_idx,
-                    attack.get("style", f"v{variant_idx}"),
-                    attack.get("gallery_sim"),
-                    attack.get("source_gallery_sim"),
-                    attack.get("sim_delta"),
-                )
-            )
-
-    release_generator()
-    if embed_model is not None:
-        try:
-            del embed_model
-        except Exception:
-            pass
+    if pending_rows:
         embed_model = None
         gallery_embeddings = None
-        try:
-            import gc
+        if include_similarity_evasion:
+            print(
+                f"\n[Adaptive] Loading MiniLM attack gallery from {train_csv} "
+                "(similarity-evasion selector)..."
+            )
+            embed_model, gallery_embeddings, gallery_prompts = load_attack_gallery(
+                train_csv
+            )
+            print(f"[Adaptive] Gallery size: {len(gallery_prompts)} train injections.")
 
-            gc.collect()
-        except Exception:
-            pass
+        print(
+            f"\n[Adaptive] Generating attacks for "
+            f"{len(pending_rows)}/{len(injection_rows)} injection prompts "
+            f"(styles + {'similarity-evasion' if include_similarity_evasion else 'no evasion'})..."
+        )
+        if attacks_path is None:
+            print(
+                "[Adaptive] Warning: no attacks_cache_path set; "
+                "FLAN rewrites will not resume after Ctrl+C."
+            )
+        for row in tqdm(pending_rows, desc="Adaptive Attack Generation"):
+            prompt_id = row["id"]
+            source_prompt = str(row["prompt"])
+            attacks = generate_adaptive_variants(
+                source_prompt,
+                embed_model=embed_model,
+                gallery_embeddings=gallery_embeddings,
+                include_similarity_evasion=include_similarity_evasion,
+            )
+            if attacks_path is not None:
+                attack_items.extend(
+                    _append_adaptive_attack_cache(
+                        attacks_path, prompt_id, source_prompt, attacks
+                    )
+                )
+            else:
+                for variant_idx, attack in enumerate(attacks):
+                    attack_items.append(
+                        (
+                            prompt_id,
+                            source_prompt,
+                            attack["prompt"],
+                            variant_idx,
+                            attack.get("style", f"v{variant_idx}"),
+                            attack.get("gallery_sim"),
+                            attack.get("source_gallery_sim"),
+                            attack.get("sim_delta"),
+                        )
+                    )
+        release_generator()
+        if embed_model is not None:
+            try:
+                del embed_model
+            except Exception:
+                pass
+            try:
+                import gc
+
+                gc.collect()
+            except Exception:
+                pass
+    else:
+        print(
+            f"[Adaptive] All {len(injection_rows)} source injections already "
+            "have cached FLAN / evasion rewrites."
+        )
 
     if not attack_items:
         raise ValueError(

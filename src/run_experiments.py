@@ -109,6 +109,27 @@ def _metrics_export_columns(metrics_df: pd.DataFrame) -> pd.DataFrame:
     return metrics_df[cols]
 
 
+def _normalize_metrics_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Strip padded CSV headers/values from a resumed metrics table."""
+    out = df.copy()
+    out.columns = [str(c).strip() for c in out.columns]
+    if "method" in out.columns:
+        out["method"] = out["method"].astype(str).str.strip()
+    return out
+
+
+def _print_fold_metrics(metrics_df: pd.DataFrame) -> None:
+    cols = [
+        c
+        for c in ("fold", "method", "Bypass_Rate_%", "True_ASR_%", "FPR_%")
+        if c in metrics_df.columns
+    ]
+    if cols:
+        print(metrics_df[cols].to_string(index=False))
+    else:
+        print(metrics_df.to_string(index=False))
+
+
 def _resolve_output_dirs(suite_key: str) -> tuple[Path, Path]:
     cfg = SUITE_CONFIG[suite_key]
     if cfg["results_subdir"] is None:
@@ -274,6 +295,7 @@ def _run_full_pipeline(
         ),
         feature_cache=suite_features,
         batch_size=llm_batch_size,
+        attacks_cache_path=results_dir / "adaptive_attacks.jsonl",
     )
     print("\n--- Adaptive Bypass Rate / True ASR ---")
     print(adaptive_metrics_df[cols].to_string(index=False))
@@ -458,7 +480,7 @@ def _run_loo(
             and marker.read_text(encoding="utf-8").strip() == mode
         ):
             print(f"[skip] {fold} main already has a {mode} run. Pass --rerun to recompute.")
-            metrics_df = pd.read_csv(metrics_path)
+            metrics_df = _normalize_metrics_df(pd.read_csv(metrics_path))
         else:
             logs_df, metrics_df, cm_dict = evaluate(
                 test_csv=str(test_csv),
@@ -488,95 +510,111 @@ def _run_loo(
             _plot_confusion_matrices(cm_dict, figures_dir=figures_dir)
             print(f"[OK] Saved: {metrics_path}")
 
-        metrics_df = metrics_df.copy()
-        metrics_df.insert(0, "fold", fold)
+        metrics_df = _normalize_metrics_df(metrics_df.copy())
+        if "fold" not in metrics_df.columns:
+            metrics_df.insert(0, "fold", fold)
         collected.append(metrics_df)
-        print(metrics_df[["fold", "method", "Bypass_Rate_%", "True_ASR_%", "FPR_%"]].to_string(index=False))
+        _print_fold_metrics(metrics_df)
 
         if skip_robustness:
             continue
 
-        rob_ready = (
+        # Per-stage resume: paraphrase / edge / adaptive skip independently.
+        # (Old logic required all three + marker, so a Ctrl+C mid-adaptive
+        #  forced a full paraphrase/edge/DeBERTa redo.)
+        if (
             not rerun
             and para_path.is_file()
             and edge_path.is_file()
             and adaptive_path.is_file()
             and rob_marker.is_file()
             and rob_marker.read_text(encoding="utf-8").strip() == mode
-        )
-        if rob_ready:
+        ):
             print(f"[skip] {fold} robustness already has a {mode} run. Pass --rerun to recompute.")
-            para_df = pd.read_csv(para_path)
-            edge_df = pd.read_csv(edge_path)
-            adaptive_metrics_df = pd.read_csv(adaptive_path)
+            para_df = _normalize_metrics_df(pd.read_csv(para_path))
+            edge_df = _normalize_metrics_df(pd.read_csv(edge_path))
+            adaptive_metrics_df = _normalize_metrics_df(pd.read_csv(adaptive_path))
         else:
-            _banner(f"LOO Robustness — Paraphrase ({fold})")
-            para_df = robustness_paraphrase(
-                prompt_csv=str(test_csv),
-                train_csv=str(train_csv),
-                val_csv=str(val_csv),
-                n=None,
-                include_method_a=include_method_a,
-                include_method_b=include_method_b,
-                **loo_baselines,
-            )
-            print(para_df[["method", "orig_Bypass_Rate", "para_Bypass_Rate", "Bypass_Rate_delta"]].to_string(index=False))
-            para_df.to_csv(para_path, index=False)
-            _plot_paraphrase_robustness(para_df, figures_dir=figures_dir)
-            print(f"[OK] Saved: {para_path}")
-
-            _banner(f"LOO Robustness — Edge Benign ({fold})")
-            edge_df = robustness_edge_benign(
-                train_csv=str(train_csv),
-                val_csv=str(val_csv),
-                include_method_a=include_method_a,
-                include_method_b=include_method_b,
-                **loo_baselines,
-            )
-            print(edge_df.to_string(index=False))
-            edge_df.to_csv(edge_path, index=False)
-            print(f"[OK] Saved: {edge_path}")
-
-            _banner(f"LOO Robustness — Adaptive ({fold})")
-            if adaptive_max is not None:
-                print(f"  Cap: first {adaptive_max} test injections rewritten")
-            adaptive_logs_df, adaptive_metrics_df, adaptive_cm_dict = robustness_adaptive(
-                test_csv=str(test_csv),
-                train_csv=str(train_csv),
-                val_csv=str(val_csv),
-                use_llm=use_llm,
-                include_method_a=include_method_a,
-                include_method_b=include_method_b,
-                max_injections=adaptive_max,
-                include_similarity_evasion=True,
-                use_cached_lookup=use_cached_lookup and use_llm,
-                outcome_cache=shared_adaptive,
-                feature_cache=shared_features,
-                batch_size=llm_batch_size,
-                **loo_baselines,
-            )
-            keep_adapt = [c for c in export_cols if c in adaptive_metrics_df.columns]
-            if not keep_adapt:
-                keep_adapt = list(_metrics_export_columns(adaptive_metrics_df).columns)
-            adaptive_metrics_df[keep_adapt].to_csv(adaptive_path, index=False)
-            by_style = adaptive_metrics_df.attrs.get("by_style")
-            if by_style is not None:
-                by_style.to_csv(
-                    results_dir / "robustness_adaptive_by_style.csv", index=False
+            if not rerun and para_path.is_file():
+                print(f"[skip] {fold} paraphrase already saved. Pass --rerun to recompute.")
+                para_df = _normalize_metrics_df(pd.read_csv(para_path))
+            else:
+                _banner(f"LOO Robustness — Paraphrase ({fold})")
+                para_df = robustness_paraphrase(
+                    prompt_csv=str(test_csv),
+                    train_csv=str(train_csv),
+                    val_csv=str(val_csv),
+                    n=None,
+                    include_method_a=include_method_a,
+                    include_method_b=include_method_b,
+                    **loo_baselines,
                 )
-                print(by_style.to_string(index=False))
-                print(f"[OK] Saved: {results_dir / 'robustness_adaptive_by_style.csv'}")
-            with open(results_dir / "robustness_adaptive_logs.jsonl", "w", encoding="utf-8") as handle:
-                for rec in adaptive_logs_df.to_dict(orient="records"):
-                    handle.write(json.dumps(rec, ensure_ascii=False) + "\n")
-            with open(
-                results_dir / "robustness_adaptive_confusion_matrices.json",
-                "w",
-                encoding="utf-8",
-            ) as handle:
-                json.dump(adaptive_cm_dict, handle, indent=2)
-            _plot_adaptive_robustness(adaptive_metrics_df, figures_dir=figures_dir)
-            print(f"[OK] Saved: {adaptive_path}")
+                print(para_df[["method", "orig_Bypass_Rate", "para_Bypass_Rate", "Bypass_Rate_delta"]].to_string(index=False))
+                para_df.to_csv(para_path, index=False)
+                _plot_paraphrase_robustness(para_df, figures_dir=figures_dir)
+                print(f"[OK] Saved: {para_path}")
+
+            if not rerun and edge_path.is_file():
+                print(f"[skip] {fold} edge-benign already saved. Pass --rerun to recompute.")
+                edge_df = _normalize_metrics_df(pd.read_csv(edge_path))
+            else:
+                _banner(f"LOO Robustness — Edge Benign ({fold})")
+                edge_df = robustness_edge_benign(
+                    train_csv=str(train_csv),
+                    val_csv=str(val_csv),
+                    include_method_a=include_method_a,
+                    include_method_b=include_method_b,
+                    **loo_baselines,
+                )
+                print(edge_df.to_string(index=False))
+                edge_df.to_csv(edge_path, index=False)
+                print(f"[OK] Saved: {edge_path}")
+
+            if not rerun and adaptive_path.is_file():
+                print(f"[skip] {fold} adaptive already saved. Pass --rerun to recompute.")
+                adaptive_metrics_df = _normalize_metrics_df(pd.read_csv(adaptive_path))
+            else:
+                _banner(f"LOO Robustness — Adaptive ({fold})")
+                if adaptive_max is not None:
+                    print(f"  Cap: first {adaptive_max} test injections rewritten")
+                adaptive_logs_df, adaptive_metrics_df, adaptive_cm_dict = robustness_adaptive(
+                    test_csv=str(test_csv),
+                    train_csv=str(train_csv),
+                    val_csv=str(val_csv),
+                    use_llm=use_llm,
+                    include_method_a=include_method_a,
+                    include_method_b=include_method_b,
+                    max_injections=adaptive_max,
+                    include_similarity_evasion=True,
+                    use_cached_lookup=use_cached_lookup and use_llm,
+                    outcome_cache=shared_adaptive,
+                    feature_cache=shared_features,
+                    batch_size=llm_batch_size,
+                    attacks_cache_path=results_dir / "adaptive_attacks.jsonl",
+                    **loo_baselines,
+                )
+                keep_adapt = [c for c in export_cols if c in adaptive_metrics_df.columns]
+                if not keep_adapt:
+                    keep_adapt = list(_metrics_export_columns(adaptive_metrics_df).columns)
+                adaptive_metrics_df[keep_adapt].to_csv(adaptive_path, index=False)
+                by_style = adaptive_metrics_df.attrs.get("by_style")
+                if by_style is not None:
+                    by_style.to_csv(
+                        results_dir / "robustness_adaptive_by_style.csv", index=False
+                    )
+                    print(by_style.to_string(index=False))
+                    print(f"[OK] Saved: {results_dir / 'robustness_adaptive_by_style.csv'}")
+                with open(results_dir / "robustness_adaptive_logs.jsonl", "w", encoding="utf-8") as handle:
+                    for rec in adaptive_logs_df.to_dict(orient="records"):
+                        handle.write(json.dumps(rec, ensure_ascii=False) + "\n")
+                with open(
+                    results_dir / "robustness_adaptive_confusion_matrices.json",
+                    "w",
+                    encoding="utf-8",
+                ) as handle:
+                    json.dump(adaptive_cm_dict, handle, indent=2)
+                _plot_adaptive_robustness(adaptive_metrics_df, figures_dir=figures_dir)
+                print(f"[OK] Saved: {adaptive_path}")
 
             _write_robustness_note(
                 metrics_df.drop(columns=["fold"], errors="ignore"),
@@ -586,16 +624,20 @@ def _run_loo(
                 out_path=results_dir / "robustness_note.txt",
                 overhead_report=None,
             )
-            rob_marker.write_text(mode + "\n", encoding="utf-8")
+            if adaptive_path.is_file():
+                rob_marker.write_text(mode + "\n", encoding="utf-8")
 
-        para_df = para_df.copy()
-        para_df.insert(0, "fold", fold)
+        para_df = _normalize_metrics_df(para_df.copy())
+        if "fold" not in para_df.columns:
+            para_df.insert(0, "fold", fold)
         para_collected.append(para_df)
-        edge_df = edge_df.copy()
-        edge_df.insert(0, "fold", fold)
+        edge_df = _normalize_metrics_df(edge_df.copy())
+        if "fold" not in edge_df.columns:
+            edge_df.insert(0, "fold", fold)
         edge_collected.append(edge_df)
-        adaptive_metrics_df = adaptive_metrics_df.copy()
-        adaptive_metrics_df.insert(0, "fold", fold)
+        adaptive_metrics_df = _normalize_metrics_df(adaptive_metrics_df.copy())
+        if "fold" not in adaptive_metrics_df.columns:
+            adaptive_metrics_df.insert(0, "fold", fold)
         adaptive_collected.append(adaptive_metrics_df)
 
     summary = _loo_average(pd.concat(collected, ignore_index=True))

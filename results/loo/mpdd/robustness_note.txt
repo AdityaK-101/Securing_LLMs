@@ -1,0 +1,81 @@
+==============================================================
+  Robustness Note
+==============================================================
+
+METRIC DEFINITIONS
+----------------------------------------
+  Bypass Rate (Layer 1): % of injection prompts the sanitizer failed
+    to block. Measures sanitizer bypass, NOT model compliance.
+  True ASR (Layer 2): % of injection prompts where the sanitizer was
+    bypassed AND the target LLM actually complied (per Qwen/Qwen2.5-3B-Instruct judge).
+  Confusion matrices use sanitizer blocked/unblocked only.
+
+1. DEFENSE EFFECTIVENESS (Layer 1 + Layer 2)
+----------------------------------------
+  baseline                  Bypass=100.0%  TrueASR= 50.5%  FPR=  0.0%  TP=  0  FN=200  FP=  0  TN=200  attacks=101
+  regex                     Bypass= 76.0%  TrueASR= 38.0%  FPR=  0.0%  TP= 48  FN=152  FP=  0  TN=200  attacks=76
+  keyword                   Bypass= 96.0%  TrueASR= 47.5%  FPR=  0.0%  TP=  8  FN=192  FP=  0  TN=200  attacks=95
+  context_aware             Bypass= 28.5%  TrueASR= 14.0%  FPR= 35.5%  TP=143  FN= 57  FP= 71  TN=129  attacks=28
+  context_aware_learned     Bypass= 44.5%  TrueASR= 23.5%  FPR= 17.5%  TP=111  FN= 89  FP= 35  TN=165  attacks=47
+  similarity_only           Bypass= 33.5%  TrueASR= 16.5%  FPR= 35.0%  TP=133  FN= 67  FP= 70  TN=130  attacks=33
+  deberta_finetuned         Bypass=  6.0%  TrueASR=  2.5%  FPR=  0.0%  TP=188  FN= 12  FP=  0  TN=200  attacks=5
+
+  Lowest Bypass Rate (active): deberta_finetuned (Bypass=6.0%, TrueASR=2.5%)
+  Highest Bypass Rate (active): keyword (Bypass=96.0%, TrueASR=47.5%)
+
+2. SIDE EFFECTS & FALSE POSITIVES
+----------------------------------------
+  baseline                  edge_FPR=0%  blocked 0/80 edge prompts
+  context_aware             edge_FPR=59%  blocked 47/80 edge prompts
+  context_aware_learned     edge_FPR=40%  blocked 32/80 edge prompts
+  deberta_finetuned         edge_FPR=71%  blocked 57/80 edge prompts
+  keyword                   edge_FPR=0%  blocked 0/80 edge prompts
+  regex                     edge_FPR=2%  blocked 2/80 edge prompts
+  similarity_only           edge_FPR=59%  blocked 47/80 edge prompts
+
+  Highest edge-case FPR among listed gates: deberta_finetuned (71% - 57/80 technical benign).
+
+3. PARAPHRASE ROBUSTNESS
+----------------------------------------
+  (n=200 test injections; 181/200 changed surface form; synonym=62, llm_fallback=119)
+  baseline                  orig=100.0%  para=100.0%  Δ=+0.0% unchanged
+  context_aware             orig=28.5%  para=35.5%  Δ=+7.0% WORSE (+)
+  context_aware_learned     orig=44.5%  para=51.0%  Δ=+6.5% WORSE (+)
+  deberta_finetuned         orig=6.0%  para=22.5%  Δ=+16.5% WORSE (+)
+  keyword                   orig=96.0%  para=98.5%  Δ=+2.5% WORSE (+)
+  regex                     orig=76.0%  para=86.5%  Δ=+10.5% WORSE (+)
+  similarity_only           orig=33.5%  para=37.0%  Δ=+3.5% WORSE (+)
+
+  Bypass Rate rises under this paraphrase probe for: context_aware, context_aware_learned, deberta_finetuned, keyword, regex, similarity_only.
+
+4. ADAPTIVE ATTACKS ROBUSTNESS (FLAN-T5 + similarity evasion)
+----------------------------------------
+  baseline                  Bypass=100.0%  TrueASR= 42.6%  blocked 0/1200 attacks
+  regex                     Bypass= 92.1%  TrueASR= 39.1%  blocked 95/1200 attacks
+  keyword                   Bypass= 98.6%  TrueASR= 42.1%  blocked 17/1200 attacks
+  context_aware             Bypass= 51.8%  TrueASR= 18.6%  blocked 579/1200 attacks
+  context_aware_learned     Bypass= 66.3%  TrueASR= 24.9%  blocked 404/1200 attacks
+  similarity_only           Bypass= 54.3%  TrueASR= 19.7%  blocked 548/1200 attacks
+  deberta_finetuned         Bypass= 49.9%  TrueASR= 18.6%  blocked 601/1200 attacks
+
+  Adaptive texts: FLAN-T5-Base style rewrites (roleplay/research/hypothetical/
+  indirect/multistep) plus a similarity-evasion rewrite that minimizes max
+  MiniLM cosine to the train injection gallery (filter-targeting attacker).
+  Pipeline: sanitizer -> Qwen/Qwen2.5-3B-Instruct -> judge (Qwen/Qwen2.5-3B-Instruct,
+  separately loaded same checkpoint). See robustness_adaptive_by_style.csv.
+  Numbers are from this suite CSV only.
+
+5. NOTES
+----------------------------------------
+  - True ASR can be lower than Bypass Rate when the target refuses
+    an allowed injection (Layer 2 refusals without gate help).
+  - Qualitative miss patterns are not auto-derived here; see suite
+    logs / paper discussion for examples.
+
+6. REPRODUCIBILITY
+----------------------------------------
+  Fixed seed: 42 (numpy/random; also torch/transformers when used).
+  Gate metrics are deterministic given fixed auxiliaries/thresholds/split.
+  True ASR also depends on Qwen/Qwen2.5-3B-Instruct generations and
+  Qwen/Qwen2.5-3B-Instruct judgments (same checkpoint, separate load).
+==============================================================

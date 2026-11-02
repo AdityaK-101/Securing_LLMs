@@ -15,7 +15,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import pickle
+import time
 from pathlib import Path
 from typing import Iterable
 
@@ -223,14 +225,36 @@ class FeatureCache:
         )
 
     def save(self) -> None:
+        """Atomic-ish pickle write; resilient to Windows file locks (WinError 5)."""
+        import time
+
         payload = {
             "embeddings": self.embeddings,
             "raw_ppl": self.raw_ppl,
         }
-        tmp = self.path.with_suffix(".pkl.tmp")
+        tmp = self.path.with_suffix(self.path.suffix + ".tmp")
         with open(tmp, "wb") as handle:
             pickle.dump(payload, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        tmp.replace(self.path)
+        last_err: Exception | None = None
+        for attempt in range(8):
+            try:
+                os.replace(tmp, self.path)
+                return
+            except PermissionError as exc:
+                last_err = exc
+                time.sleep(0.05 * (attempt + 1))
+            except OSError as exc:
+                last_err = exc
+                time.sleep(0.05 * (attempt + 1))
+        # Keep going with in-memory cache; disk may catch up on a later save.
+        print(
+            f"[FeatureCache] Warning: could not replace {self.path} "
+            f"({last_err}); continuing with in-memory features."
+        )
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
 
     def get_embedding(self, prompt: str) -> np.ndarray | None:
         return self.embeddings.get(prompt_key(prompt))
@@ -266,7 +290,8 @@ class FeatureCache:
             for prompt, vec in zip(batch, emb):
                 self.embeddings[prompt_key(prompt)] = np.asarray(vec, dtype=np.float32)
             done += len(batch)
-            if done % save_every < batch_size:
+            # Save periodically (not every one-off encode during filter lookup).
+            if done % save_every == 0:
                 self.save()
         self.save()
 

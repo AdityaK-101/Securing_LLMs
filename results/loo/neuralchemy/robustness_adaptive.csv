@@ -1,0 +1,8 @@
+method,Bypass_Rate_%,True_ASR_%,FPR_%,TP,FN,FP,TN,successful_attack_count,injections,benign
+baseline,100.0,42.0,0.0,0,1200,0,0,504,1200,0
+regex,94.92,40.0,0.0,61,1139,0,0,480,1200,0
+keyword,99.17,41.58,0.0,10,1190,0,0,499,1200,0
+context_aware,37.17,8.83,0.0,754,446,0,0,106,1200,0
+context_aware_learned,57.25,21.75,0.0,513,687,0,0,261,1200,0
+similarity_only,27.83,5.08,0.0,866,334,0,0,61,1200,0
+deberta_finetuned,11.92,1.67,0.0,1057,143,0,0,20,1200,0
