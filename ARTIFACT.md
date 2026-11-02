@@ -56,7 +56,7 @@ Mean ms/prompt on CPU, 50 prompts (`results/suite_b/runtime_overhead.csv`):
 |------|------|---------|
 | `--no-llm` suite / ablations | Sanitizer-only Bypass / FPR | minutes |
 | Full suite A or B | Target + judge on test + robustness | hours (GPU helps) |
-| `--loo` (5 folds) | Main + paraphrase / edge / adaptive per fold | many hours (GPU; default OutcomeCache / FeatureCache under `results/prompt_cache/` — resume-safe; `--llm-batch-size`, `--loo-adaptive-max`, `--loo-skip-robustness` to trim) |
+| `--loo` (5 folds) | Main + paraphrase / edge / adaptive per fold | **complete** in `results/loo/`; re-run resumes (GPU; caches under `results/prompt_cache/loo/`; `--rerun` to redo; `--llm-batch-size`, `--loo-adaptive-max`, `--loo-skip-robustness` to trim) |
 | Portable gates | Gate-only; reuse suite logs for True ASR | minutes–tens of minutes |
 | `--matched-fpr` | Val-tuned FPR≤5% score compare (+ optional DeBERTa FT) | tens of minutes–hours |
 | Judge human score | Offline CSV compare | seconds |
@@ -76,7 +76,7 @@ Committed `results/` tables match the paper. Re-run full LLM suites only if you 
 | Paraphrase robustness | `results/robustness_paraphrase_test.csv` (expanded synonyms + LLM fallback; re-run after probe change) |
 | Judge human validation | `results/judge_human_validation/metrics_summary.txt` |
 | A vs B matched comparison | `results/ab_comparison_metrics.csv` |
-| Source-holdout (mentor LOO) | `data/splits/source_holdout/`, gate scores in `results/source_holdout/` (re-run `eval_loo_holdout.py` after rebuilding splits); full LLM+robustness under `results/loo/` via `python -m src.run_experiments --loo` |
+| Source-holdout (mentor LOO) | **Complete:** `results/loo/summary.csv` + `robustness_*_summary.csv` (see `results/loo/README.md`, root README §6.0). Splits: `data/splits/source_holdout/`. Gate-only (optional): `results/source_holdout/` via `eval_loo_holdout.py` |
 
 ## Reproduce entry points
 
