@@ -1,0 +1,8 @@
+fold,method,edge_FPR,blocked_count,total
+bravansky,baseline,0.0,0,80
+bravansky,context_aware,0.9625,77,80
+bravansky,context_aware_learned,0.2125,17,80
+bravansky,deberta_finetuned,0.55,44,80
+bravansky,keyword,0.625,50,80
+bravansky,regex,0.025,2,80
+bravansky,similarity_only,0.15,12,80

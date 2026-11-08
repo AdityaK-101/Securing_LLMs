@@ -1,0 +1,6 @@
+fold,train_chatgpt_benign,train_prompt_injection_benign,val_chatgpt_benign,val_prompt_injection_benign,fit_benign_total
+simsonsun,21,19,6,4,50
+mpdd,25,15,4,6,50
+prompt_injection,40,0,10,0,50
+bravansky,19,21,2,8,50
+neuralchemy,19,21,5,5,50

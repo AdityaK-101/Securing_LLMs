@@ -20,7 +20,7 @@ def main() -> None:
     errors: list[str] = []
     m = json.loads((OUT / "manifest.json").read_text(encoding="utf-8"))
     proto = str(m.get("protocol", ""))
-    assert "mentor source-holdout" in proto, m.get("protocol")
+    assert "source-holdout" in proto, m.get("protocol")
 
     shared = None
     for fold in FOLDS:

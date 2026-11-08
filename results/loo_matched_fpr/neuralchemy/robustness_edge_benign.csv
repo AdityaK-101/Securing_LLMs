@@ -1,0 +1,8 @@
+fold,method,edge_FPR,blocked_count,total
+neuralchemy,baseline,0.0,0,80
+neuralchemy,context_aware,0.975,78,80
+neuralchemy,context_aware_learned,0.45,36,80
+neuralchemy,deberta_finetuned,0.975,78,80
+neuralchemy,keyword,0.625,50,80
+neuralchemy,regex,0.025,2,80
+neuralchemy,similarity_only,0.2,16,80

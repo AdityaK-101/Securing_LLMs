@@ -4,7 +4,7 @@
 
 HARDWARE
 ----------------------------------------
-  Platform : Windows-11-10.0.26200-SP0
+  Platform : Windows-11-10.0.26300-SP0
   Python   : 3.13.7
   CPU      : Intel64 Family 6 Model 170 Stepping 4, GenuineIntel
   CPU cores: 22
@@ -24,11 +24,11 @@ SETTINGS
 
 LATENCY (ms per prompt)
 ----------------------------------------
-  minilm_semantic               mean=   20.98  median=   17.41  p95=   35.61  n=50
-  distilgpt2_perplexity         mean=   45.03  median=   29.09  p95=  111.36  n=50
-  method_a_full_sanitize        mean=   64.78  median=   46.68  p95=  147.04  n=50
-  regex_sanitize                mean=    0.22  median=    0.07  p95=    0.78  n=50
-  keyword_sanitize              mean=    0.02  median=    0.01  p95=    0.05  n=50
-  minilm_plus_distilgpt2        mean=   66.00  median=   45.98  p95=  146.42  n=50
+  minilm_semantic               mean=   18.00  median=   14.58  p95=   30.16  n=50
+  distilgpt2_perplexity         mean=   44.45  median=   27.40  p95=  128.23  n=50
+  method_a_full_sanitize        mean=   61.52  median=   41.89  p95=  151.96  n=50
+  regex_sanitize                mean=    0.24  median=    0.07  p95=    0.96  n=50
+  keyword_sanitize              mean=    0.02  median=    0.01  p95=    0.06  n=50
+  minilm_plus_distilgpt2        mean=   62.45  median=   41.99  p95=  159.94  n=50
 
 ==============================================================

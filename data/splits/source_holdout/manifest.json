@@ -1,6 +1,6 @@
 {
   "seed": 42,
-  "protocol": "final mentor source-holdout (fully uniform + raw)",
+  "protocol": "final source-holdout (fully uniform + raw)",
   "output_dir": "data/splits/source_holdout",
   "built_by": "notebooks/build_source_holdout.ipynb",
   "rules": [

@@ -1,0 +1,8 @@
+fold,method,orig_Bypass_Rate,para_Bypass_Rate,Bypass_Rate_delta,n_prompts,changed_n,changed_n_synonym,changed_n_llm
+bravansky,baseline,1.0,1.0,0.0,200,199,133,66
+bravansky,context_aware,0.05,0.12,0.07,200,199,133,66
+bravansky,context_aware_learned,0.11,0.2,0.09,200,199,133,66
+bravansky,deberta_finetuned,0.0,0.045,0.045,200,199,133,66
+bravansky,keyword,0.485,0.655,0.17,200,199,133,66
+bravansky,regex,0.845,0.95,0.105,200,199,133,66
+bravansky,similarity_only,0.135,0.21,0.075,200,199,133,66

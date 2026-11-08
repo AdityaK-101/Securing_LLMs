@@ -1,7 +1,7 @@
 """Source-holdout helpers and loaders.
 
 Canonical **build** lives in ``notebooks/build_source_holdout.ipynb``
-(fully uniform mentor protocol). ``scripts/build_source_holdout.py`` and
+(fully uniform protocol). ``scripts/build_source_holdout.py`` and
 ``build_source_holdout()`` here only execute that notebook's code cells.
 
 This module owns loaders, near-dup filtering, and fold I/O helpers used by
@@ -472,7 +472,7 @@ def load_source_holdout(source: str, root: Path | None = None) -> tuple[pd.DataF
 
 
 def build_source_holdout(out_dir: Path | None = None) -> dict:
-    """Build the final mentor leave-one-source-out splits.
+    """Build the final leave-one-source-out splits.
 
     Canonical implementation: ``notebooks/build_source_holdout.ipynb``.
     This wrapper runs ``scripts/build_source_holdout.py``, which executes
@@ -484,7 +484,7 @@ def build_source_holdout(out_dir: Path | None = None) -> dict:
 
     if out_dir is not None and Path(out_dir).resolve() != SOURCE_HOLDOUT_DIR.resolve():
         raise ValueError(
-            f"Mentor holdout only writes to {SOURCE_HOLDOUT_DIR}; got {out_dir}. "
+            f"Source holdout only writes to {SOURCE_HOLDOUT_DIR}; got {out_dir}. "
             "Change OUT in notebooks/build_source_holdout.ipynb if you need another root."
         )
     script = PROJECT_ROOT / "scripts" / "build_source_holdout.py"

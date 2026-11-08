@@ -1,11 +1,15 @@
 """
-Matched false-positive-rate comparison (reviewer bFjj / mentor item 3).
+Mixed suite matched false-positive-rate comparison (combined-dataset random
+split; not LOO). Paper tables label this column ID.
 
 Tune each score-based filter on **validation** to the tightest threshold with
 val FPR ≤ ``target_fpr`` (default 5%), maximizing detection (minimizing Bypass).
 Then report Bypass / FPR on the held-out **test** set at that operating point.
 
 Also reports each method's **default** operating point for side-by-side contrast.
+
+For the **main LOO** report (FPR ≈ target per fold + full suite), use
+``loo_matched_fpr.run_loo_matched_fpr_study`` / ``--loo-matched-fpr``.
 
 Scoreable methods:
   keyword, context_aware (soft total), context_aware_learned,
@@ -46,6 +50,19 @@ def _prompts(df: pd.DataFrame) -> list[str]:
     return df["prompt"].astype(str).tolist()
 
 
+def _threshold_candidates(scores: np.ndarray, y: np.ndarray | None = None) -> np.ndarray:
+    scores = np.asarray(scores, dtype=float)
+    parts = [
+        scores,
+        np.linspace(float(scores.min()) - 1e-6, float(scores.max()) + 1e-6, 51),
+    ]
+    if y is not None:
+        ben = np.asarray(y, dtype=int) == 0
+        if ben.any():
+            parts.append(np.quantile(scores[ben], np.linspace(0, 1, 41)))
+    return np.unique(np.concatenate(parts))
+
+
 def tune_threshold_at_fpr(
     scores: np.ndarray,
     y: np.ndarray,
@@ -54,6 +71,8 @@ def tune_threshold_at_fpr(
     """
     Highest-threshold policy among those with FPR ≤ target_fpr that
     minimizes Bypass (maximizes TPR). Ties → lower FPR, then higher threshold.
+
+    Used by the mixed-split ``--matched-fpr`` study (FPR budget / cap).
     """
     scores = np.asarray(scores, dtype=float)
     y = np.asarray(y, dtype=int)
@@ -62,15 +81,7 @@ def tune_threshold_at_fpr(
     if not ben.any():
         return 0.5, {"fpr": 0.0, "bypass": 1.0, "detection": 0.0, "feasible": False}
 
-    candidates = np.unique(
-        np.concatenate(
-            [
-                scores,
-                np.linspace(float(scores.min()) - 1e-6, float(scores.max()) + 1e-6, 51),
-                np.quantile(scores[ben], np.linspace(0, 1, 41)),
-            ]
-        )
-    )
+    candidates = _threshold_candidates(scores, y)
     best_t = float(scores.max()) + 1.0  # block almost nothing if none feasible
     best = {
         "fpr": 1.0,
@@ -120,6 +131,79 @@ def tune_threshold_at_fpr(
                     "detection": 1.0 - bypass,
                     "feasible": False,
                 }
+    return best_t, best
+
+
+def tune_threshold_equal_fpr(
+    scores: np.ndarray,
+    y: np.ndarray,
+    target_fpr: float = DEFAULT_TARGET_FPR,
+) -> tuple[float, dict]:
+    """
+    Pick threshold whose **validation FPR is closest to** ``target_fpr`` (hit 5%).
+
+    Finite val sets rarely land on exactly 5.000%; minimize |FPR − target|.
+    Ties → higher detection (lower Bypass); then prefer FPR ≤ target; then
+    **lower** threshold (more sensitive; avoids fragile high cuts when val FPR
+    cannot reach the target, e.g. DeBERTa with val FPR stuck at 0%).
+    """
+    scores = np.asarray(scores, dtype=float)
+    y = np.asarray(y, dtype=int)
+    inj = y == 1
+    ben = y == 0
+    if not ben.any():
+        return 0.5, {
+            "fpr": 0.0,
+            "bypass": 1.0,
+            "detection": 0.0,
+            "fpr_gap": abs(0.0 - target_fpr),
+            "feasible": False,
+        }
+
+    candidates = _threshold_candidates(scores, y)
+    best_t = float(scores.max()) + 1.0
+    best = {
+        "fpr": 1.0,
+        "bypass": 1.0,
+        "detection": 0.0,
+        "fpr_gap": 1.0,
+        "feasible": False,
+    }
+    for t in sorted(candidates):
+        pred = scores >= t
+        fpr = float(pred[ben].mean()) if ben.any() else 0.0
+        bypass = float((~pred[inj]).mean()) if inj.any() else 0.0
+        detection = 1.0 - bypass
+        gap = abs(fpr - target_fpr)
+        better = (
+            not best["feasible"]
+            or gap < best["fpr_gap"] - 1e-12
+            or (
+                abs(gap - best["fpr_gap"]) <= 1e-12
+                and detection > best["detection"] + 1e-12
+            )
+            or (
+                abs(gap - best["fpr_gap"]) <= 1e-12
+                and abs(detection - best["detection"]) <= 1e-12
+                and fpr <= target_fpr + 1e-12
+                and best["fpr"] > target_fpr + 1e-12
+            )
+            or (
+                abs(gap - best["fpr_gap"]) <= 1e-12
+                and abs(detection - best["detection"]) <= 1e-12
+                and abs(fpr - best["fpr"]) <= 1e-12
+                and t < best_t - 1e-12
+            )
+        )
+        if better:
+            best_t = float(t)
+            best = {
+                "fpr": fpr,
+                "bypass": bypass,
+                "detection": detection,
+                "fpr_gap": gap,
+                "feasible": True,
+            }
     return best_t, best
 
 

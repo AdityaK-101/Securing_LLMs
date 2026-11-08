@@ -92,10 +92,14 @@ class ContextAwareSanitizer:
         disable_semantic_hard_trigger: bool = False,
         disable_intent_hard_trigger: bool = False,
         disable_roleplay_keyword_hard_trigger: bool = False,
+        semantic_hard_sim: float = 0.3,
         feature_cache=None,
         _skip_train: bool = False,
     ):
         self.threshold = threshold
+        # Raw MiniLM max-cosine cut for the semantic hard trigger (default 0.3).
+        # At default, matches legacy behavior: sim > 0.3 → stepped 0.7 → hard fire.
+        self.semantic_hard_sim = float(semantic_hard_sim)
         self._disable_regex = disable_regex
         self._disable_keyword = disable_keyword
         self._disable_semantic = disable_semantic
@@ -258,25 +262,12 @@ class ContextAwareSanitizer:
     def _keyword_signal(self, prompt: str) -> float:
         return min(self._kw_san.score(prompt), 1.0)
 
-    def _semantic_signal(self, prompt: str) -> float:
-        """Stepped cosine similarity using MiniLM embeddings.
-
-        Encodes the input prompt with the same MiniLM model used at init,
-        then computes cosine similarity against all cached injection embeddings.
-        Uses the max similarity (closest known injection) and maps to stepped
-        risk buckets:
-
-        High sim (>0.5) = definite injection vocabulary  → 1.0
-        Mid  sim (>0.3) = probable injection vocabulary  → 0.7
-        Low  sim (>0.2) = ambiguous                      → 0.5
-        Below 0.2       = likely benign                  → 0.0
-
-        Falls back to 0.0 if embedding model is unavailable.
-        """
+    def _max_cosine(self, prompt: str) -> float | None:
+        """Raw max MiniLM cosine to the train injection gallery, or None if unavailable."""
         if self._injection_embeddings is None:
-            return 0.0
+            return None
         if self._embed_model is None and self._feature_cache is None:
-            return 0.0
+            return None
         try:
             from numpy.linalg import norm
 
@@ -292,25 +283,35 @@ class ContextAwareSanitizer:
                     [prompt], convert_to_numpy=True, show_progress_bar=False
                 )
             else:
-                return 0.0
-            # Cosine similarity: dot product of normalized vectors
+                return None
             prompt_norm = prompt_emb / (norm(prompt_emb, axis=1, keepdims=True) + 1e-10)
             inj_norm = self._injection_embeddings / (
                 norm(self._injection_embeddings, axis=1, keepdims=True) + 1e-10
             )
             similarities = np.dot(inj_norm, prompt_norm.T).flatten()
-            sim = float(similarities.max())
-
-            if sim > 0.5:
-                return 1.0
-            elif sim > 0.3:
-                return 0.7
-            elif sim > 0.2:
-                return 0.5
-            else:
-                return 0.0
+            return float(similarities.max())
         except Exception:
+            return None
+
+    def _semantic_signal(self, prompt: str) -> float:
+        """Stepped cosine similarity using MiniLM embeddings.
+
+        Soft-score buckets (fixed; not part of matched-FPR retuning):
+        High sim (>0.5) → 1.0; mid (>0.3) → 0.7; low (>0.2) → 0.5; else 0.0.
+
+        The semantic **hard trigger** uses ``semantic_hard_sim`` on raw cosine
+        (default 0.3), not these bucket edges.
+        """
+        sim = self._max_cosine(prompt)
+        if sim is None:
             return 0.0
+        if sim > 0.5:
+            return 1.0
+        if sim > 0.3:
+            return 0.7
+        if sim > 0.2:
+            return 0.5
+        return 0.0
 
     def _perplexity_signal(self, prompt: str) -> float:
         """Perplexity-based naturalness signal using distilgpt2.
@@ -396,7 +397,20 @@ class ContextAwareSanitizer:
     def score(self, prompt: str) -> dict:
         r   = 0.0 if self._disable_regex else self._regex_signal(prompt)
         k   = 0.0 if self._disable_keyword else self._keyword_signal(prompt)
-        s   = 0.0 if self._disable_semantic else self._semantic_signal(prompt)
+        raw = None if self._disable_semantic else self._max_cosine(prompt)
+        if self._disable_semantic or raw is None:
+            s = 0.0
+            raw_sim = 0.0
+        else:
+            raw_sim = float(raw)
+            if raw_sim > 0.5:
+                s = 1.0
+            elif raw_sim > 0.3:
+                s = 0.7
+            elif raw_sim > 0.2:
+                s = 0.5
+            else:
+                s = 0.0
         i   = 0.0 if self._disable_intent else self._intent_signal(prompt)
         rp  = 0.0 if self._disable_roleplay else self._roleplay_signal(prompt)
         sh  = 0.0 if self._disable_instruction_shift else self._instruction_shift_signal(prompt)
@@ -405,6 +419,7 @@ class ContextAwareSanitizer:
         total = (W1*r + W2*k + W3*s + W4*i + W5*rp + W6*sh + W7*obj + W8*ppl)
         return {
             "regex": r, "keyword": k, "semantic": s,
+            "semantic_raw": raw_sim,
             "intent": i, "roleplay": rp, "shift": sh,
             "objective_conflict": obj, "perplexity": ppl, "total": total,
         }
@@ -416,7 +431,7 @@ class ContextAwareSanitizer:
         if (
             not self._disable_semantic_hard_trigger
             and not self._disable_semantic
-            and signals["semantic"] > 0.6
+            and float(signals.get("semantic_raw", 0.0)) > self.semantic_hard_sim
         ):
             return True
         if (
@@ -435,6 +450,46 @@ class ContextAwareSanitizer:
             return True
         return False
 
+    def decide_blocked(
+        self,
+        signals: dict,
+        *,
+        soft_threshold: float | None = None,
+        semantic_hard_sim: float | None = None,
+    ) -> bool:
+        """Block decision from precomputed ``score()`` signals (for threshold sweeps)."""
+        thr = self.threshold if soft_threshold is None else float(soft_threshold)
+        hard_sim = (
+            self.semantic_hard_sim
+            if semantic_hard_sim is None
+            else float(semantic_hard_sim)
+        )
+        if self._disable_hard_triggers:
+            hard = False
+        else:
+            hard = False
+            if (
+                not self._disable_semantic_hard_trigger
+                and not self._disable_semantic
+                and float(signals.get("semantic_raw", 0.0)) > hard_sim
+            ):
+                hard = True
+            elif (
+                not self._disable_intent_hard_trigger
+                and not self._disable_intent
+                and signals["intent"] == 1.0
+            ):
+                hard = True
+            elif (
+                not self._disable_roleplay_keyword_hard_trigger
+                and not self._disable_roleplay
+                and not self._disable_keyword
+                and signals["roleplay"] == 1.0
+                and signals["keyword"] > 0.3
+            ):
+                hard = True
+        return bool(hard or float(signals["total"]) >= thr)
+
     def injection_score(self, prompt: str) -> float:
         """Soft aggregate score (no hard triggers) for matched-FPR retuning."""
         return float(self.score(prompt)["total"])
@@ -443,12 +498,11 @@ class ContextAwareSanitizer:
         signals = self.score(prompt)
 
         # Hard triggers: strong individual signals bypass soft total.
-        # semantic > 0.6: MiniLM cosine similarity clearly matches known injections.
+        # semantic_raw > semantic_hard_sim (default 0.3): gallery cosine match.
         # intent == 1.0: structural injection pattern found by regex.
         # roleplay + keyword combo: roleplay frame with suspicious keywords.
         # No hard trigger for perplexity — it is a supplementary naturalness
         # signal, not discriminative enough alone for hard blocking.
-        # Individual hard triggers and disable_hard_triggers can bypass these rules.
         blocked = self._hard_trigger_blocked(signals) or signals["total"] >= self.threshold
 
         sanitized = "[PROMPT BLOCKED — CONTEXT ANALYSIS]" if blocked else prompt
@@ -456,6 +510,7 @@ class ContextAwareSanitizer:
 
     _CONFIG_KEYS = (
         "threshold",
+        "semantic_hard_sim",
         "disable_regex",
         "disable_keyword",
         "disable_semantic",
@@ -487,9 +542,13 @@ class ContextAwareSanitizer:
         clone._ppl_low = self._ppl_low
         clone._ppl_high = self._ppl_high
         clone._device = self._device
+        clone._feature_cache = getattr(self, "_feature_cache", None)
 
         for key in self._CONFIG_KEYS:
-            attr = key if key == "threshold" else f"_{key}"
+            if key in ("threshold", "semantic_hard_sim"):
+                attr = key
+            else:
+                attr = f"_{key}"
             default = getattr(self, attr)
             setattr(clone, attr, overrides.get(key, default))
 

@@ -1,6 +1,6 @@
 {
   "hardware": {
-    "platform": "Windows-11-10.0.26200-SP0",
+    "platform": "Windows-11-10.0.26300-SP0",
     "python": "3.13.7",
     "processor": "Intel64 Family 6 Model 170 Stepping 4, GenuineIntel",
     "cpu_count_logical": 22,
@@ -25,72 +25,72 @@
       "device": "cpu",
       "path": "ContextAwareSanitizer._semantic_signal",
       "n": 50,
-      "mean_ms": 20.977,
-      "median_ms": 17.415,
-      "p95_ms": 35.611,
-      "std_ms": 6.925,
-      "min_ms": 14.994,
-      "max_ms": 38.305
+      "mean_ms": 17.998,
+      "median_ms": 14.576,
+      "p95_ms": 30.16,
+      "std_ms": 6.135,
+      "min_ms": 12.571,
+      "max_ms": 33.35
     },
     "distilgpt2_perplexity": {
       "model": "distilgpt2",
       "device": "cpu",
       "path": "ContextAwareSanitizer._perplexity_signal",
       "n": 50,
-      "mean_ms": 45.028,
-      "median_ms": 29.095,
-      "p95_ms": 111.359,
-      "std_ms": 37.333,
-      "min_ms": 21.808,
-      "max_ms": 205.398
+      "mean_ms": 44.453,
+      "median_ms": 27.397,
+      "p95_ms": 128.227,
+      "std_ms": 37.72,
+      "min_ms": 18.667,
+      "max_ms": 205.936
     },
     "method_a_full_sanitize": {
       "model": "context_aware (all 8 signals + hard triggers)",
       "device": "cpu",
       "path": "ContextAwareSanitizer.sanitize",
       "n": 50,
-      "mean_ms": 64.785,
-      "median_ms": 46.678,
-      "p95_ms": 147.037,
-      "std_ms": 42.943,
-      "min_ms": 37.238,
-      "max_ms": 236.746
+      "mean_ms": 61.522,
+      "median_ms": 41.892,
+      "p95_ms": 151.96,
+      "std_ms": 41.705,
+      "min_ms": 31.754,
+      "max_ms": 219.986
     },
     "regex_sanitize": {
       "model": "regex",
       "device": "cpu",
       "path": "RegexSanitizer.sanitize",
       "n": 50,
-      "mean_ms": 0.216,
-      "median_ms": 0.07,
-      "p95_ms": 0.777,
-      "std_ms": 0.334,
-      "min_ms": 0.038,
-      "max_ms": 1.873
+      "mean_ms": 0.244,
+      "median_ms": 0.075,
+      "p95_ms": 0.958,
+      "std_ms": 0.356,
+      "min_ms": 0.047,
+      "max_ms": 1.956
     },
     "keyword_sanitize": {
       "model": "keyword",
       "device": "cpu",
       "path": "KeywordHeuristicSanitizer.sanitize",
       "n": 50,
-      "mean_ms": 0.022,
-      "median_ms": 0.014,
-      "p95_ms": 0.051,
+      "mean_ms": 0.021,
+      "median_ms": 0.013,
+      "p95_ms": 0.057,
       "std_ms": 0.018,
       "min_ms": 0.009,
-      "max_ms": 0.108
+      "max_ms": 0.104
     },
     "minilm_plus_distilgpt2": {
       "model": "MiniLM + DistilGPT-2 (sum of separate timings)",
       "device": "cpu",
       "path": "_semantic_signal + _perplexity_signal",
       "n": 50,
-      "mean_ms": 66.005,
-      "median_ms": 45.977,
-      "p95_ms": 146.42,
-      "std_ms": 43.876,
-      "min_ms": 36.845,
-      "max_ms": 243.703
+      "mean_ms": 62.452,
+      "median_ms": 41.992,
+      "p95_ms": 159.935,
+      "std_ms": 43.445,
+      "min_ms": 31.668,
+      "max_ms": 239.027
     }
   }
 }

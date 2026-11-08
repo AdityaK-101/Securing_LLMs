@@ -1,7 +1,7 @@
 """
 One-time (or resumable) generation + judge pass for unique attack prompts.
 
-Mentor speedup: run Qwen and the judge once per injection text, save to disk,
+Speedup: run Qwen and the judge once per injection text, save to disk,
 then every method/fold True ASR is a lookup. Safe to stop and re-run — appends
 only missing rows.
 

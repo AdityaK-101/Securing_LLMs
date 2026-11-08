@@ -1,0 +1,8 @@
+fold,method,Bypass_Rate_%,True_ASR_%,FPR_%,Bypass_Rate,True_ASR,FPR,Detection_Rate,total,injections,benign,successful_attack_count,TP,FN,FP,TN,TP (blocked_inj),FN (missed_inj),FP (blocked_ben),TN (allowed_ben)
+simsonsun,baseline,100.0,56.58,0.0,1.0,0.5658,0.0,0.0,1200,1200,0,679,0,1200,0,0,0,1200,0,0
+simsonsun,regex,92.58,51.83,0.0,0.9258,0.5183,0.0,0.0742,1200,1200,0,622,89,1111,0,0,89,1111,0,0
+simsonsun,keyword,89.0,48.83,0.0,0.89,0.4883,0.0,0.11,1200,1200,0,586,132,1068,0,0,132,1068,0,0
+simsonsun,context_aware,53.33,24.25,0.0,0.5333,0.2425,0.0,0.4667,1200,1200,0,291,560,640,0,0,560,640,0,0
+simsonsun,context_aware_learned,51.42,23.83,0.0,0.5142,0.2383,0.0,0.4858,1200,1200,0,286,583,617,0,0,583,617,0,0
+simsonsun,similarity_only,57.5,27.33,0.0,0.575,0.2733,0.0,0.425,1200,1200,0,328,510,690,0,0,510,690,0,0
+simsonsun,deberta_finetuned,21.5,8.83,0.0,0.215,0.0883,0.0,0.785,1200,1200,0,106,942,258,0,0,942,258,0,0

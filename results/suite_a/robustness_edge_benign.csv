@@ -1,5 +1,7 @@
 method,edge_FPR,blocked_count,total
 baseline,0.0,0,80
-context_aware,0.3625,29,80
+context_aware,0.525,42,80
+deberta_finetuned,0.575,46,80
 keyword,0.0,0,80
 regex,0.025,2,80
+similarity_only,0.15,12,80

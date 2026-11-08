@@ -56,9 +56,10 @@ Mean ms/prompt on CPU, 50 prompts (`results/suite_b/runtime_overhead.csv`):
 |------|------|---------|
 | `--no-llm` suite / ablations | Sanitizer-only Bypass / FPR | minutes |
 | Full suite A or B | Target + judge on test + robustness | hours (GPU helps) |
-| `--loo` (5 folds) | Main + paraphrase / edge / adaptive per fold | **complete** in `results/loo/`; re-run resumes (GPU; caches under `results/prompt_cache/loo/`; `--rerun` to redo; `--llm-batch-size`, `--loo-adaptive-max`, `--loo-skip-robustness` to trim) |
+| `--loo-matched-fpr` | Main LOO: val FPR≈5% + full suite + curves | hours (GPU; writes `results/loo_matched_fpr/`; reuses `results/prompt_cache/loo/` + `results/loo/*/adaptive_attacks.jsonl`) |
+| `--loo` (5 folds) | Default/F1 LOO + paraphrase / edge / adaptive | **complete** in `results/loo/` (contrast); resume-safe; `--rerun` to redo |
 | Portable gates | Gate-only; reuse suite logs for True ASR | minutes–tens of minutes |
-| `--matched-fpr` | Val-tuned FPR≤5% score compare (+ optional DeBERTa FT) | tens of minutes–hours |
+| `--matched-fpr` | Mixed suite matched-FPR (combined split, FPR≤5%; not LOO) | tens of minutes–hours |
 | Judge human score | Offline CSV compare | seconds |
 
 Committed `results/` tables match the paper. Re-run full LLM suites only if you change methods or data.
@@ -69,15 +70,21 @@ Committed `results/` tables match the paper. Re-run full LLM suites only if you 
 
 | Paper table / section | Artifact path(s) |
 |-----------------------|------------------|
-| Main comparison (Table 1) | `results/suite_a/metrics.csv`, `results/suite_b/metrics.csv`, `results/protectai/metrics.csv`, `results/prompt_guard/metrics.csv` (suites include `similarity_only` + `deberta_finetuned`) |
-| Matched-FPR fair baselines | `results/matched_fpr/metrics.csv` (`python -m src.run_experiments --matched-fpr` or `scripts/eval_matched_fpr.py`) |
-| Ablation (Table 2) | `results/hard_trigger_ablation.csv`, `results/learned_ablation_metrics.csv`, `results/weighted_ablation_metrics.csv` |
-| Adaptive rewriting (Table 3) | `results/suite_a/robustness_adaptive.csv`, `results/suite_a/robustness_adaptive_by_style.csv` (incl. `similarity_evasion`), `results/protectai/adaptive_metrics.csv`, `results/prompt_guard/adaptive_metrics.csv` |
-| Paraphrase robustness | `results/robustness_paraphrase_test.csv` (expanded synonyms + LLM fallback; re-run after probe change) |
+| **Main holdout (cite first)** | `results/loo_matched_fpr/PAPER_TABLES.md` (mixed suite matched-FPR / ID vs LOO-4 vs Neuralchemy, Wilson, ProtectAI / Prompt Guard 2, dedup, train-benign) |
+| LOO matched-FPR suite | `results/loo_matched_fpr/` — `python scripts/run_paper.py` or `--loo-matched-fpr` |
+| Mixed suite matched-FPR (**ID** column) | `results/matched_fpr/metrics.csv` |
+| Default-thr LOO (contrast) | `results/loo/` |
+| Mixed suite (archived v2.0) | `results/suite_a/`, `results/suite_b/`, `results/protectai/`, `results/prompt_guard/` |
+| Ablation (Table 2) | `results/hard_trigger_ablation.csv`, `learned_ablation_metrics.csv`, `weighted_ablation_metrics.csv` |
+| Adaptive (LOO) | `results/loo_matched_fpr/robustness_adaptive_summary.csv` (main); `results/loo/` (contrast) |
 | Judge human validation | `results/judge_human_validation/metrics_summary.txt` |
-| A vs B matched comparison | `results/ab_comparison_metrics.csv` |
-| Source-holdout (mentor LOO) | **Complete:** `results/loo/summary.csv` + `robustness_*_summary.csv` (see `results/loo/README.md`, root README §6.0). Splits: `data/splits/source_holdout/`. Gate-only (optional): `results/source_holdout/` via `eval_loo_holdout.py` |
+| Index / folder map | `results/PAPER.md`, `results/README.md` |
 
 ## Reproduce entry points
 
-See `README.md` § “Reproduce paper tables” and `scripts/reproduce.ps1` / `scripts/reproduce.sh`.
+```powershell
+python scripts/run_paper.py              # core paper holdout
+python scripts/run_paper.py --mode full  # + suites / ablations / judge HV
+```
+
+Also: `README.md` §9–§10, `scripts/README.md`. Gate-only smoke: `scripts/reproduce.ps1`.

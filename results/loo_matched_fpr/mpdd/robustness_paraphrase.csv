@@ -1,0 +1,8 @@
+fold,method,orig_Bypass_Rate,para_Bypass_Rate,Bypass_Rate_delta,n_prompts,changed_n,changed_n_synonym,changed_n_llm
+mpdd,baseline,1.0,1.0,0.0,200,181,62,119
+mpdd,context_aware,0.48,0.615,0.135,200,181,62,119
+mpdd,context_aware_learned,0.765,0.845,0.08,200,181,62,119
+mpdd,deberta_finetuned,0.055,0.195,0.14,200,181,62,119
+mpdd,keyword,0.65,0.87,0.22,200,181,62,119
+mpdd,regex,0.76,0.865,0.105,200,181,62,119
+mpdd,similarity_only,0.765,0.815,0.05,200,181,62,119

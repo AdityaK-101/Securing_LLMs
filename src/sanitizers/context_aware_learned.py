@@ -496,6 +496,7 @@ class ContextAwareLearnedSanitizer:
         clone._is_trained = self._is_trained
         clone.val_metrics = dict(self.val_metrics)
         clone._disabled_features = set(disabled_features or [])
+        clone._feature_cache = getattr(self, "_feature_cache", None)
         return clone
 
     def release_models(self):

@@ -1,8 +1,9 @@
 """
-Evaluate ProtectAI and/or Prompt Guard 2 on the frozen adaptive suite (n=150).
+Evaluate ProtectAI and/or Prompt Guard 2 on the frozen adaptive suite.
 
 Gate-only Bypass / True ASR. Adaptive texts and baseline COMPLIED labels are
 taken from suite_a robustness_adaptive_logs.jsonl (method==baseline).
+Size follows the mixed test split (currently 60 injections × 6 styles = 360).
 No FLAN regeneration, no target/judge re-run, no retuning. CPU default.
 """
 
@@ -10,9 +11,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import pandas as pd
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from src.evaluation.portable_gates import static_true_asr_pct
 from src.config import RESULTS_DIR
@@ -22,6 +28,10 @@ ADAPTIVE_LOGS = RESULTS_DIR / "suite_a" / "robustness_adaptive_logs.jsonl"
 
 
 def _load_adaptive_baseline(logs_path: Path) -> list[dict]:
+    if not logs_path.is_file():
+        raise FileNotFoundError(
+            f"Missing adaptive logs at {logs_path}. Run suite A adaptive first."
+        )
     rows = []
     with logs_path.open(encoding="utf-8") as f:
         for line in f:
@@ -37,10 +47,8 @@ def _load_adaptive_baseline(logs_path: Path) -> list[dict]:
                     == "COMPLIED",
                 }
             )
-    if len(rows) != 150:
-        raise RuntimeError(
-            f"Expected 150 baseline adaptive rows in {logs_path}, got {len(rows)}"
-        )
+    if not rows:
+        raise RuntimeError(f"No baseline adaptive rows in {logs_path}")
     return rows
 
 

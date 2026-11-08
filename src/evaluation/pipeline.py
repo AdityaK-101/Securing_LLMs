@@ -51,7 +51,7 @@ def run_cached_lookup_pipeline(
     items_total: Optional[int] = None,
 ) -> list:
     """
-    Mentor speedup path:
+    Speedup path:
 
     - Collect unique *injection* prompts; generate all greedy replies once;
       unload Qwen; judge all; save to ``outcome_cache`` as you go.
@@ -224,7 +224,7 @@ def run_two_phase_pipeline(
             sanitized, blocked = san.sanitize(prompt)
 
             if not is_injection:
-                # Benign prompts only need filters (mentor speedup)
+                # Benign prompts only need filters (speedup)
                 llm_output = "[BENIGN_NO_LLM]"
                 judge_label = "N/A"
                 judge_reasoning = ""

@@ -7,7 +7,7 @@ In-distribution (mixed)
     v2.0 350 archived under ``data/cleaned/legacy/`` and
     ``data/splits/legacy_v2.0_350/``.
 
-Source holdout (mentor)
+Source holdout
     ``data/splits/source_holdout/<source>/{train,val,test}.csv``
     Built by ``notebooks/build_source_holdout.ipynb`` (CLI wrapper:
     ``scripts/build_source_holdout.py``). Fully uniform four-source folds

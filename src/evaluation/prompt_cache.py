@@ -1,5 +1,14 @@
 """
-Shared prompt caches for the mentor speedup path.
+Shared prompt caches for the speedup path.
+
+Resume policy (all pipelines — suite, LOO, LOO matched-FPR, ablations):
+
+  - Reuse **only** cached generations when present: Qwen replies, judge labels,
+    MiniLM/PPL features, and FLAN adaptive attack texts.
+  - **Never** skip filter scoring or metrics because a ``metrics.csv`` already
+    exists. Filters / thresholds / Bypass / FPR always recompute.
+  - Pass ``--no-outcome-cache`` (or ``--rerun``, alias) to regenerate Qwen/judge
+    instead of looking up ``results/prompt_cache/``.
 
 1. OutcomeCache — greedy target-LLM reply + judge label, once per attack prompt.
    True ASR for every method/fold is then a lookup (decoding does not depend on
@@ -8,7 +17,7 @@ Shared prompt caches for the mentor speedup path.
 2. FeatureCache — MiniLM embedding + raw DistilGPT-2 perplexity once per prompt,
    reused across folds (gallery / PPL calibration still fold-specific).
 
-Both caches append to disk as they go so a crash can resume.
+Both caches append to disk as they go so a crash can resume generation only.
 """
 
 from __future__ import annotations

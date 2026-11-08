@@ -17,6 +17,7 @@ from .ablation import (
 )
 from .evaluate import evaluate, evaluate_sanitizer
 from .matched_fpr import DEFAULT_TARGET_FPR, run_matched_fpr_study
+from .loo_matched_fpr import run_loo_matched_fpr_study
 from .metrics import attack_success, compute_metrics
 from .pipeline import (
     release_all_sanitizer_models,
@@ -57,6 +58,7 @@ __all__ = [
     "evaluate_sanitizer",
     "DEFAULT_TARGET_FPR",
     "run_matched_fpr_study",
+    "run_loo_matched_fpr_study",
     "attack_success",
     "compute_metrics",
     "release_all_sanitizer_models",

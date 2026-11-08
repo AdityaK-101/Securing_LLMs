@@ -12,53 +12,64 @@ METRIC DEFINITIONS
 
 1. DEFENSE EFFECTIVENESS (Layer 1 + Layer 2)
 ----------------------------------------
-  baseline                  Bypass=100.0%  TrueASR= 46.7%  FPR=  0.0%  TP=  0  FN= 30  FP=  0  TN= 23  attacks=14
-  regex                     Bypass= 86.7%  TrueASR= 46.7%  FPR=  0.0%  TP=  4  FN= 26  FP=  0  TN= 23  attacks=14
-  keyword                   Bypass= 96.7%  TrueASR= 46.7%  FPR=  0.0%  TP=  1  FN= 29  FP=  0  TN= 23  attacks=14
-  context_aware_learned     Bypass= 20.0%  TrueASR= 13.3%  FPR=  8.7%  TP= 24  FN=  6  FP=  2  TN= 21  attacks=4
+  baseline                  Bypass=100.0%  TrueASR= 58.3%  FPR=  0.0%  TP=  0  FN= 60  FP=  0  TN= 45  attacks=35
+  regex                     Bypass= 83.3%  TrueASR= 48.3%  FPR=  0.0%  TP= 10  FN= 50  FP=  0  TN= 45  attacks=29
+  keyword                   Bypass= 96.7%  TrueASR= 56.7%  FPR=  0.0%  TP=  2  FN= 58  FP=  0  TN= 45  attacks=34
+  context_aware_learned     Bypass= 13.3%  TrueASR=  6.7%  FPR=  0.0%  TP= 52  FN=  8  FP=  0  TN= 45  attacks=4
+  similarity_only           Bypass= 25.0%  TrueASR= 16.7%  FPR=  8.9%  TP= 45  FN= 15  FP=  4  TN= 41  attacks=10
+  deberta_finetuned         Bypass=  1.7%  TrueASR=  1.7%  FPR=  0.0%  TP= 59  FN=  1  FP=  0  TN= 45  attacks=1
 
-  Lowest Bypass Rate (active): context_aware_learned (Bypass=20.0%, TrueASR=13.3%)
-  Highest Bypass Rate (active): keyword (Bypass=96.7%, TrueASR=46.7%)
+  Lowest Bypass Rate (active): deberta_finetuned (Bypass=1.7%, TrueASR=1.7%)
+  Highest Bypass Rate (active): keyword (Bypass=96.7%, TrueASR=56.7%)
 
 2. SIDE EFFECTS & FALSE POSITIVES
 ----------------------------------------
   baseline                  edge_FPR=0%  blocked 0/80 edge prompts
-  context_aware_learned     edge_FPR=8%  blocked 6/80 edge prompts
+  context_aware_learned     edge_FPR=22%  blocked 18/80 edge prompts
+  deberta_finetuned         edge_FPR=57%  blocked 46/80 edge prompts
   keyword                   edge_FPR=0%  blocked 0/80 edge prompts
   regex                     edge_FPR=2%  blocked 2/80 edge prompts
+  similarity_only           edge_FPR=15%  blocked 12/80 edge prompts
 
-  Highest edge-case FPR among listed gates: context_aware_learned (8% - 6/80 technical benign).
+  Highest edge-case FPR among listed gates: deberta_finetuned (57% - 46/80 technical benign).
 
 3. PARAPHRASE ROBUSTNESS
 ----------------------------------------
-  (n=30 test injections; 6/30 changed surface form)
+  (n=60 test injections; 59/60 changed surface form; synonym=36, llm_fallback=23)
   baseline                  orig=100.0%  para=100.0%  Δ=+0.0% unchanged
-  regex                     orig=86.7%  para=86.7%  Δ=+0.0% unchanged
+  context_aware_learned     orig=13.3%  para=23.3%  Δ=+10.0% WORSE (+)
+  deberta_finetuned         orig=1.7%  para=11.7%  Δ=+10.0% WORSE (+)
   keyword                   orig=96.7%  para=100.0%  Δ=+3.3% WORSE (+)
-  context_aware_learned     orig=20.0%  para=23.3%  Δ=+3.3% WORSE (+)
+  regex                     orig=83.3%  para=91.7%  Δ=+8.3% WORSE (+)
+  similarity_only           orig=25.0%  para=30.0%  Δ=+5.0% WORSE (+)
 
-  Bypass Rate rises under this synonym paraphrase for: keyword, context_aware_learned.
+  Bypass Rate rises under this paraphrase probe for: context_aware_learned, deberta_finetuned, keyword, regex, similarity_only.
 
-4. ADAPTIVE ATTACKS ROBUSTNESS (FLAN-T5)
+4. ADAPTIVE ATTACKS ROBUSTNESS (FLAN-T5 + similarity evasion)
 ----------------------------------------
-  baseline                  Bypass=100.0%  TrueASR= 45.3%  blocked 0/150 attacks
-  regex                     Bypass= 93.3%  TrueASR= 42.0%  blocked 10/150 attacks
-  keyword                   Bypass= 96.7%  TrueASR= 45.3%  blocked 5/150 attacks
-  context_aware_learned     Bypass= 40.0%  TrueASR= 15.3%  blocked 90/150 attacks
+  baseline                  Bypass=100.0%  TrueASR= 44.4%  blocked 0/360 attacks
+  regex                     Bypass= 95.8%  TrueASR= 41.7%  blocked 15/360 attacks
+  keyword                   Bypass=100.0%  TrueASR= 44.4%  blocked 0/360 attacks
+  context_aware_learned     Bypass= 43.3%  TrueASR= 18.1%  blocked 204/360 attacks
+  similarity_only           Bypass= 44.7%  TrueASR= 20.8%  blocked 199/360 attacks
+  deberta_finetuned         Bypass= 29.2%  TrueASR= 12.8%  blocked 255/360 attacks
 
-  Adaptive texts: FLAN-T5-Base, 5 styles per held-out injection (n above).
+  Adaptive texts: FLAN-T5-Base style rewrites (roleplay/research/hypothetical/
+  indirect/multistep) plus a similarity-evasion rewrite that minimizes max
+  MiniLM cosine to the train injection gallery (filter-targeting attacker).
   Pipeline: sanitizer -> Qwen/Qwen2.5-3B-Instruct -> judge (Qwen/Qwen2.5-3B-Instruct,
-  separately loaded same checkpoint). Numbers are from this suite CSV only.
+  separately loaded same checkpoint). See robustness_adaptive_by_style.csv.
+  Numbers are from this suite CSV only.
 
 5. RUNTIME / LATENCY OVERHEAD (MiniLM + DistilGPT-2)
 ----------------------------------------
   Hardware: CPU=Intel64 Family 6 Model 170 Stepping 4, GenuineIntel; RAM=15.43 GB; CUDA=True (NVIDIA GeForce RTX 4070 Laptop GPU)
   Aux models (MiniLM, DistilGPT-2) run on CPU by design.
-  Canonical timings: results/suite_b/runtime_overhead.csv (paper runtime paragraph).
-  MiniLM semantic           mean=20.98 ms/prompt  (median=17.41, p95=35.61, n=50)
-  DistilGPT-2 perplexity    mean=45.03 ms/prompt  (median=29.09, p95=111.36, n=50)
-  MiniLM + DistilGPT-2      mean=66.00 ms/prompt  (median=45.98, p95=146.42, n=50)
-  Method A full sanitize    mean=64.78 ms/prompt  (median=46.68, p95=147.04, n=50)
+  Paper runtime paragraph uses the suite_b overhead CSV as canonical.
+  MiniLM semantic           mean=18.00 ms/prompt  (median=14.58, p95=30.16, n=50)
+  DistilGPT-2 perplexity    mean=44.45 ms/prompt  (median=27.40, p95=128.23, n=50)
+  MiniLM + DistilGPT-2      mean=62.45 ms/prompt  (median=41.99, p95=159.94, n=50)
+  Method A full sanitize    mean=61.52 ms/prompt  (median=41.89, p95=151.96, n=50)
 
 6. NOTES
 ----------------------------------------

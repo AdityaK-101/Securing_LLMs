@@ -1,5 +1,7 @@
-method,orig_Bypass_Rate,para_Bypass_Rate,Bypass_Rate_delta,n_prompts,changed_n
-baseline,1.0,1.0,0.0,30,6
-regex,0.8667,0.8667,0.0,30,6
-keyword,0.9667,1.0,0.0333,30,6
-context_aware,0.0667,0.0667,0.0,30,6
+method,orig_Bypass_Rate,para_Bypass_Rate,Bypass_Rate_delta,n_prompts,changed_n,changed_n_synonym,changed_n_llm
+baseline,1.0,1.0,0.0,60,59,36,23
+context_aware,0.0167,0.05,0.0333,60,59,36,23
+deberta_finetuned,0.0167,0.1167,0.1,60,59,36,23
+keyword,0.9667,1.0,0.0333,60,59,36,23
+regex,0.8333,0.9167,0.0834,60,59,36,23
+similarity_only,0.25,0.3,0.05,60,59,36,23

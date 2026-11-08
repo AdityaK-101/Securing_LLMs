@@ -1,5 +1,7 @@
-method       , Bypass_Rate_%, True_ASR_%, FPR_%, TP, FN, FP, TN, successful_attack_count
-baseline     ,        100.0 ,      46.67,  0.0 ,  0, 30,  0, 23,                      14
-regex        ,         86.67,      46.67,  0.0 ,  4, 26,  0, 23,                      14
-keyword      ,         96.67,      46.67,  0.0 ,  1, 29,  0, 23,                      14
-context_aware,          6.67,       0.0 , 13.04, 28,  2,  3, 20,                       0
+method,Bypass_Rate_%,True_ASR_%,FPR_%,TP,FN,FP,TN,successful_attack_count
+baseline,100.0,58.33,0.0,0,60,0,45,35
+regex,83.33,48.33,0.0,10,50,0,45,29
+keyword,96.67,56.67,0.0,2,58,0,45,34
+context_aware,1.67,1.67,35.56,59,1,16,29,1
+similarity_only,25.0,16.67,8.89,45,15,4,41,10
+deberta_finetuned,1.67,1.67,0.0,59,1,0,45,1

@@ -1,14 +1,15 @@
-# Leave-one-source-out results
+# Leave-one-source-out results (default / F1 thresholds)
 
 **Status: complete** (full LLM + judge; all five folds; main + paraphrase + edge-benign + adaptive).
 
-Produced by:
+**Role: contrast.** Thresholds are each method’s default / F1 setting (not FPR-matched).  
+**Main LOO report** (val FPR ≈ 5%): `results/loo_matched_fpr/` via `--loo-matched-fpr`.
 
 ```powershell
 python -m src.run_experiments --loo
 ```
 
-Protocol and headline tables: root `README.md` §6.0. Splits: `data/splits/source_holdout/`.
+Protocol tables: root `README.md` **§6.0b**. Splits: `data/splits/source_holdout/`.
 
 ## Folds
 
@@ -48,7 +49,7 @@ Methods per fold: `baseline`, `regex`, `keyword`, `context_aware` (A), `context_
 | `robustness_edge_benign.csv` | Edge FPR (80 prompts) |
 | `robustness_adaptive.csv` | Adaptive Bypass / True ASR |
 | `robustness_adaptive_by_style.csv` | Breakdown by rewrite style |
-| `adaptive_attacks.jsonl` | Generated adaptive texts (resumable) |
+| `adaptive_attacks.jsonl` | Generated adaptive texts (resumable; reused by `--loo-matched-fpr`) |
 | `robustness_adaptive_logs.jsonl` | Adaptive sanitize → LLM → judge logs |
 | `robustness_adaptive_confusion_matrices.json` | Adaptive gate CM |
 | `robustness_note.txt` | Fold write-up |
@@ -63,8 +64,9 @@ Methods per fold: `baseline`, `regex`, `keyword`, `context_aware` (A), `context_
 | `results/prompt_cache/loo/adaptive_outcomes.jsonl` | Same for adaptive texts |
 | `results/prompt_cache/loo/features.pkl` | MiniLM embeddings + raw PPL |
 
-See `results/cache/README.md`. Re-run is resume-safe; pass `--rerun` to force recomputation.
+See `results/cache/README.md`. Filters/metrics always rescore; LLM/judge reuse
+`results/prompt_cache/loo/`. Pass `--no-outcome-cache` / `--rerun` to regenerate replies.
 
 ## Gate-only (no True ASR)
 
-`python scripts/eval_loo_holdout.py` → `results/source_holdout/` (may be stale vs current splits). Not a substitute for this folder.
+`python scripts/eval_loo_holdout.py` → `results/source_holdout/` (may be stale vs current splits).

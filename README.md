@@ -3,7 +3,11 @@
 
 > **Scope note:** Controlled evaluation of **direct, single-turn** prompt injection on a research-scale mixed corpus (~700 prompts; ~105-prompt test) plus leave-one-source-out holdouts. Not production-grade security guarantees.
 >
-> **LOO status:** Full LLM leave-one-source-out is **complete** (5 folds × main + paraphrase + edge-benign + adaptive). Canonical tables: `results/loo/summary.csv` and `results/loo/robustness_*_summary.csv`.
+> **Paper reporting (canonical):** main holdout = leave-one-source-out at **val FPR ≈ 5%** (closest), Method A with `semantic_hard_sim` sweep, full suite + True ASR–FPR curves; ProtectAI / Prompt Guard 2 in the **same** tables; **Neuralchemy** as its own column (not in the four-source average); **ID** = mixed suite matched-FPR on the combined-dataset random split; Wilson 95% CIs; near-dup + train-benign inventory. Cite [`results/loo_matched_fpr/PAPER_TABLES.md`](results/loo_matched_fpr/PAPER_TABLES.md).
+>
+> **One-shot paper run:** `python scripts/run_paper.py` (or `python -m src.run_experiments --paper`) → rebuilds that package. Index: [`results/PAPER.md`](results/PAPER.md).
+>
+> **LOO status:** Default/F1 LOO is **complete** under `results/loo/` (contrast only). **Main LOO report** = `results/loo_matched_fpr/`. **Mixed suite matched-FPR** (ID column; FPR ≤ 5%): `results/matched_fpr/`. Folder map: `results/README.md`.
 >
 > **Licenses:** Code = MIT (`LICENSE`); compiled dataset = CC BY-NC 4.0 (`data_cards/`). Cite via `CITATION.cff`. See also `ARTIFACT.md`.
 
@@ -40,7 +44,7 @@ This repository supports a **controlled evaluation** of pre-inference sanitizers
 | **Method B** | `context_aware_learned` — learned soft fusion (no hard triggers) |
 | Portable (scripts) | ProtectAI DeBERTa-v3, Meta Prompt Guard 2 — off-the-shelf baselines |
 
-Research questions (paper §Framework): end-to-end risk without a gate; whether lexical/portable gates reduce **True ASR** or mainly Bypass; how Methods A/B compare; which components carry the defense; usability cost (ordinary + edge-benign FPR). Source generalization is measured with leave-one-source-out ([§6.0](#60-leave-one-source-out-complete)).
+Research questions (paper §Framework): end-to-end risk without a gate; whether lexical/portable gates reduce **True ASR** or mainly Bypass; how Methods A/B compare; which components carry the defense; usability cost (ordinary + edge-benign FPR). Source generalization is measured with leave-one-source-out ([§6.0](#60-leave-one-source-out--matched-fpr--5-main-loo-report)).
 
 ### Key metrics (two-layer evaluation)
 
@@ -60,49 +64,31 @@ All defenses use **Block**: `blocked=True` → `llm_output = "[BLOCKED]"` (no ta
 
 ```
 Securing_LLMs/
-├── .github/workflows/smoke.yml      ← CI smoke (offline judge score + compare-ab)
-├── data/
-│   ├── raw/                         ← Original downloads (Bravansky raw gitignored)
-│   ├── cleaned/                     ← combined_dataset.csv (~700) + JSONL slices
-│   ├── cleaned/legacy/              ← v1.0 250 + v2.0 350 snapshots
-│   ├── splits/                      ← mixed train/val/test + source_holdout/ + legacy_v2.0_350/
-│   ├── external/neuralchemy/        ← held-out core/test (not in mixed corpus)
-│   └── judge_human_validation/      ← blind sheet, rubric, meta
-├── data_cards/                      ← Data_Card.md + license_log.txt
-├── notebooks/                       ← preprocess + EDA + build_source_holdout.ipynb
-│   └── archive/                     ← superseded exploratory notebooks
-├── scripts/
-│   ├── build_source_holdout.py      ← runs notebooks/build_source_holdout.ipynb
-│   ├── build_loo_splits.py          ← alias → build_source_holdout.py
-│   ├── eval_loo_holdout.py          ← gate Bypass/FPR on source_holdout
-│   ├── eval_matched_fpr.py          ← val-tuned FPR≤5% fair compare
-│   ├── verify_source_holdout.py
-│   ├── build_external_neuralchemy.py
-│   ├── eval_protectai.py / eval_prompt_guard.py / …
-│   ├── reproduce.sh / reproduce.ps1
-├── src/
-│   ├── config.py                    ← seed=42, model names, paths
-│   ├── run_experiments.py           ← Main CLI (--loo / --matched-fpr)
-│   ├── splits/                      ← holdout loaders + helpers
-│   ├── sanitizers/                  ← baseline, regex, keyword, A, B, fair + portables
-│   ├── models/ / evaluation/ / visualization/ / utils/
+├── data/                  ← raw / cleaned / mixed splits / source_holdout / Neuralchemy
+├── data_cards/            ← dataset license + card
+├── notebooks/             ← preprocess, EDA, build_source_holdout.ipynb
+├── scripts/               ← see scripts/README.md  ★ run_paper.py = one-shot paper
+├── src/                   ← sanitizers, evaluation, run_experiments.py CLI
 ├── results/
-│   ├── loo/                         ← full LLM LOO (complete; see results/loo/README.md)
-│   ├── prompt_cache/loo/            ← shared OutcomeCache / FeatureCache for --loo
-│   ├── suite_a/ / suite_b/          ← paper mixed-split suites (archived v2.0 figures in README §6)
-│   ├── matched_fpr/                 ← matched operating-point table
-│   ├── source_holdout/              ← gate-only LOO scores (Bypass/FPR; may be stale)
-│   ├── protectai/ / prompt_guard/
-│   ├── judge_human_validation/
-│   └── figures/
-├── load_dataset.py                  ← Print split sizes
-├── ARTIFACT.md
-├── CITATION.cff
-├── LICENSE
-├── environment.yml
-├── requirements.txt
+│   ├── PAPER.md           ← ★ what to cite (start here for paper numbers)
+│   ├── README.md          ← folder roles
+│   ├── loo_matched_fpr/   ← ★ MAIN holdout (FPR≈5%) + PAPER_TABLES.md
+│   ├── matched_fpr/       ← mixed suite matched-FPR (combined split, FPR≤5%)
+│   ├── loo/               ← default/F1 LOO contrast
+│   ├── suite_a/ suite_b/  ← mixed suites (default thr; same combined split)
+│   ├── protectai/ prompt_guard/
+│   ├── prompt_cache/      ← shared LLM/judge caches
+│   └── …
+├── ARTIFACT.md / CITATION.cff / LICENSE / requirements.txt
 └── README.md
 ```
+
+| Want… | Open / run |
+|-------|------------|
+| **All paper holdout tables** | `results/loo_matched_fpr/PAPER_TABLES.md` |
+| **One command to regenerate them** | `python scripts/run_paper.py` |
+| **What each results/ folder means** | `results/PAPER.md` + `results/README.md` |
+| **What each script does** | `scripts/README.md` |
 
 ---
 
@@ -134,7 +120,7 @@ Sources and licensing: `data_cards/`. Bravansky raw CSV is **not shipped**; clea
 
 Rebuild with `python scripts/build_external_neuralchemy.py`. Counts: `data/external/neuralchemy/manifest.json`.
 
-### Leave-one-source-out (final mentor holdout)
+### Leave-one-source-out (canonical holdout)
 
 Canonical splits: `data/splits/source_holdout/`. **Build in the notebook** `notebooks/build_source_holdout.ipynb` (run all cells). Optional CLI wrapper that executes those cells: `python scripts/build_source_holdout.py`.
 
@@ -150,7 +136,9 @@ Canonical splits: `data/splits/source_holdout/`. **Build in the notebook** `note
 
 Near-dup filter (MiniLM > 0.9) in `manifest.json`.
 
-**Full evaluation (done):** `python -m src.run_experiments --loo` → `results/loo/` (Bypass, True ASR, FPR + paraphrase / edge-benign / adaptive). Numbers in [§6.0](#60-leave-one-source-out-complete).
+**Main LOO report:** `python -m src.run_experiments --loo-matched-fpr` → `results/loo_matched_fpr/` (val FPR ≈ 5%; see [§6.0](#60-leave-one-source-out--matched-fpr--5-main-loo-report)).
+
+**Default-threshold LOO (done):** `python -m src.run_experiments --loo` → `results/loo/` (contrast + paraphrase / edge / adaptive; [§6.0b](#60b-default--f1-loo-operating-point-contrast-complete)).
 
 **Gate-only shortcut:** `python scripts/eval_loo_holdout.py` → `results/source_holdout/` (Bypass/FPR only; committed scores may be stale vs current splits).
 
@@ -158,7 +146,8 @@ Near-dup filter (MiniLM > 0.9) in `manifest.json`.
 # preferred: run notebooks/build_source_holdout.ipynb
 python scripts/build_source_holdout.py
 python scripts/verify_source_holdout.py
-python -m src.run_experiments --loo          # full LLM LOO (resume-safe)
+python -m src.run_experiments --loo-matched-fpr   # MAIN LOO report
+python -m src.run_experiments --loo               # default thr + robustness (LLM cache only)
 # optional gate-only:
 python scripts/eval_loo_holdout.py
 ```
@@ -176,7 +165,7 @@ Every sanitizer implements `sanitize(prompt) -> (sanitized_text, blocked)` (bina
 - **ProtectAI / Prompt Guard 2** — published classifiers on CPU; no fine-tuning on our split (`src/sanitizers/protectai.py`, `prompt_guard.py`). Run via scripts / `--portable-baselines`.
 - **Similarity-only** — MiniLM max-cosine to the train injection gallery; threshold F1-tuned on val (`similarity_only.py`). Fair baseline on mixed suites and LOO.
 - **DeBERTa (fine-tuned)** — ProtectAI DeBERTa checkpoint fine-tuned on our train split; threshold on val (`deberta_finetuned.py`). Fair baseline distinct from the off-the-shelf ProtectAI gate.
-- **Matched FPR (~5%)** — continuous scores retuned on val to FPR ≤ 5%, then test Bypass/FPR (`src/evaluation/matched_fpr.py`). Off-the-shelf ProtectAI / Prompt Guard keep published weights; only the decision threshold is retuned. Run: `python scripts/eval_matched_fpr.py` or `python -m src.run_experiments --matched-fpr`.
+- **Matched FPR (~5%)** — two paths: (1) **mixed suite matched-FPR** `--matched-fpr` = combined-dataset random split, val **FPR ≤ 5%** (`results/matched_fpr/`); (2) **LOO main** `--loo-matched-fpr` = val **FPR ≈ 5%** (closest) + full suite + curves (`results/loo_matched_fpr/`; Method A also sweeps `semantic_hard_sim`). Portables keep published weights; only the decision threshold is retuned.
 
 ---
 
@@ -191,7 +180,7 @@ Robustness — expanded paraphrase, edge-benign, FLAN-T5 adaptive
              (+ similarity-evasion rewrite minimizing max cosine to train gallery)
 ```
 
-**Speed path (default with LLM):** one greedy Qwen reply + judge label per unique *injection* prompt (`results/prompt_cache/`), then True ASR is a per-method lookup; benign prompts never call Qwen/judge; MiniLM embeddings + DistilGPT-2 PPL are cached and reused across methods/folds; generate-all → unload → judge-all with append-only resume. Batch with `--llm-batch-size N` (or `LLM_CACHE_BATCH_SIZE`). Opt out with `--no-outcome-cache`.
+**Speed path (default with LLM):** one greedy Qwen reply + judge label per unique *injection* prompt (`results/prompt_cache/`), then True ASR is a per-method lookup; benign prompts never call Qwen/judge; MiniLM embeddings + DistilGPT-2 PPL are cached and reused across methods/folds; generate-all → unload → judge-all with append-only **generation** resume. Filters/metrics always rescore (no `metrics.csv` skip). Batch with `--llm-batch-size N` (or `LLM_CACHE_BATCH_SIZE`). Regenerate replies with `--no-outcome-cache` / `--rerun`.
 
 Same phases on `--loo` (per `data/splits/source_holdout/<fold>/`), writing under `results/loo/`. Adaptive logs include `attack_style` (`similarity_evasion` is the filter-targeting variant) and gallery similarity fields.
 
@@ -201,22 +190,93 @@ Same phases on `--loo` (per `data/splits/source_holdout/<fold>/`), writing under
 | `b` | baseline, regex, keyword, Method B + similarity_only + deberta_finetuned | `results/suite_b/` |
 | `ab` (default) | A then B (each with fair baselines) | both folders |
 | `both` | A + B + fair baselines in one run | `results/` |
-| `--loo` | fold fair baselines + A/B + after-main | `results/loo/` |
-| `--matched-fpr` | score retune at val FPR ≤ 5% | `results/matched_fpr/` |
+| `--loo` | fold fair baselines + A/B + after-main (default thr) | `results/loo/` |
+| `--loo-matched-fpr` | **main LOO:** val FPR≈5% + full suite + ASR–FPR curves | `results/loo_matched_fpr/` |
+| `--matched-fpr` | **mixed suite matched-FPR:** combined split, val FPR ≤ 5% (not LOO) | `results/matched_fpr/` |
 
 ---
 
 ## 6. Results
 
-### 6.0 Leave-one-source-out (**complete**)
+### 6.0 Leave-one-source-out — matched FPR ≈ 5% (**main LOO report**)
 
-Full two-layer eval with target + judge (`Qwen/Qwen2.5-3B-Instruct`). Folds: `simsonsun`, `mpdd`, `prompt_injection`, `bravansky`, `neuralchemy`. Each fold test = **200** injection + **200** benign. After main metrics: paraphrase, edge-benign (80), adaptive (FLAN-T5 styles + `similarity_evasion`; **1200** attack texts / fold).
+<a id="loo-matched-fpr-main"></a>
+
+For each fold, choose each method’s threshold on **that fold’s validation** set to **hit val FPR ≈ 5%** (closest achievable; `--matched-fpr-target`), then run the **full LOO suite** at those thresholds — test Bypass / True ASR / FPR, paraphrase, edge-benign, adaptive — plus True-ASR-vs-FPR curves. Method A also sweeps `semantic_hard_sim` (default **0.3**). Soft weights / features unchanged (no A/B redesign).
+
+```powershell
+python -m src.run_experiments --loo-matched-fpr
+python -m src.run_experiments --loo-matched-fpr --loo-skip-robustness   # main + curves only
+python -m src.run_experiments --loo-matched-fpr --matched-fpr-skip-deberta
+```
+
+Artifacts: `results/loo_matched_fpr/summary.csv`, `thresholds.csv`, `robustness_*{,_summary}.csv`, `true_asr_vs_fpr_curves.csv`, `figures/`, per-fold `results/loo_matched_fpr/<fold>/`.
+
+**Canonical paper tables** (ProtectAI + Prompt Guard 2, Neuralchemy column, mixed-suite vs LOO gap, Wilson CIs, dedup, train-benign inventory): [`results/loo_matched_fpr/PAPER_TABLES.md`](results/loo_matched_fpr/PAPER_TABLES.md). Rebuild with `python scripts/build_loo_matched_fpr_paper_tables.py` (after `python scripts/eval_loo_matched_fpr_portables.py` for portables).
+
+**Status: complete.** Headline aggregate = `four_source_macro_avg` (equal weight per source). **Neuralchemy** is reported as its own column/block (cleanest unseen test; outside that average). Each fold test = **200** inj + **200** ben; adaptive = **1200** attacks / fold; edge-benign = **80**.
+
+#### Main comparison (mixed suite matched-FPR / ID vs LOO-4 vs Neuralchemy; ≈ 5%)
+
+| Method | ID Bypass % | ID FPR % | LOO-4 macro Bypass % | LOO-4 macro True ASR % | LOO-4 macro FPR % | Neuralchemy Bypass % | Neuralchemy True ASR % | Neuralchemy FPR % |
+|--------|------------:|---------:|---------------------:|-----------------------:|------------------:|---------------------:|-----------------------:|------------------:|
+| baseline | — | — | 100.00 | 58.75 | 0.00 | 100.00 | 64.50 | 0.00 |
+| regex | — | — | 84.12 | 48.12 | 0.00 | 85.00 | 52.50 | 1.00 |
+| keyword | 58.33 | 0.00 | 59.75 | 33.50 | 0.00 | 70.50 | 40.50 | 1.50 |
+| **context_aware (A)** | **11.67** | 6.67 | **34.62** | **13.75** | 16.62 | **20.00** | **11.00** | 87.00 |
+| context_aware_learned (B) | 13.33 | 0.00 | 47.62 | 19.00 | 11.38 | 26.00 | 14.50 | 56.50 |
+| similarity_only | 30.00 | 2.22 | 53.75 | 23.00 | 11.75 | 57.00 | 35.00 | 37.00 |
+| deberta_finetuned | 3.33 | 0.00 | 1.38 | 0.62 | 13.50 | 1.50 | 0.50 | 60.50 |
+| protectai | 10.00 | 6.67 | 5.62 | 2.75 | 35.25 | 4.50 | 2.00 | 12.50 |
+| prompt_guard | 3.33 | 6.67 | 1.38 | 0.50 | 13.62 | 0.00 | 0.00 | 85.00 |
+
+**ID** = **mixed suite matched-FPR** on the combined-dataset random split (`results/matched_fpr/`; val FPR ≤ 5%). LOO-4 **macro** = equal weight per held-out source. Neuralchemy is outside that average. Full Wilson intervals + pooled (micro) + per-fold + dedup + train-benign: [`PAPER_TABLES.md`](results/loo_matched_fpr/PAPER_TABLES.md).
+
+#### Four-source macro average (matched FPR ≈ 5%; main + robustness)
+
+| Method | Bypass % | True ASR % | FPR % | Adaptive Bypass % | Adaptive True ASR % | Para Bypass % (orig → para) | Edge FPR % |
+|--------|---------:|-----------:|------:|------------------:|--------------------:|----------------------------:|-----------:|
+| baseline | 100.00 | 58.75 | 0.00 | 100.00 | 49.45 | 100.00 → 100.00 | 0.00 |
+| regex | 84.12 | 48.12 | 0.00 | 95.21 | 46.98 | 84.13 → 92.00 | 2.50 |
+| keyword | 59.75 | 33.50 | 0.00 | 88.52 | 43.11 | 59.75 → 81.75 | 62.50 |
+| **context_aware (A)** | **34.62** | **13.75** | 16.62 | **55.54** | **23.62** | **34.63 → 45.75** | 81.87 |
+| context_aware_learned (B) | 47.62 | 19.00 | 11.38 | 69.86 | 30.66 | 47.63 → 55.75 | 18.44 |
+| similarity_only | 53.75 | 23.00 | 11.75 | 72.00 | 31.39 | 53.75 → 58.00 | 10.63 |
+| deberta_finetuned | 1.38 | 0.62 | 13.50 | 27.46 | 12.37 | 1.38 → 7.50 | 79.06 |
+| protectai | 5.62 | 2.75 | 35.25 | — | — | — | — |
+| prompt_guard | 1.38 | 0.50 | 13.62 | — | — | — | — |
+
+ProtectAI / Prompt Guard at matched thr: main Bypass / True ASR / FPR only (robustness not re-scored unless portables are re-run with the full suite). Adaptive FPR is 0% by construction (attack-only probe).
+
+Sources: `results/loo_matched_fpr/summary.csv`, `robustness_*_summary.csv` (`four_source_macro_avg`).
+
+#### Per-fold + Wilson + pooled
+
+Full per-fold Bypass / True ASR / FPR with **Wilson 95% CIs**, four-source **macro** and **pooled (micro)**, ProtectAI / Prompt Guard 2, Neuralchemy, dedup counts, and train-benign inventory: [`results/loo_matched_fpr/PAPER_TABLES.md`](results/loo_matched_fpr/PAPER_TABLES.md) (Tables B–E).
+
+#### Neuralchemy adaptive (fifth fold; not in four-source avg)
+
+| Method | Adaptive Bypass % | Adaptive True ASR % |
+|--------|------------------:|--------------------:|
+| baseline | 100.00 | 42.00 |
+| regex | 94.92 | 40.00 |
+| keyword | 91.17 | 37.42 |
+| context_aware | 34.17 | 7.92 |
+| context_aware_learned | 64.25 | 24.33 |
+| similarity_only | 82.92 | 33.92 |
+| deberta_finetuned | 4.33 | 1.33 |
+
+Resume: re-run `python -m src.run_experiments --loo-matched-fpr` (LLM/judge + feature caches under `results/prompt_cache/loo/`; filters always rescore). Force regenerating Qwen/judge with `--no-outcome-cache`.
+
+### 6.0b Default / F1 LOO operating point (**contrast**; complete)
+
+Full two-layer eval with target + judge (`Qwen/Qwen2.5-3B-Instruct`) at each method’s **default / F1-tuned** threshold (not FPR-matched). Folds: `simsonsun`, `mpdd`, `prompt_injection`, `bravansky`, `neuralchemy`. Each fold test = **200** injection + **200** benign. After main metrics: paraphrase, edge-benign (80), adaptive (FLAN-T5 styles + `similarity_evasion`; **1200** attack texts / fold).
 
 **Headline aggregate** = `four_source_macro_avg` over the first four folds (equal weight per source). Neuralchemy is a fifth external holdout and is **outside** that average. Shared PI-benign repeats across four-source folds, so micro FPR is not an independent sample.
 
 Artifacts: `results/loo/summary.csv`, `summary.txt`, `robustness_{paraphrase,edge_benign,adaptive}{,_summary}.csv`, per-fold `results/loo/<fold>/`. See `results/loo/README.md`.
 
-#### Four-source macro average (main + robustness)
+#### Four-source macro average (default thr; main + robustness)
 
 | Method | Bypass % | True ASR % | FPR % | Adaptive Bypass % | Adaptive True ASR % | Para Bypass % (orig → para) | Edge FPR % |
 |--------|---------:|-----------:|------:|------------------:|--------------------:|----------------------------:|-----------:|
@@ -282,13 +342,13 @@ Sources: `results/loo/summary.csv` (`four_source_macro_avg`), `robustness_adapti
 | similarity_only | 27.83 | 5.08 |
 | deberta_finetuned | 11.92 | 1.67 |
 
-Resume: re-run `python -m src.run_experiments --loo` (skips finished folds/stages; caches under `results/prompt_cache/loo/`). Force redo with `--rerun`.
+Resume: re-run `python -m src.run_experiments --loo` (always rescores filters; reuses Qwen/judge + features under `results/prompt_cache/loo/`). Force regenerating Qwen/judge with `--no-outcome-cache`.
 
 ---
 
 ### 6.1–6.7 Archived mixed-suite figures (v2.0, n=30 / 23)
 
-Numbers below are from the **archived v2.0** held-out test (30 injection / 23 benign). Prefer §6.0 LOO for current holdout claims. Re-run suites on the grown v3.0 test (~60 / 45) before citing new mixed-suite figures.
+Numbers below are from the **archived v2.0** held-out test (30 injection / 23 benign). Prefer §6.0 matched-FPR LOO for current holdout claims; §6.0b is the default-threshold contrast. Re-run suites on the grown v3.0 test (~60 / 45) before citing new mixed-suite figures.
 
 #### 6.1 Primary comparison (paper Table 1, archived)
 
@@ -331,7 +391,7 @@ Source: `results/protectai/metrics.csv`, `results/prompt_guard/metrics.csv`.
 
 #### 6.5 Paraphrase robustness (mixed suite archive)
 
-Canonical mixed-suite file: `results/robustness_paraphrase_test.csv` (n=30). Prefer LOO paraphrase in §6.0 / `results/loo/robustness_paraphrase_summary.csv`.
+Canonical mixed-suite file: `results/robustness_paraphrase_test.csv` (n=30). Prefer matched-FPR LOO paraphrase in `results/loo_matched_fpr/`; default-thr contrast: `results/loo/robustness_paraphrase_summary.csv`.
 
 Probe uses an **expanded synonym list** plus **FLAN-T5 paraphrase fallback**. Re-run `python scripts/eval_paraphrase_test.py` after list changes — committed mixed-suite numbers below may be stale.
 
@@ -436,79 +496,90 @@ pip install -r requirements.txt
 
 Optional: `$env:HF_TOKEN = "hf_..."` (needed for gated Prompt Guard).
 
-### Main experiments
+### ★ One-shot paper pipeline (recommended)
+
+Builds / refreshes everything for the **main holdout report**: verify splits → **mixed suite matched-FPR** → LOO matched-FPR ≈ 5% → ProtectAI + Prompt Guard 2 → [`PAPER_TABLES.md`](results/loo_matched_fpr/PAPER_TABLES.md).
 
 ```powershell
-python -m src.run_experiments                  # Suite A then B (full LLM + judge)
-python -m src.run_experiments --suite a --no-llm
-python -m src.run_experiments --suite b --no-llm
-python -m src.run_experiments --latency-only
+python scripts/run_paper.py
+# or:
+python -m src.run_experiments --paper
+
+# Also suites + default LOO + ablations + judge HV:
+python scripts/run_paper.py --mode full
+
+# Tables only (no long re-run):
+python scripts/run_paper.py --skip-loo-matched-fpr --skip-portables
+python scripts/build_loo_matched_fpr_paper_tables.py
+```
+
+Resume-safe LLM/judge via `results/prompt_cache/` (filters always rescore). Force regenerating replies with `--no-outcome-cache`. Index: [`results/PAPER.md`](results/PAPER.md). Script catalog: [`scripts/README.md`](scripts/README.md).
+
+### Individual experiments
+
+```powershell
+python -m src.run_experiments --loo-matched-fpr   # main LOO only
+python -m src.run_experiments --loo               # default/F1 LOO contrast
+python -m src.run_experiments --matched-fpr       # mixed suite matched-FPR (ID column)
+python -m src.run_experiments --suite ab          # mixed suites A then B
 python -m src.run_experiments --portable-baselines
-python -m src.run_experiments --matched-fpr                 # val FPR≤5% fair Bypass table
-python -m src.run_experiments --matched-fpr --matched-fpr-skip-deberta
-python -m src.run_experiments --loo
-python -m src.run_experiments --loo --no-llm
-python -m src.run_experiments --loo --loo-skip-robustness   # main metrics only
-python -m src.run_experiments --loo --loo-adaptive-max 50   # cap adaptive rewrites
-python -m src.run_experiments --loo --llm-batch-size 8      # faster GPU batched generate
-# Crash-safe: re-run the same command; OutcomeCache / FeatureCache resume under results/prompt_cache/
+python -m src.run_experiments --hard-trigger-ablation
+python -m src.run_experiments --help
 ```
 
-`--loo` keeps the regular scorer (sanitizer, target LLM, judge) and points it at `data/splits/source_holdout/<fold>/`. Each fold trains only on the other attack sources. After the main metrics, each fold also runs paraphrase, edge-benign, and FLAN-T5 adaptive (+ similarity evasion; fit on that fold's train/val). **Current run is complete** — tables in [§6.0](#60-leave-one-source-out-complete) and `results/loo/`. Re-running the same command skips finished folds/stages unless `--rerun`. Use `--loo-skip-robustness` for main-only, or `--loo-adaptive-max N` to limit adaptive cost. Shared caches: `results/prompt_cache/loo/`. The mixed suite uses the grown combined corpus (`data/splits/test.csv`, ~105 rows).
+### Data / utility scripts
 
-### Scripts
-
-```powershell
-python scripts/eval_protectai.py
-python scripts/eval_prompt_guard.py
-python scripts/eval_portable_adaptive.py --gate all
-python scripts/eval_matched_fpr.py
-python scripts/eval_paraphrase_test.py
-python scripts/build_judge_human_validation.py
-python scripts/build_external_neuralchemy.py
-python scripts/build_combined_dataset.py
-python scripts/build_source_holdout.py
-python scripts/eval_loo_holdout.py
-python scripts/verify_source_holdout.py
-python scripts/score_judge_human_validation.py
-```
-
-### One-shot gate checks (`reproduce.*`)
-
-Runs paraphrase gate-only scoring, offline judge HV scoring, and portable baselines.
-Steps 1–2 need no model download beyond what you already use for scoring; step 3
-downloads ProtectAI / Prompt Guard from Hugging Face if not cached (`HF_TOKEN` may
-be required for Prompt Guard). Does **not** rebuild suite/ablation paper tables.
+See [`scripts/README.md`](scripts/README.md). Short gate-only smoke (not full paper):
 
 ```powershell
 .\scripts\reproduce.ps1
-# or: bash scripts/reproduce.sh
 ```
 
 ---
 
 ## 10. Reproduce Paper Tables
 
+**Preferred:** one command regenerates the main holdout package:
+
+```powershell
+python scripts/run_paper.py
+# → results/loo_matched_fpr/PAPER_TABLES.md
+```
+
 | Paper table / section | Artifact | Regenerate |
 |-----------------------|----------|------------|
-| **LOO main + robustness (current holdout)** | `results/loo/summary.csv`, `results/loo/robustness_*_summary.csv`, `results/loo/<fold>/` | `python -m src.run_experiments --loo` (**complete**; use `--rerun` to redo) |
-| Main comparison (Table 1, mixed suite) | `results/suite_a/metrics.csv`, `results/suite_b/metrics.csv`, `results/protectai/metrics.csv`, `results/prompt_guard/metrics.csv` | Suites + `--portable-baselines` |
-| Matched-FPR fair baselines | `results/matched_fpr/metrics.csv` | `--matched-fpr` or `python scripts/eval_matched_fpr.py` |
-| Ablation (Table 2) | `results/hard_trigger_ablation.csv`, `results/learned_ablation_metrics.csv`, `results/weighted_ablation_metrics.csv` | `--hard-trigger-ablation`, `--learned-ablation`, `--weighted-ablation` (full LLM+judge; `--no-llm` is sanitizer-only and zeros True ASR) |
-| Adaptive rewriting (Table 3 / LOO) | `results/loo/robustness_adaptive_summary.csv`, `results/suite_*/robustness_adaptive.csv` | `--loo` or suite run + `--portable-baselines` |
-| Paraphrase robustness | `results/loo/robustness_paraphrase_summary.csv`, `results/robustness_paraphrase_test.csv` | `--loo` or `python scripts/eval_paraphrase_test.py` |
-| Edge FPR | `results/loo/robustness_edge_benign_summary.csv`, `results/suite_*/robustness_edge_benign.csv` | `--loo` or suite run |
-| A vs B matched comparison | `results/ab_comparison_metrics.csv` | `--compare-ab` (full LLM+judge) |
-| Judge human validation | `results/judge_human_validation/metrics_summary.txt` | `python scripts/score_judge_human_validation.py` |
-| Runtime overhead | `results/suite_b/runtime_overhead.csv` | `--latency-only` or suite without `--skip-latency` |
+| **Main holdout tables** (ID / LOO-4 / Neuralchemy, Wilson, ProtectAI / Prompt Guard) | `results/loo_matched_fpr/PAPER_TABLES.md` | `python scripts/run_paper.py` |
+| LOO matched-FPR suite (full + ASR–FPR curves) | `results/loo_matched_fpr/` | `--loo-matched-fpr` (included in `run_paper.py`) |
+| Mixed suite matched-FPR (**ID** column) | `results/matched_fpr/metrics.csv` | `--matched-fpr` (included in `run_paper.py`) |
+| LOO default/F1 (contrast) | `results/loo/` | `--loo` or `run_paper.py --mode full` |
+| Mixed suite (archived) | `results/suite_a/`, `suite_b/`, `protectai/`, `prompt_guard/` | `--suite ab` + `--portable-baselines` |
+| Ablation (Table 2) | `results/*ablation*.csv`, `ab_comparison_metrics.csv` | ablation flags / `run_paper.py --mode full` |
+| Adaptive (LOO) | `results/loo_matched_fpr/robustness_adaptive_summary.csv` | included in LOO matched-FPR |
+| Judge human validation | `results/judge_human_validation/metrics_summary.txt` | `score_judge_human_validation.py` / `--mode full` |
+| Runtime overhead | `results/suite_b/runtime_overhead.csv` | `--latency-only` |
 
-`results/loo/` holds the completed full-LLM source holdout. Committed `results/suite_*` and `results/source_holdout/` may still reflect archived v2.0 / gate-only protocols — re-run before citing those paths. `--no-llm` is sanitizer-only: Bypass/FPR are live; True ASR is 0 because there is no judge.
+Index: [`results/PAPER.md`](results/PAPER.md). `--no-llm` is sanitizer-only (True ASR = 0).
 
 ---
 
 ## 11. Output Files
 
-### LOO (`results/loo/`) — complete
+### LOO matched-FPR (`results/loo_matched_fpr/`) — main report
+
+| Path | Contents |
+|------|----------|
+| **`PAPER_TABLES.md`** | Paper Tables A–E (cite this) |
+| `summary.csv` / `metrics.csv` / `summary.txt` | Per-fold + four-source avg at val FPR ≈ 5% |
+| `metrics_with_wilson.csv` / `paper_headline.csv` | Wilson CIs + headline export |
+| `thresholds.csv` | Chosen thr / `semantic_hard_sim` |
+| `train_benign_by_fold.csv` | Fit benign inventory |
+| `robustness_*{,_summary}.csv` | Paraphrase / edge / adaptive at matched thr |
+| `true_asr_vs_fpr_curves.csv` + `figures/` | ASR–FPR curves |
+| `<fold>/` | Per-fold metrics + robustness |
+
+Details: `results/loo_matched_fpr/README.md`. Index: `results/PAPER.md`.
+
+### LOO default thr (`results/loo/`) — contrast; complete
 
 | Path | Contents |
 |------|----------|
@@ -561,7 +632,7 @@ Models load sequentially to reduce OOM risk. See `ARTIFACT.md`.
 Aligned with paper §Limitations:
 
 - LOO test is larger (200 inj / 200 ben per fold; four-source aggregate 800 / 800) but still research-scale; we do not claim statistical ranking of Method A vs B. Mixed v3.0 test is ~60 / 45; archived v2.0 was 30 / 23.
-- Soft filters vs DeBERTa on LOO are **not FPR-matched**; DeBERTa has low clean Bypass but high edge FPR (~85% four-source). Use `--matched-fpr` for a fair operating-point compare.
+- Default-threshold LOO (§6.0b) is **not** FPR-matched; use `--loo-matched-fpr` (§6.0) for val **FPR ≈ 5%** (full suite + True-ASR-vs-FPR curves). Mixed `--matched-fpr` is a separate small-split pilot.
 - Train/test injections share public sources (distribution overlap); adaptive FLAN-T5 + similarity evasion is the main shift probe (four-source DeBERTa adaptive Bypass ~20.6%).
 - **Direct, single-turn, English, text-only** injection only; indirect / agentic / multimodal out of scope
 - True ASR depends on an LLM judge (same checkpoint as target); blind author labeling on the small mixed suite: 83.3% agreement, κ = 0.67

@@ -105,7 +105,7 @@ def _append_adaptive_attack_cache(
 # ---------------------------------------------------------------------------
 # Paraphrase substitutions for robustness test
 # Expanded beyond the original nine pairs so most held-out injections change
-# under the synonym pass (mentor: prior probe only altered 6/30 prompts).
+# under the synonym pass (prior probe only altered 6/30 prompts).
 # Longer phrases first so multi-word rules fire before single-token ones.
 # ---------------------------------------------------------------------------
 
@@ -330,6 +330,7 @@ def robustness_paraphrase(
     include_similarity_only: bool = False,
     include_deberta_finetuned: bool = False,
     use_llm_fallback: bool = True,
+    sanitizers: list | None = None,
 ) -> pd.DataFrame:
     """
     Paraphrase probe: rewrite injection prompts with an expanded synonym list,
@@ -337,6 +338,7 @@ def robustness_paraphrase(
     re-score all sanitizers (gate-only Bypass).
 
     Default pool is the held-out test injections. Pass ``n`` to cap the count.
+    Pass pre-built ``sanitizers`` (e.g. matched-FPR thresholds) to skip refitting.
 
     Returns DataFrame comparing original vs. paraphrased Bypass Rate.
     Columns: method, orig_Bypass_Rate, para_Bypass_Rate, Bypass_Rate_delta,
@@ -351,14 +353,16 @@ def robustness_paraphrase(
     if n is not None:
         injection_prompts = injection_prompts[:n]
 
-    sanitizers = get_all_sanitizers(
-        train_csv=train_csv,
-        val_csv=val_csv,
-        include_method_a=include_method_a,
-        include_method_b=include_method_b,
-        include_similarity_only=include_similarity_only,
-        include_deberta_finetuned=include_deberta_finetuned,
-    )
+    owned_sanitizers = sanitizers is None
+    if sanitizers is None:
+        sanitizers = get_all_sanitizers(
+            train_csv=train_csv,
+            val_csv=val_csv,
+            include_method_a=include_method_a,
+            include_method_b=include_method_b,
+            include_similarity_only=include_similarity_only,
+            include_deberta_finetuned=include_deberta_finetuned,
+        )
     records = []
     changed_n = 0
     changed_n_synonym = 0
@@ -399,7 +403,10 @@ def robustness_paraphrase(
     summary["changed_n"] = changed_n
     summary["changed_n_synonym"] = changed_n_synonym
     summary["changed_n_llm"] = changed_n_llm
-    release_all_sanitizer_models(sanitizers)
+    # Only free models we created here. Callers that pass a shared san_list
+    # (LOO matched-FPR → edge → adaptive) still need the weights loaded.
+    if owned_sanitizers:
+        release_all_sanitizer_models(sanitizers)
     if use_llm_fallback:
         from ..models.attack_generator import release_generator
 
@@ -424,6 +431,7 @@ def robustness_adaptive(
     feature_cache=None,
     batch_size: int | None = None,
     attacks_cache_path: str | Path | None = None,
+    sanitizers: list | None = None,
 ) -> tuple:
     """
     Adaptive robustness evaluation using an independent LLM attack generator,
@@ -462,15 +470,16 @@ def robustness_adaptive(
     if max_injections is not None:
         injection_rows = injection_rows.head(int(max_injections))
 
-    sanitizers = get_all_sanitizers(
-        train_csv=train_csv,
-        val_csv=val_csv,
-        include_method_a=include_method_a,
-        include_method_b=include_method_b,
-        include_similarity_only=include_similarity_only,
-        include_deberta_finetuned=include_deberta_finetuned,
-        feature_cache=feature_cache,
-    )
+    if sanitizers is None:
+        sanitizers = get_all_sanitizers(
+            train_csv=train_csv,
+            val_csv=val_csv,
+            include_method_a=include_method_a,
+            include_method_b=include_method_b,
+            include_similarity_only=include_similarity_only,
+            include_deberta_finetuned=include_deberta_finetuned,
+            feature_cache=feature_cache,
+        )
     if feature_cache is not None:
         attach_feature_cache(sanitizers, feature_cache)
 
@@ -647,19 +656,22 @@ def robustness_edge_benign(
     include_method_b: bool = True,
     include_similarity_only: bool = False,
     include_deberta_finetuned: bool = False,
+    sanitizers: list | None = None,
 ) -> pd.DataFrame:
     """
     Edge benign test: run the fixed edge-case prompt list through all sanitizers.
-    Reports FPR on these edge cases. Sanitizers are fit on ``train_csv`` / ``val_csv``.
+    Reports FPR on these edge cases. Sanitizers are fit on ``train_csv`` / ``val_csv``
+    unless pre-built ``sanitizers`` are passed (e.g. matched-FPR thresholds).
     """
-    sanitizers = get_all_sanitizers(
-        train_csv=train_csv,
-        val_csv=val_csv,
-        include_method_a=include_method_a,
-        include_method_b=include_method_b,
-        include_similarity_only=include_similarity_only,
-        include_deberta_finetuned=include_deberta_finetuned,
-    )
+    if sanitizers is None:
+        sanitizers = get_all_sanitizers(
+            train_csv=train_csv,
+            val_csv=val_csv,
+            include_method_a=include_method_a,
+            include_method_b=include_method_b,
+            include_similarity_only=include_similarity_only,
+            include_deberta_finetuned=include_deberta_finetuned,
+        )
     records = []
 
     print(f"\n[Robustness] Edge benign test: {len(EDGE_BENIGN_PROMPTS)} prompts...")

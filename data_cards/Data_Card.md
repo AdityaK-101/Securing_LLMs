@@ -76,7 +76,7 @@ Exact counts: see `data/cleaned/combined_manifest.json` (seed 42). Typical v3.0:
 * **Role:** evaluation only. Do not add these rows to the Method A gallery or Method B training.
 * **Rebuild:** `python scripts/build_external_neuralchemy.py`.
 
-### Leave-one-source-out splits (mentor protocol)
+### Leave-one-source-out splits
 
 * **Files:** `data/splits/source_holdout/{simsonsun,mpdd,prompt_injection,bravansky,neuralchemy}/{train,val,test}.csv`
 * **Build:** `notebooks/build_source_holdout.ipynb` (canonical). CLI: `python scripts/build_source_holdout.py`.

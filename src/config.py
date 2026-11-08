@@ -47,7 +47,7 @@ EXTERNAL_TEST_CORE_CSV = os.path.join(
 
 RESULTS_DIR = PROJECT_ROOT / "results"
 FIGURES_DIR = RESULTS_DIR / "figures"
-# Resumable greedy LLM/judge outcomes + MiniLM/PPL features (mentor speedup path)
+# Resumable greedy LLM/judge outcomes + MiniLM/PPL features (speedup path)
 PROMPT_CACHE_DIR = RESULTS_DIR / "prompt_cache"
 
 # Model identifiers used by the experiment pipeline (keep display + load names aligned)

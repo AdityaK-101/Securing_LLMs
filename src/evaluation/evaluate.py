@@ -86,7 +86,7 @@ def evaluate(
     """
     Run the full two-layer evaluation pipeline.
 
-    Default LLM path uses the mentor speedup: one generate+judge pass per
+    Default LLM path uses the speedup: one generate+judge pass per
     unique injection prompt, benign = filters only, resumable OutcomeCache.
 
     Returns:
