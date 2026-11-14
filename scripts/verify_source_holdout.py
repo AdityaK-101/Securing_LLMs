@@ -10,6 +10,8 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "data" / "splits" / "source_holdout"
 FOLDS = ("simsonsun", "mpdd", "prompt_injection", "bravansky", "neuralchemy")
 ATTACK = ("simsonsun", "mpdd", "prompt_injection", "bravansky")
+ALPACA = "alpaca_benign"
+PI_BENIGN = "prompt_injection_benign"
 
 
 def _key(p: object) -> str:
@@ -43,28 +45,54 @@ def main() -> None:
         if leak:
             errors.append(f"{fold}: {leak} test prompts in train/val")
 
+        # PI-benign must never appear in train/val.
+        if (tr["source"] == PI_BENIGN).any() or (va["source"] == PI_BENIGN).any():
+            errors.append(f"{fold}: prompt_injection_benign present in train/val")
+
+        # Fit benign = Alpaca only, with enough val for ~5% FPR.
+        tr_ben = tr[tr["label"] == "benign"]
+        va_ben = va[va["label"] == "benign"]
+        if len(va_ben) < 100:
+            errors.append(f"{fold}: val benign={len(va_ben)} < 100")
+        if set(tr_ben["source"]) - {ALPACA}:
+            errors.append(f"{fold}: non-Alpaca train benign {set(tr_ben['source'])}")
+        if set(va_ben["source"]) - {ALPACA}:
+            errors.append(f"{fold}: non-Alpaca val benign {set(va_ben['source'])}")
+        if len(tr_ben) != 200:
+            errors.append(f"{fold}: expected 200 Alpaca train benign, got {len(tr_ben)}")
+        if len(va_ben) != 100:
+            errors.append(f"{fold}: expected 100 Alpaca val benign, got {len(va_ben)}")
+
+        # Test benign = shared PI-benign on every fold.
+        te_ben = te[te["label"] == "benign"]
+        te_inj = te[te["label"] == "injection"]
+        if len(te_ben) != 200:
+            errors.append(f"{fold}: expected 200 test ben, got {len(te_ben)}")
+        if set(te_ben["source"]) != {PI_BENIGN}:
+            errors.append(f"{fold}: test benign sources={set(te_ben['source'])}")
+        keys = {_key(p) for p in te_ben["prompt"]}
+        if shared is None:
+            shared = keys
+        elif keys != shared:
+            errors.append(f"{fold}: test benign set differs from other folds")
+
         if fold in ATTACK:
-            inj = te[te["label"] == "injection"]
-            ben = te[te["label"] == "benign"]
-            if len(inj) != 200:
-                errors.append(f"{fold}: expected 200 test inj, got {len(inj)}")
-            if len(ben) != 200:
-                errors.append(f"{fold}: expected 200 test ben, got {len(ben)}")
+            if len(te_inj) != 200:
+                errors.append(f"{fold}: expected 200 test inj, got {len(te_inj)}")
             if len(te) != 400:
                 errors.append(f"{fold}: expected test=400, got {len(te)}")
-            bad = inj[~inj["source"].astype(str).str.startswith(fold)]
+            bad = te_inj[~te_inj["source"].astype(str).str.startswith(fold)]
             if len(bad):
                 errors.append(f"{fold}: foreign injections {len(bad)}")
-            keys = {_key(p) for p in ben["prompt"]}
-            if shared is None:
-                shared = keys
-            else:
-                shared &= keys
 
         if fold == "prompt_injection":
-            banned = {"prompt_injection", "prompt_injection_benign"}
+            banned = {"prompt_injection", PI_BENIGN}
             if tr["source"].isin(banned).any() or va["source"].isin(banned).any():
                 errors.append("prompt_injection: source rows still in train/val")
+
+        if fold == "neuralchemy":
+            if len(te_inj) != 200:
+                errors.append(f"neuralchemy: expected 200 test inj, got {len(te_inj)}")
 
     # Four-source folds must share identical sizes.
     sizes = []
@@ -76,10 +104,18 @@ def main() -> None:
     if len(set(sizes)) != 1:
         errors.append(f"four-source sizes not uniform: {sizes}")
 
-    # shared benign size from manifest
+    # Expected sizes after Alpaca fit: 480 inj train + 200 alpaca = 680;
+    # 120 inj val + 100 alpaca = 220; test 400.
+    if sizes and sizes[0] != (680, 220, 400):
+        errors.append(f"four-source expected (680,220,400), got {sizes[0]}")
+
     sb = m["shared_benign_test"]["rows"]
     if sb != 200:
         errors.append(f"shared benign rows={sb}")
+
+    knobs = m.get("knobs") or {}
+    if int(knobs.get("n_benign_fit_val", 0) or 0) < 100:
+        errors.append("manifest knobs: n_benign_fit_val < 100")
 
     print("manifest protocol:", m["protocol"])
     print("summary:")

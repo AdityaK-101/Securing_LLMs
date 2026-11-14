@@ -11,6 +11,7 @@ from .plots import (
     _plot_paraphrase_robustness,
     _plot_true_asr_bar,
 )
+from .paper_figures import generate_all_paper_figures
 from .reporting import _write_robustness_note
 
 __all__ = [
@@ -24,4 +25,5 @@ __all__ = [
     "_plot_paraphrase_robustness",
     "_plot_true_asr_bar",
     "_write_robustness_note",
+    "generate_all_paper_figures",
 ]

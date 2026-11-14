@@ -80,7 +80,7 @@ def _enrich_with_wilson(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _in_distribution_matched() -> pd.DataFrame:
-    """Mixed random-split matched-FPR (val FPR ≤ 5%) Bypass / FPR."""
+    """Mixed random-split matched-FPR (val FPR ≤ 5%) Bypass / True ASR / FPR."""
     if not MATCHED_FPR.is_file():
         return pd.DataFrame()
     m = pd.read_csv(MATCHED_FPR)
@@ -90,19 +90,37 @@ def _in_distribution_matched() -> pd.DataFrame:
     rows = []
     for _, r in matched.iterrows():
         method = str(r["method"]).strip()
+        n_inj = int(r.get("test_FN", 0) or 0) + int(r.get("test_TP", 0) or 0)
+        asr_n = r.get("test_successful_attack_count")
+        if asr_n is None or (isinstance(asr_n, float) and pd.isna(asr_n)):
+            # Prefer explicit True ASR % when count missing.
+            asr_pct = r.get("test_True_ASR_%")
+            asr_n = (
+                int(round(float(asr_pct) / 100.0 * n_inj))
+                if asr_pct is not None and not (isinstance(asr_pct, float) and pd.isna(asr_pct))
+                else 0
+            )
+        else:
+            asr_n = int(asr_n)
+        asr_pct = r.get("test_True_ASR_%")
         rows.append(
             {
                 "method": method,
                 "id_Bypass_Rate_%": float(r["test_Bypass_Rate_%"]),
+                "id_True_ASR_%": (
+                    float(asr_pct)
+                    if asr_pct is not None and not (isinstance(asr_pct, float) and pd.isna(asr_pct))
+                    else None
+                ),
                 "id_FPR_%": float(r["test_FPR_%"]),
                 "id_threshold": r.get("threshold"),
-                "id_n_inj": int(r.get("test_FN", 0)) + int(r.get("test_TP", 0)),
-                "id_n_ben": int(r.get("test_FP", 0)) + int(r.get("test_TN", 0)),
-                "id_bypass_n": int(r.get("test_FN", 0)),
-                "id_fpr_n": int(r.get("test_FP", 0)),
+                "id_n_inj": n_inj,
+                "id_n_ben": int(r.get("test_FP", 0) or 0) + int(r.get("test_TN", 0) or 0),
+                "id_bypass_n": int(r.get("test_FN", 0) or 0),
+                "id_asr_n": asr_n,
+                "id_fpr_n": int(r.get("test_FP", 0) or 0),
             }
         )
-    # Fixed methods from default rows if missing in matched
     return pd.DataFrame(rows)
 
 
@@ -128,28 +146,36 @@ def _dedup_and_benign_tables(manifest: dict) -> tuple[str, str, str]:
         )
 
     benign_lines = [
-        "| Fold | Train ChatGPT | Train PI-benign | Val ChatGPT | Val PI-benign | Fit total (train+val) |",
-        "|------|--------------:|----------------:|------------:|--------------:|----------------------:|",
+        "| Fold | Train Alpaca | Val Alpaca | Fit total (train+val) | Train PI-benign | Val PI-benign |",
+        "|------|-------------:|-----------:|----------------------:|----------------:|--------------:|",
     ]
     for fold in LOO_FOLDS:
         info = (manifest.get("folds") or {}).get(fold, {})
         tb = info.get("train_benign_by_source") or {}
         vb = info.get("val_benign_by_source") or {}
-        t_cg = int(tb.get("chatgpt_benign", 0) or 0)
+        t_alp = int(tb.get("alpaca_benign", 0) or 0)
+        v_alp = int(vb.get("alpaca_benign", 0) or 0)
         t_pi = int(tb.get("prompt_injection_benign", 0) or 0)
-        v_cg = int(vb.get("chatgpt_benign", 0) or 0)
         v_pi = int(vb.get("prompt_injection_benign", 0) or 0)
+        # Legacy ChatGPT columns (pre held-out protocol) roll into Alpaca slot if present.
+        if t_alp == 0 and v_alp == 0 and (
+            tb.get("chatgpt_benign") is not None or vb.get("chatgpt_benign") is not None
+        ):
+            t_alp = int(tb.get("chatgpt_benign", 0) or 0)
+            v_alp = int(vb.get("chatgpt_benign", 0) or 0)
         benign_lines.append(
-            f"| `{fold}` | {t_cg} | {t_pi} | {v_cg} | {v_pi} | {t_cg + t_pi + v_cg + v_pi} |"
+            f"| `{fold}` | {t_alp} | {v_alp} | {t_alp + v_alp} | {t_pi} | {v_pi} |"
         )
     benign_lines.append("")
+    alp = manifest.get("alpaca_fit") or {}
+    fit_n = int(alp.get("rows") or (alp.get("train", 0) + alp.get("val", 0)) or 300)
     benign_lines.append(
-        "Each fold fits Method B / similarity / DeBERTa on **50** benign prompts "
-        "(train+val; ChatGPT + leftover PI-benign). The `prompt_injection` fold uses "
-        "**ChatGPT benign only** (PI native benign held out of train/val). Shared test "
-        "benign "
+        f"Each fold fits Method B / similarity / DeBERTa on **{fit_n}** Alpaca "
+        "instruction prompts "
+        f"(train={int(alp.get('train', 200))}, val={int(alp.get('val', 100))}). "
+        "**PI-benign is test-only** (never in train/val). Shared test benign "
         f"= **{manifest.get('shared_benign_test', {}).get('rows', 200)}** "
-        "PI-benign prompts, identical across four-source tests."
+        "PI-benign prompts, identical across **all** folds including Neuralchemy."
     )
 
     spot = nd.get("spot_check") or []
@@ -222,11 +248,17 @@ def build_paper_tables(out_dir: Path | None = None) -> Path:
                 )
         id_info = id_map.get(method, {})
         row["id_Bypass_%"] = id_info.get("id_Bypass_Rate_%")
+        row["id_True_ASR_%"] = id_info.get("id_True_ASR_%")
         row["id_FPR_%"] = id_info.get("id_FPR_%")
         if id_info:
+            n_inj = int(id_info.get("id_n_inj") or 0)
             row["id_Bypass_Wilson95"] = wilson_pct_str(
                 int(id_info.get("id_bypass_n") or 0),
-                int(id_info.get("id_n_inj") or 0),
+                n_inj,
+            )
+            row["id_True_ASR_Wilson95"] = wilson_pct_str(
+                int(id_info.get("id_asr_n") or 0),
+                n_inj,
             )
             row["id_FPR_Wilson95"] = wilson_pct_str(
                 int(id_info.get("id_fpr_n") or 0),
@@ -234,6 +266,7 @@ def build_paper_tables(out_dir: Path | None = None) -> Path:
             )
         else:
             row["id_Bypass_Wilson95"] = ""
+            row["id_True_ASR_Wilson95"] = ""
             row["id_FPR_Wilson95"] = ""
         headline.append(row)
     headline_df = pd.DataFrame(headline)
@@ -277,20 +310,21 @@ def build_paper_tables(out_dir: Path | None = None) -> Path:
     )
     lines.append("")
     lines.append(
-        "| Method | ID Bypass % | ID FPR % | LOO-4 macro Bypass % | LOO-4 macro True ASR % | LOO-4 macro FPR % | "
+        "| Method | ID Bypass % | ID True ASR % | ID FPR % | LOO-4 macro Bypass % | LOO-4 macro True ASR % | LOO-4 macro FPR % | "
         "LOO-4 pooled Bypass % (Wilson) | LOO-4 pooled True ASR % (Wilson) | LOO-4 pooled FPR % (Wilson) | "
         "Neuralchemy Bypass % (Wilson) | Neuralchemy True ASR % (Wilson) | Neuralchemy FPR % (Wilson) |"
     )
     lines.append(
-        "|--------|------------:|---------:|---------------------:|-----------------------:|------------------:|"
+        "|--------|------------:|--------------:|---------:|---------------------:|-----------------------:|------------------:|"
         "--------------------------------:|----------------------------------:|------------------------------:|"
         "-------------------------------:|---------------------------------:|-----------------------------:|"
     )
     for _, r in headline_df.iterrows():
         lines.append(
-            "| {lab} | {id_b} | {id_f} | {m_b} | {m_a} | {m_f} | {p_b} | {p_a} | {p_f} | {n_b} | {n_a} | {n_f} |".format(
+            "| {lab} | {id_b} | {id_a} | {id_f} | {m_b} | {m_a} | {m_f} | {p_b} | {p_a} | {p_f} | {n_b} | {n_a} | {n_f} |".format(
                 lab=r["label"],
                 id_b=_fmt(r.get("id_Bypass_%"), r.get("id_Bypass_Wilson95") or ""),
+                id_a=_fmt(r.get("id_True_ASR_%"), r.get("id_True_ASR_Wilson95") or ""),
                 id_f=_fmt(r.get("id_FPR_%"), r.get("id_FPR_Wilson95") or ""),
                 m_b=_fmt(r.get("loo4_macro_Bypass_%")),
                 m_a=_fmt(r.get("loo4_macro_True_ASR_%")),
@@ -402,9 +436,92 @@ def build_paper_tables(out_dir: Path | None = None) -> Path:
     lines.append("")
     lines.append(benign_md)
     lines.append("")
+
+    # --- Table F: three-regime FPR + adaptive Bypass (incl. portables) ---
+    edge_path = out / "robustness_edge_benign.csv"
+    adaptive_path = out / "robustness_adaptive.csv"
+    lines.append(
+        "## Table F — Three-regime FPR + adaptive Bypass "
+        "(matched LOO thresholds; edge = 80 technical prompts)"
+    )
+    lines.append("")
+    lines.append(
+        "| Method | LOO-4 PI-benign FPR % | Neuralchemy-side FPR % | "
+        "LOO-4 Edge FPR % | LOO-4 Adaptive Bypass % |"
+    )
+    lines.append(
+        "|--------|----------------------:|-----------------------:|"
+        "-----------------:|-------------------------:|"
+    )
+
+    def _edge_macro_pct(method: str) -> float | None:
+        if not edge_path.is_file():
+            return None
+        e = pd.read_csv(edge_path)
+        e.columns = [str(c).strip() for c in e.columns]
+        macro = e[
+            (e["fold"].astype(str) == "four_source_macro_avg")
+            & (e["method"].astype(str) == method)
+        ]
+        if not macro.empty:
+            if "edge_FPR_%" in macro.columns and pd.notna(macro.iloc[0].get("edge_FPR_%")):
+                return float(macro.iloc[0]["edge_FPR_%"])
+            if "edge_FPR" in macro.columns and pd.notna(macro.iloc[0].get("edge_FPR")):
+                return float(macro.iloc[0]["edge_FPR"]) * 100.0
+        src = e[
+            (e["fold"].isin(LOO_SOURCE_FOLDS)) & (e["method"].astype(str) == method)
+        ]
+        if src.empty:
+            return None
+        if "edge_FPR_%" in src.columns and src["edge_FPR_%"].notna().any():
+            return float(src["edge_FPR_%"].mean())
+        if "edge_FPR" in src.columns:
+            return float(src["edge_FPR"].mean()) * 100.0
+        return None
+
+    def _adaptive_macro_pct(method: str) -> float | None:
+        if not adaptive_path.is_file():
+            return None
+        a = pd.read_csv(adaptive_path)
+        a.columns = [str(c).strip() for c in a.columns]
+        macro = a[
+            (a["fold"].astype(str) == "four_source_macro_avg")
+            & (a["method"].astype(str) == method)
+        ]
+        if not macro.empty and "Bypass_Rate_%" in macro.columns:
+            return float(macro.iloc[0]["Bypass_Rate_%"])
+        src = a[
+            (a["fold"].isin(LOO_SOURCE_FOLDS)) & (a["method"].astype(str) == method)
+        ]
+        if src.empty or "Bypass_Rate_%" not in src.columns:
+            return None
+        return float(src["Bypass_Rate_%"].mean())
+
+    for method in methods:
+        lab = METHOD_LABEL.get(method, method)
+        macro = raw[
+            (raw["fold"] == "four_source_macro_avg") & (raw["method"] == method)
+        ]
+        neur = raw[(raw["fold"] == "neuralchemy") & (raw["method"] == method)]
+        pi_fpr = float(macro.iloc[0]["FPR_%"]) if not macro.empty else None
+        neur_fpr = float(neur.iloc[0]["FPR_%"]) if not neur.empty else None
+        edge_fpr = _edge_macro_pct(method)
+        adapt_b = _adaptive_macro_pct(method)
+        lines.append(
+            f"| {lab} | {_fmt(pi_fpr)} | {_fmt(neur_fpr)} | "
+            f"{_fmt(edge_fpr)} | {_fmt(adapt_b)} |"
+        )
+    lines.append("")
+    lines.append(
+        "Edge / adaptive use the **same** per-fold matched thresholds as Table A. "
+        "ProtectAI / Prompt Guard adaptive Bypass is **gate-only** (True ASR not "
+        "re-judged)."
+    )
+    lines.append("")
     lines.append(
         f"Sources: `{metrics_path.as_posix()}`, `{MATCHED_FPR.as_posix()}`, "
-        f"`{MANIFEST.as_posix()}`."
+        f"`{MANIFEST.as_posix()}`, `{edge_path.as_posix()}`, "
+        f"`{adaptive_path.as_posix()}`."
     )
 
     md_path = out / "PAPER_TABLES.md"
@@ -416,18 +533,18 @@ def build_paper_tables(out_dir: Path | None = None) -> Path:
         info = (manifest.get("folds") or {}).get(fold, {})
         tb = info.get("train_benign_by_source") or {}
         vb = info.get("val_benign_by_source") or {}
-        t_cg = int(tb.get("chatgpt_benign", 0) or 0)
+        t_alp = int(tb.get("alpaca_benign", 0) or 0)
+        v_alp = int(vb.get("alpaca_benign", 0) or 0)
         t_pi = int(tb.get("prompt_injection_benign", 0) or 0)
-        v_cg = int(vb.get("chatgpt_benign", 0) or 0)
         v_pi = int(vb.get("prompt_injection_benign", 0) or 0)
         tb_rows.append(
             {
                 "fold": fold,
-                "train_chatgpt_benign": t_cg,
+                "train_alpaca_benign": t_alp,
+                "val_alpaca_benign": v_alp,
+                "fit_benign_total": t_alp + v_alp,
                 "train_prompt_injection_benign": t_pi,
-                "val_chatgpt_benign": v_cg,
                 "val_prompt_injection_benign": v_pi,
-                "fit_benign_total": t_cg + t_pi + v_cg + v_pi,
             }
         )
     pd.DataFrame(tb_rows).to_csv(out / "train_benign_by_fold.csv", index=False)

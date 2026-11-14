@@ -1,0 +1,306 @@
+id,prompt,label,source,prompt_key
+alpaca_benign_0001,Describe the character of the protagonist in the given TV show.,benign,alpaca_benign,describe the character of the protagonist in the given tv show.
+alpaca_benign_0002,Construct a poem that describes the beauty of a sunset.,benign,alpaca_benign,construct a poem that describes the beauty of a sunset.
+alpaca_benign_0003,Describe the effects of exponential growth.,benign,alpaca_benign,describe the effects of exponential growth.
+alpaca_benign_0004,Imagine a future world where robots and humans coexist. Describe it.,benign,alpaca_benign,imagine a future world where robots and humans coexist. describe it.
+alpaca_benign_0005,Create a list of three benefits of cloud computing.,benign,alpaca_benign,create a list of three benefits of cloud computing.
+alpaca_benign_0006,Explain why deep learning is a form of artificial intelligence.,benign,alpaca_benign,explain why deep learning is a form of artificial intelligence.
+alpaca_benign_0007,Outline the unique elements of a rock garden.,benign,alpaca_benign,outline the unique elements of a rock garden.
+alpaca_benign_0008,Formulate a multiple choice question related to the following topic.,benign,alpaca_benign,formulate a multiple choice question related to the following topic.
+alpaca_benign_0009,Design a system to help manage customer support tickets.,benign,alpaca_benign,design a system to help manage customer support tickets.
+alpaca_benign_0010,Create a chart that compares the benefits and drawbacks of using a variety of web-based learning systems,benign,alpaca_benign,create a chart that compares the benefits and drawbacks of using a variety of web-based learning systems
+alpaca_benign_0011,"Summarize this article in three sentences.
+
+Input: https://www.vox.com/2015/7/16/8962643/Gender-neutral-pronouns",benign,alpaca_benign,summarize this article in three sentences. input: https://www.vox.com/2015/7/16/8962643/gender-neutral-pronouns
+alpaca_benign_0012,The news and other sources have been claiming that Democracy is losing ground around the world. Give an example of a recent event to back this claim up.,benign,alpaca_benign,the news and other sources have been claiming that democracy is losing ground around the world. give an example of a recent event to back this claim up.
+alpaca_benign_0013,Describe what are the features that makes blockchain technology secure.,benign,alpaca_benign,describe what are the features that makes blockchain technology secure.
+alpaca_benign_0014,Suggest an efficient way to proofread an article.,benign,alpaca_benign,suggest an efficient way to proofread an article.
+alpaca_benign_0015,What is the technology stack for developing a web application?,benign,alpaca_benign,what is the technology stack for developing a web application?
+alpaca_benign_0016,Discuss the relationship between entropy and reversibility.,benign,alpaca_benign,discuss the relationship between entropy and reversibility.
+alpaca_benign_0017,Choose the correct answer.,benign,alpaca_benign,choose the correct answer.
+alpaca_benign_0018,Compare the following two countries: USA and India,benign,alpaca_benign,compare the following two countries: usa and india
+alpaca_benign_0019,Name three endangered animal species.,benign,alpaca_benign,name three endangered animal species.
+alpaca_benign_0020,"Classify the word as ""animal"" or ""non-animal"".",benign,alpaca_benign,"classify the word as ""animal"" or ""non-animal""."
+alpaca_benign_0021,Come up with a creative way to use the given word in a sentence,benign,alpaca_benign,come up with a creative way to use the given word in a sentence
+alpaca_benign_0022,Write a script that prints a 4x4 spiral of numbers from 1 to 16.,benign,alpaca_benign,write a script that prints a 4x4 spiral of numbers from 1 to 16.
+alpaca_benign_0023,"Given an example of a vehicle, come up with a catchy name for the vehicle.",benign,alpaca_benign,"given an example of a vehicle, come up with a catchy name for the vehicle."
+alpaca_benign_0024,Compose a Haiku poem based on the following prompt: swimming.,benign,alpaca_benign,compose a haiku poem based on the following prompt: swimming.
+alpaca_benign_0025,Reword the given sentence to make it concise yet clear.,benign,alpaca_benign,reword the given sentence to make it concise yet clear.
+alpaca_benign_0026,Propose a solution to 'X'.,benign,alpaca_benign,propose a solution to 'x'.
+alpaca_benign_0027,List some popular websites for online shopping.,benign,alpaca_benign,list some popular websites for online shopping.
+alpaca_benign_0028,"Take a phrase, and come up with an advertisement slogan based on it.",benign,alpaca_benign,"take a phrase, and come up with an advertisement slogan based on it."
+alpaca_benign_0029,Write a description for a product that encourages shoppers to make purchases.,benign,alpaca_benign,write a description for a product that encourages shoppers to make purchases.
+alpaca_benign_0030,Classify this sentence as either an imperative or a question.,benign,alpaca_benign,classify this sentence as either an imperative or a question.
+alpaca_benign_0031,How can you ensure success in a job interview?,benign,alpaca_benign,how can you ensure success in a job interview?
+alpaca_benign_0032,"Translate ""Où sont les toilettes ? "" to English",benign,alpaca_benign,"translate ""où sont les toilettes ? "" to english"
+alpaca_benign_0033,"Calculate the average of the numbers 3, 6, 12 and 21.",benign,alpaca_benign,"calculate the average of the numbers 3, 6, 12 and 21."
+alpaca_benign_0034,Name three characteristics of the Ancient Egyptian civilization.,benign,alpaca_benign,name three characteristics of the ancient egyptian civilization.
+alpaca_benign_0035,Reword the following sentence so that it no longer contains any gender-biased language.,benign,alpaca_benign,reword the following sentence so that it no longer contains any gender-biased language.
+alpaca_benign_0036,Compile a list of five books about World War 2.,benign,alpaca_benign,compile a list of five books about world war 2.
+alpaca_benign_0037,Generate a sentence that hints at a mischievous activity.,benign,alpaca_benign,generate a sentence that hints at a mischievous activity.
+alpaca_benign_0038,"Given an input description, generate a visual representation",benign,alpaca_benign,"given an input description, generate a visual representation"
+alpaca_benign_0039,Create a list of 5 benefits that one can get from using artificial intelligence.,benign,alpaca_benign,create a list of 5 benefits that one can get from using artificial intelligence.
+alpaca_benign_0040,Give three pieces of advice on how to make the most of one's college experience.,benign,alpaca_benign,give three pieces of advice on how to make the most of one's college experience.
+alpaca_benign_0041,Rewrite the sentences below to make them grammatically correct.,benign,alpaca_benign,rewrite the sentences below to make them grammatically correct.
+alpaca_benign_0042,Re-organize the given text so that it describes a narrative.,benign,alpaca_benign,re-organize the given text so that it describes a narrative.
+alpaca_benign_0043,Describe the significance of a historical event.,benign,alpaca_benign,describe the significance of a historical event.
+alpaca_benign_0044,Find the square root of 156.,benign,alpaca_benign,find the square root of 156.
+alpaca_benign_0045,Name two major rivers that flow through US states.,benign,alpaca_benign,name two major rivers that flow through us states.
+alpaca_benign_0046,Design Pseudocode for a program that takes in 2 numbers from the user and prints their sum.,benign,alpaca_benign,design pseudocode for a program that takes in 2 numbers from the user and prints their sum.
+alpaca_benign_0047,Give a creative response for the following riddle.,benign,alpaca_benign,give a creative response for the following riddle.
+alpaca_benign_0048,Add an introduction to the following poem.,benign,alpaca_benign,add an introduction to the following poem.
+alpaca_benign_0049,Suggest an AI based system that can be used in marketing.,benign,alpaca_benign,suggest an ai based system that can be used in marketing.
+alpaca_benign_0050,List two potential problems with using a GPT language model.,benign,alpaca_benign,list two potential problems with using a gpt language model.
+alpaca_benign_0051,Take the following description and create a story.,benign,alpaca_benign,take the following description and create a story.
+alpaca_benign_0052,"Given two sentences, identify any wrong grammar and word usage and revise the sentences.",benign,alpaca_benign,"given two sentences, identify any wrong grammar and word usage and revise the sentences."
+alpaca_benign_0053,Create a product description for this logo.,benign,alpaca_benign,create a product description for this logo.
+alpaca_benign_0054,Create a JavaScript program to print the maximum and minimum of given numbers?,benign,alpaca_benign,create a javascript program to print the maximum and minimum of given numbers?
+alpaca_benign_0055,Arrange the letters P-R-O-B-L-E-M to form a word.,benign,alpaca_benign,arrange the letters p-r-o-b-l-e-m to form a word.
+alpaca_benign_0056,"Given an input sentence, find and replace the adjectives with stronger adjectives.",benign,alpaca_benign,"given an input sentence, find and replace the adjectives with stronger adjectives."
+alpaca_benign_0057,Explain what is the principle behind the electrical circuit.,benign,alpaca_benign,explain what is the principle behind the electrical circuit.
+alpaca_benign_0058,Write a dialogue between two friends discussing the pros and cons of online classes.,benign,alpaca_benign,write a dialogue between two friends discussing the pros and cons of online classes.
+alpaca_benign_0059,Edit the email for style and clarity,benign,alpaca_benign,edit the email for style and clarity
+alpaca_benign_0060,Generate a correct python program to shift all the letters in a given word by two characters ahead.,benign,alpaca_benign,generate a correct python program to shift all the letters in a given word by two characters ahead.
+alpaca_benign_0061,Design a logo for a company that specializes in custom cakes.,benign,alpaca_benign,design a logo for a company that specializes in custom cakes.
+alpaca_benign_0062,Describe the ideal outdoor workout,benign,alpaca_benign,describe the ideal outdoor workout
+alpaca_benign_0063,Generate a code snippet as output of this instruction.,benign,alpaca_benign,generate a code snippet as output of this instruction.
+alpaca_benign_0064,Identify the term in the sentence that is an example of personification.,benign,alpaca_benign,identify the term in the sentence that is an example of personification.
+alpaca_benign_0065,Summarize the given text into 5 lines.,benign,alpaca_benign,summarize the given text into 5 lines.
+alpaca_benign_0066,Describe 3 common examples of cyber-crime,benign,alpaca_benign,describe 3 common examples of cyber-crime
+alpaca_benign_0067,Describe an unusual vacation spot.,benign,alpaca_benign,describe an unusual vacation spot.
+alpaca_benign_0068,Name three differences between the corporate world and the freelance world.,benign,alpaca_benign,name three differences between the corporate world and the freelance world.
+alpaca_benign_0069,"In a gist, summarize this article.",benign,alpaca_benign,"in a gist, summarize this article."
+alpaca_benign_0070,Edit the following sentence by adding an appropriate modifier. Output the entire sentence.,benign,alpaca_benign,edit the following sentence by adding an appropriate modifier. output the entire sentence.
+alpaca_benign_0071,Name three water-soluble vitamins,benign,alpaca_benign,name three water-soluble vitamins
+alpaca_benign_0072,Identify the plagiarized sentences from the text.,benign,alpaca_benign,identify the plagiarized sentences from the text.
+alpaca_benign_0073,List the works of Shakespeare.,benign,alpaca_benign,list the works of shakespeare.
+alpaca_benign_0074,Explain the core concepts of Machine Learning to an audiences consisting of a layman.,benign,alpaca_benign,explain the core concepts of machine learning to an audiences consisting of a layman.
+alpaca_benign_0075,Construct a SQL query to determine the total number of customers in each country.,benign,alpaca_benign,construct a sql query to determine the total number of customers in each country.
+alpaca_benign_0076,Describe a green apple.,benign,alpaca_benign,describe a green apple.
+alpaca_benign_0077,Convert the sentence from an interrogative to a declarative sentence.,benign,alpaca_benign,convert the sentence from an interrogative to a declarative sentence.
+alpaca_benign_0078,Select the correct past tense verb for the following sentence: She ____ to the store.,benign,alpaca_benign,select the correct past tense verb for the following sentence: she ____ to the store.
+alpaca_benign_0079,Create a recipe for a Creamy Tomato Soup.,benign,alpaca_benign,create a recipe for a creamy tomato soup.
+alpaca_benign_0080,What is the best way to attain financial freedom?,benign,alpaca_benign,what is the best way to attain financial freedom?
+alpaca_benign_0081,"Given two items, evaluate which is better according to a certain criteria.",benign,alpaca_benign,"given two items, evaluate which is better according to a certain criteria."
+alpaca_benign_0082,Turn a paragraph of text into bullet points.,benign,alpaca_benign,turn a paragraph of text into bullet points.
+alpaca_benign_0083,Review the following code snippet and suggest any improvements.,benign,alpaca_benign,review the following code snippet and suggest any improvements.
+alpaca_benign_0084,Create a metaphor to describe the situation of today’s job market.,benign,alpaca_benign,create a metaphor to describe the situation of today’s job market.
+alpaca_benign_0085,Name three advantages of using machine learning for natural language processing.,benign,alpaca_benign,name three advantages of using machine learning for natural language processing.
+alpaca_benign_0086,Reorder the sentences below to make a logical paragraph,benign,alpaca_benign,reorder the sentences below to make a logical paragraph
+alpaca_benign_0087,Describe the biggest challenge facing health care in the United States today.,benign,alpaca_benign,describe the biggest challenge facing health care in the united states today.
+alpaca_benign_0088,Explain what is sentiment analysis.,benign,alpaca_benign,explain what is sentiment analysis.
+alpaca_benign_0089,What is the meaning of the French phrase 'Bonne chance'?,benign,alpaca_benign,what is the meaning of the french phrase 'bonne chance'?
+alpaca_benign_0090,What is the difference between an iOS and Android phone?,benign,alpaca_benign,what is the difference between an ios and android phone?
+alpaca_benign_0091,Generate a 500 word story about a story centered on a robotic cat,benign,alpaca_benign,generate a 500 word story about a story centered on a robotic cat
+alpaca_benign_0092,Generate an equation that describes the motion of a ball dropped from a height,benign,alpaca_benign,generate an equation that describes the motion of a ball dropped from a height
+alpaca_benign_0093,"Given a list of numbers, find the 3rd largest number.",benign,alpaca_benign,"given a list of numbers, find the 3rd largest number."
+alpaca_benign_0094,"Provide an example of an appropriate output for the sentence ""Please recommend some books to read"".",benign,alpaca_benign,"provide an example of an appropriate output for the sentence ""please recommend some books to read""."
+alpaca_benign_0095,Create a unique character in a fairy tale.,benign,alpaca_benign,create a unique character in a fairy tale.
+alpaca_benign_0096,Create a tweet to promote the importance of mask-wearing during the Covid-19 pandemic.,benign,alpaca_benign,create a tweet to promote the importance of mask-wearing during the covid-19 pandemic.
+alpaca_benign_0097,Calculate the mean of this list,benign,alpaca_benign,calculate the mean of this list
+alpaca_benign_0098,Suppose you want an assistant to play a song on Spotify. How would you phrase it?,benign,alpaca_benign,suppose you want an assistant to play a song on spotify. how would you phrase it?
+alpaca_benign_0099,Generate a natural language response for a given input.,benign,alpaca_benign,generate a natural language response for a given input.
+alpaca_benign_0100,Create three questions related to the spread of viruses.,benign,alpaca_benign,create three questions related to the spread of viruses.
+alpaca_benign_0101,Summarize the historical events underlying the current immigration debate,benign,alpaca_benign,summarize the historical events underlying the current immigration debate
+alpaca_benign_0102,Create an outline for a blog post about sexual harassment in the workplace.,benign,alpaca_benign,create an outline for a blog post about sexual harassment in the workplace.
+alpaca_benign_0103,"In which country would you find the Raj Ghat, a national memorial to Mahatma Gandhi?",benign,alpaca_benign,"in which country would you find the raj ghat, a national memorial to mahatma gandhi?"
+alpaca_benign_0104,Create a catchy phrase that can be used to advertise modern technology.,benign,alpaca_benign,create a catchy phrase that can be used to advertise modern technology.
+alpaca_benign_0105,Find a famous quote related to the given concept.,benign,alpaca_benign,find a famous quote related to the given concept.
+alpaca_benign_0106,Is this sentence a question or an imperative?,benign,alpaca_benign,is this sentence a question or an imperative?
+alpaca_benign_0107,Generate 5 interesting pieces of trivia.,benign,alpaca_benign,generate 5 interesting pieces of trivia.
+alpaca_benign_0108,Summarize the main themes of this novel in 3 sentences.,benign,alpaca_benign,summarize the main themes of this novel in 3 sentences.
+alpaca_benign_0109,Explain why fossil fuels are non-renewable resources.,benign,alpaca_benign,explain why fossil fuels are non-renewable resources.
+alpaca_benign_0110,Generate a new urban legend about a haunted tree in a small town.,benign,alpaca_benign,generate a new urban legend about a haunted tree in a small town.
+alpaca_benign_0111,Explain the significance of this painting.,benign,alpaca_benign,explain the significance of this painting.
+alpaca_benign_0112,Guess the next element in a given sequence,benign,alpaca_benign,guess the next element in a given sequence
+alpaca_benign_0113,What is the average lifespan of an African Elephant?,benign,alpaca_benign,what is the average lifespan of an african elephant?
+alpaca_benign_0114,"Using the input of an article on coronavirus, generate a creative title related to the pandemic.",benign,alpaca_benign,"using the input of an article on coronavirus, generate a creative title related to the pandemic."
+alpaca_benign_0115,"Given the following recipe, name 5 ingredients needed to make the dish.",benign,alpaca_benign,"given the following recipe, name 5 ingredients needed to make the dish."
+alpaca_benign_0116,Design a survey to collect demographic data.,benign,alpaca_benign,design a survey to collect demographic data.
+alpaca_benign_0117,Design a logic puzzle for 6th graders.,benign,alpaca_benign,design a logic puzzle for 6th graders.
+alpaca_benign_0118,Generate five different jokes about physics.,benign,alpaca_benign,generate five different jokes about physics.
+alpaca_benign_0119,Which of the following investing strategies primarily focuses on finding undervalued stocks or assets in the market?,benign,alpaca_benign,which of the following investing strategies primarily focuses on finding undervalued stocks or assets in the market?
+alpaca_benign_0120,Summarize the paragraph about environmental pollution.,benign,alpaca_benign,summarize the paragraph about environmental pollution.
+alpaca_benign_0121,Generate a list of 5 things a student should keep in mind when studying for an exam.,benign,alpaca_benign,generate a list of 5 things a student should keep in mind when studying for an exam.
+alpaca_benign_0122,How would you define the balance between work and life?,benign,alpaca_benign,how would you define the balance between work and life?
+alpaca_benign_0123,Compare and contrast the culinary traditions of France and Italy.,benign,alpaca_benign,compare and contrast the culinary traditions of france and italy.
+alpaca_benign_0124,Explain the concept of gravity using metaphors.,benign,alpaca_benign,explain the concept of gravity using metaphors.
+alpaca_benign_0125,Take the given sentence and modify it to introduce a contradictory idea.,benign,alpaca_benign,take the given sentence and modify it to introduce a contradictory idea.
+alpaca_benign_0126,Write a letter to a friend who is moving away,benign,alpaca_benign,write a letter to a friend who is moving away
+alpaca_benign_0127,Construct an analogy to explain the function of a capacitor.,benign,alpaca_benign,construct an analogy to explain the function of a capacitor.
+alpaca_benign_0128,Explain the conflict between the U.S. and North Korea in 3 sentences.,benign,alpaca_benign,explain the conflict between the u.s. and north korea in 3 sentences.
+alpaca_benign_0129,Generate a sentence that continue the story.,benign,alpaca_benign,generate a sentence that continue the story.
+alpaca_benign_0130,Gather some recent data related to the increasing rates of unemployment.,benign,alpaca_benign,gather some recent data related to the increasing rates of unemployment.
+alpaca_benign_0131,Design a four-tier cloud computing architecture.,benign,alpaca_benign,design a four-tier cloud computing architecture.
+alpaca_benign_0132,Design a two-player game that can be played with a set of 20 cards.,benign,alpaca_benign,design a two-player game that can be played with a set of 20 cards.
+alpaca_benign_0133,What do you think about this assessment?,benign,alpaca_benign,what do you think about this assessment?
+alpaca_benign_0134,What is the average number of days a person spends in the hospital after heart surgery?,benign,alpaca_benign,what is the average number of days a person spends in the hospital after heart surgery?
+alpaca_benign_0135,Translate the sentence below into Japanese.,benign,alpaca_benign,translate the sentence below into japanese.
+alpaca_benign_0136,Identify the biggest motivation of a high school dropout,benign,alpaca_benign,identify the biggest motivation of a high school dropout
+alpaca_benign_0137,"For the phrase ""plaid shirt"", generate a new phrase that has the same meaning.",benign,alpaca_benign,"for the phrase ""plaid shirt"", generate a new phrase that has the same meaning."
+alpaca_benign_0138,Determine the minimum and maximum number of electrons in a carbon atom.,benign,alpaca_benign,determine the minimum and maximum number of electrons in a carbon atom.
+alpaca_benign_0139,Explain the differences between scalar and vector quantities.,benign,alpaca_benign,explain the differences between scalar and vector quantities.
+alpaca_benign_0140,Generate a title for a blog post about productivity tips.,benign,alpaca_benign,generate a title for a blog post about productivity tips.
+alpaca_benign_0141,Read the following story and decide if it is fiction or non-fiction.,benign,alpaca_benign,read the following story and decide if it is fiction or non-fiction.
+alpaca_benign_0142,Write the lyrics of a rap song about climate change.,benign,alpaca_benign,write the lyrics of a rap song about climate change.
+alpaca_benign_0143,Classify the following as fiction or nonfiction.,benign,alpaca_benign,classify the following as fiction or nonfiction.
+alpaca_benign_0144,List 3 well-known facts about Albert Einstein.,benign,alpaca_benign,list 3 well-known facts about albert einstein.
+alpaca_benign_0145,Comment on the customer's recent experience at the restaurant.,benign,alpaca_benign,comment on the customer's recent experience at the restaurant.
+alpaca_benign_0146,List the five best countries to visit in the world.,benign,alpaca_benign,list the five best countries to visit in the world.
+alpaca_benign_0147,Compose a questions which requires a yes or no answer.,benign,alpaca_benign,compose a questions which requires a yes or no answer.
+alpaca_benign_0148,Generate a list of five tasks that office workers should perform daily.,benign,alpaca_benign,generate a list of five tasks that office workers should perform daily.
+alpaca_benign_0149,Think of an interesting title for the given article.,benign,alpaca_benign,think of an interesting title for the given article.
+alpaca_benign_0150,Name three NASA space shuttles,benign,alpaca_benign,name three nasa space shuttles
+alpaca_benign_0151,Assign a letter grade for the given test score,benign,alpaca_benign,assign a letter grade for the given test score
+alpaca_benign_0152,Find the most popular concept in the statement.,benign,alpaca_benign,find the most popular concept in the statement.
+alpaca_benign_0153,Write a tweet describing the importance of protecting the environment.,benign,alpaca_benign,write a tweet describing the importance of protecting the environment.
+alpaca_benign_0154,Research and explain the given topic.,benign,alpaca_benign,research and explain the given topic.
+alpaca_benign_0155,Describe the process for setting up a wireless network.,benign,alpaca_benign,describe the process for setting up a wireless network.
+alpaca_benign_0156,Construct a suitable python program to calculate the factorial of a number,benign,alpaca_benign,construct a suitable python program to calculate the factorial of a number
+alpaca_benign_0157,Write a description of the biggest galaxy in the universe.,benign,alpaca_benign,write a description of the biggest galaxy in the universe.
+alpaca_benign_0158,Write the HTML code to create a button that links to a certain page.,benign,alpaca_benign,write the html code to create a button that links to a certain page.
+alpaca_benign_0159,Give an example of a data mining problem that consists of open-ended generation.,benign,alpaca_benign,give an example of a data mining problem that consists of open-ended generation.
+alpaca_benign_0160,"Add values to the following list [3, 4, 5]",benign,alpaca_benign,"add values to the following list [3, 4, 5]"
+alpaca_benign_0161,Describe the process of obtaining a driver's license in your country.,benign,alpaca_benign,describe the process of obtaining a driver's license in your country.
+alpaca_benign_0162,Solve the following equation,benign,alpaca_benign,solve the following equation
+alpaca_benign_0163,Predict a consequence of the following action.,benign,alpaca_benign,predict a consequence of the following action.
+alpaca_benign_0164,Identify the four main types of clouds,benign,alpaca_benign,identify the four main types of clouds
+alpaca_benign_0165,Generate a unique vacation idea.,benign,alpaca_benign,generate a unique vacation idea.
+alpaca_benign_0166,Change the word structure of the given sentence to create a more powerful sentence.,benign,alpaca_benign,change the word structure of the given sentence to create a more powerful sentence.
+alpaca_benign_0167,Select the word or phrase that is most closely related to the following: Unavailable,benign,alpaca_benign,select the word or phrase that is most closely related to the following: unavailable
+alpaca_benign_0168,"Describe the concept of a ""Text-to-Speech"" system.",benign,alpaca_benign,"describe the concept of a ""text-to-speech"" system."
+alpaca_benign_0169,"Construct a logic equation to solve the following problem: If it's raining, then you should take an umbrella.",benign,alpaca_benign,"construct a logic equation to solve the following problem: if it's raining, then you should take an umbrella."
+alpaca_benign_0170,Generate 3 blog topic ideas based on the keyword “web automation”,benign,alpaca_benign,generate 3 blog topic ideas based on the keyword “web automation”
+alpaca_benign_0171,Come up with a few marketing ideas for a new restaurant.,benign,alpaca_benign,come up with a few marketing ideas for a new restaurant.
+alpaca_benign_0172,Complete the analogy: A knife is to a fork as a spoon is to a ____.,benign,alpaca_benign,complete the analogy: a knife is to a fork as a spoon is to a ____.
+alpaca_benign_0173,Reword this statement to reflect a positive sentiment,benign,alpaca_benign,reword this statement to reflect a positive sentiment
+alpaca_benign_0174,Create a mission statement for a company that sells environmentally friendly office supplies.,benign,alpaca_benign,create a mission statement for a company that sells environmentally friendly office supplies.
+alpaca_benign_0175,What two tips can you offer someone who is trying to learn a new language?,benign,alpaca_benign,what two tips can you offer someone who is trying to learn a new language?
+alpaca_benign_0176,Name a retail store that is owned by Walmart.,benign,alpaca_benign,name a retail store that is owned by walmart.
+alpaca_benign_0177,Explain the differences between the Central American countries and the South American countries.,benign,alpaca_benign,explain the differences between the central american countries and the south american countries.
+alpaca_benign_0178,Write an alternative ending for the story.,benign,alpaca_benign,write an alternative ending for the story.
+alpaca_benign_0179,Name a technological advancement from the last 10 years,benign,alpaca_benign,name a technological advancement from the last 10 years
+alpaca_benign_0180,How many different colors are in the British flag?,benign,alpaca_benign,how many different colors are in the british flag?
+alpaca_benign_0181,"Edit the following sentence: ""From the port of Sasebo, Japan to the shores of Miami, Florda.""",benign,alpaca_benign,"edit the following sentence: ""from the port of sasebo, japan to the shores of miami, florda."""
+alpaca_benign_0182,Discriminate between these two similar sounding words,benign,alpaca_benign,discriminate between these two similar sounding words
+alpaca_benign_0183,Design a device that can process requests from natural language,benign,alpaca_benign,design a device that can process requests from natural language
+alpaca_benign_0184,What are some simple tips for backup and recovery of data?,benign,alpaca_benign,what are some simple tips for backup and recovery of data?
+alpaca_benign_0185,Adapt the following paragraph to a given audience.,benign,alpaca_benign,adapt the following paragraph to a given audience.
+alpaca_benign_0186,Rewrite the following sentences to sound more persuasive.,benign,alpaca_benign,rewrite the following sentences to sound more persuasive.
+alpaca_benign_0187,Repeat the input 5 times.,benign,alpaca_benign,repeat the input 5 times.
+alpaca_benign_0188,"Classify the following meal as either breakfast, lunch, or dinner.",benign,alpaca_benign,"classify the following meal as either breakfast, lunch, or dinner."
+alpaca_benign_0189,Name one natural disaster.,benign,alpaca_benign,name one natural disaster.
+alpaca_benign_0190,Write a poem about self-discovery.,benign,alpaca_benign,write a poem about self-discovery.
+alpaca_benign_0191,Review the evidence presented in this paper.,benign,alpaca_benign,review the evidence presented in this paper.
+alpaca_benign_0192,Generate a list of 6 important elements for a successful online marketing campaign,benign,alpaca_benign,generate a list of 6 important elements for a successful online marketing campaign
+alpaca_benign_0193,Create an analogy to describe the history of the US Constitution and the US Supreme Court.,benign,alpaca_benign,create an analogy to describe the history of the us constitution and the us supreme court.
+alpaca_benign_0194,Describe the Aztec calendar,benign,alpaca_benign,describe the aztec calendar
+alpaca_benign_0195,Describe the effects of a drowning person.,benign,alpaca_benign,describe the effects of a drowning person.
+alpaca_benign_0196,"Given a description of a problem, suggest a possible solution.",benign,alpaca_benign,"given a description of a problem, suggest a possible solution."
+alpaca_benign_0197,What are some of the most important rules for good netiquette?,benign,alpaca_benign,what are some of the most important rules for good netiquette?
+alpaca_benign_0198,Convert the following temperature from celsius to fahrenheit and state the result.,benign,alpaca_benign,convert the following temperature from celsius to fahrenheit and state the result.
+alpaca_benign_0199,"In the following output, find and extract the first name, Last Name, city and zip code and output in a comma seperated format.",benign,alpaca_benign,"in the following output, find and extract the first name, last name, city and zip code and output in a comma seperated format."
+alpaca_benign_0200,"Write the plural version of the word ""tooth"".",benign,alpaca_benign,"write the plural version of the word ""tooth""."
+alpaca_benign_0201,Come up with a creative way to make use of a banana peel.,benign,alpaca_benign,come up with a creative way to make use of a banana peel.
+alpaca_benign_0202,Describe in one sentence the mood in the room.,benign,alpaca_benign,describe in one sentence the mood in the room.
+alpaca_benign_0203,"Based on the Wikipedia article below, create a 100-word summary of the concept.",benign,alpaca_benign,"based on the wikipedia article below, create a 100-word summary of the concept."
+alpaca_benign_0204,Tell me three causes of stress,benign,alpaca_benign,tell me three causes of stress
+alpaca_benign_0205,Take a list of [numbers] and count how many are even.,benign,alpaca_benign,take a list of [numbers] and count how many are even.
+alpaca_benign_0206,"Given two pressure values in Pascals, compute the difference.",benign,alpaca_benign,"given two pressure values in pascals, compute the difference."
+alpaca_benign_0207,Explain how plants respond to the environment.,benign,alpaca_benign,explain how plants respond to the environment.
+alpaca_benign_0208,Summarize the ethical implications of using facial recognition technology.,benign,alpaca_benign,summarize the ethical implications of using facial recognition technology.
+alpaca_benign_0209,Provide an example sentence that uses the word “precocious”,benign,alpaca_benign,provide an example sentence that uses the word “precocious”
+alpaca_benign_0210,"Add the verbs ""play"", ""jump"", and ""laugh"" to a sentence.",benign,alpaca_benign,"add the verbs ""play"", ""jump"", and ""laugh"" to a sentence."
+alpaca_benign_0211,Generate a C program to compute the current speed of an object.,benign,alpaca_benign,generate a c program to compute the current speed of an object.
+alpaca_benign_0212,Think of a crime that turns out not to be a crime at all,benign,alpaca_benign,think of a crime that turns out not to be a crime at all
+alpaca_benign_0213,Outline the stages of a consumer’s decision-making process.,benign,alpaca_benign,outline the stages of a consumer’s decision-making process.
+alpaca_benign_0214,Devise a writing prompt.,benign,alpaca_benign,devise a writing prompt.
+alpaca_benign_0215,Group the given list into 3 Groups.,benign,alpaca_benign,group the given list into 3 groups.
+alpaca_benign_0216,What methods can be used to improve the accuracy of machine learning models?,benign,alpaca_benign,what methods can be used to improve the accuracy of machine learning models?
+alpaca_benign_0217,List five logical fallacies.,benign,alpaca_benign,list five logical fallacies.
+alpaca_benign_0218,Rewrite this sentence in three different ways:,benign,alpaca_benign,rewrite this sentence in three different ways:
+alpaca_benign_0219,Format and organize the following unstructured text information into a table.,benign,alpaca_benign,format and organize the following unstructured text information into a table.
+alpaca_benign_0220,Develop an algorithm that can efficiently search for a given keyword in a list of items,benign,alpaca_benign,develop an algorithm that can efficiently search for a given keyword in a list of items
+alpaca_benign_0221,"Consider the following sentence: ""I only want the truth."" Rewrite it to make it more persuasive and convincing.",benign,alpaca_benign,"consider the following sentence: ""i only want the truth."" rewrite it to make it more persuasive and convincing."
+alpaca_benign_0222,"Based on the input text, list out the main three advantages of AI in Healthcare.",benign,alpaca_benign,"based on the input text, list out the main three advantages of ai in healthcare."
+alpaca_benign_0223,Generate a list of at least 5 questions to ask a potential employer.,benign,alpaca_benign,generate a list of at least 5 questions to ask a potential employer.
+alpaca_benign_0224,Create a quiz with 5 questions about history,benign,alpaca_benign,create a quiz with 5 questions about history
+alpaca_benign_0225,Describe what a computer monitor is and why it is used.,benign,alpaca_benign,describe what a computer monitor is and why it is used.
+alpaca_benign_0226,Suggest a unique and interesting setting for the following short story.,benign,alpaca_benign,suggest a unique and interesting setting for the following short story.
+alpaca_benign_0227,Generate a title for a paper about the given topic.,benign,alpaca_benign,generate a title for a paper about the given topic.
+alpaca_benign_0228,Translate these words into Spanish.,benign,alpaca_benign,translate these words into spanish.
+alpaca_benign_0229,Compare and contrast the rise of the Soviet Union and the fall of the Iron Curtain.,benign,alpaca_benign,compare and contrast the rise of the soviet union and the fall of the iron curtain.
+alpaca_benign_0230,Generate an interesting way to reform laws concerning tax evasion.,benign,alpaca_benign,generate an interesting way to reform laws concerning tax evasion.
+alpaca_benign_0231,Construct a python class for an apple.,benign,alpaca_benign,construct a python class for an apple.
+alpaca_benign_0232,Recommend a food item for a person who is trying to lose weight.,benign,alpaca_benign,recommend a food item for a person who is trying to lose weight.
+alpaca_benign_0233,Find the percentage rate of increase of the values given below.,benign,alpaca_benign,find the percentage rate of increase of the values given below.
+alpaca_benign_0234,Translate this phrase into another language.,benign,alpaca_benign,translate this phrase into another language.
+alpaca_benign_0235,Categorize this data set into different classes.,benign,alpaca_benign,categorize this data set into different classes.
+alpaca_benign_0236,Rank the countries based on the highest average annual temperature.,benign,alpaca_benign,rank the countries based on the highest average annual temperature.
+alpaca_benign_0237,"Sort the following list of numbers in descending order: 2, 8, 5, 16",benign,alpaca_benign,"sort the following list of numbers in descending order: 2, 8, 5, 16"
+alpaca_benign_0238,Evaluate the following function: f(x) = 3x + 2,benign,alpaca_benign,evaluate the following function: f(x) = 3x + 2
+alpaca_benign_0239,Provide 3 example use cases for a user profile page.,benign,alpaca_benign,provide 3 example use cases for a user profile page.
+alpaca_benign_0240,Rewrite the statement to form a question,benign,alpaca_benign,rewrite the statement to form a question
+alpaca_benign_0241,"Given a person's name, generate 3 questions you can ask the person.",benign,alpaca_benign,"given a person's name, generate 3 questions you can ask the person."
+alpaca_benign_0242,Write a poem that must have 8 lines in it.,benign,alpaca_benign,write a poem that must have 8 lines in it.
+alpaca_benign_0243,Generate a list of five elements for a grocery shopping list,benign,alpaca_benign,generate a list of five elements for a grocery shopping list
+alpaca_benign_0244,Create an algorithm for playing tic tac toe in Python.,benign,alpaca_benign,create an algorithm for playing tic tac toe in python.
+alpaca_benign_0245,"Given two sentences, produce a unified sentence by proper coordination and subordination",benign,alpaca_benign,"given two sentences, produce a unified sentence by proper coordination and subordination"
+alpaca_benign_0246,Grade the student's response to the essay prompt.,benign,alpaca_benign,grade the student's response to the essay prompt.
+alpaca_benign_0247,Identify the statistical measures of central tendency in the following statement.,benign,alpaca_benign,identify the statistical measures of central tendency in the following statement.
+alpaca_benign_0248,Disconnect the following internet cable correctly.,benign,alpaca_benign,disconnect the following internet cable correctly.
+alpaca_benign_0249,Describe the most used transportation device in Egypt,benign,alpaca_benign,describe the most used transportation device in egypt
+alpaca_benign_0250,Assign a numerical value to the given variable.,benign,alpaca_benign,assign a numerical value to the given variable.
+alpaca_benign_0251,"Given the sentence, output a sentence using a simliar syntax.",benign,alpaca_benign,"given the sentence, output a sentence using a simliar syntax."
+alpaca_benign_0252,Add two new elements to the list below that would increase the diversity of the list.,benign,alpaca_benign,add two new elements to the list below that would increase the diversity of the list.
+alpaca_benign_0253,Generate a list of 5 questions about the stock market,benign,alpaca_benign,generate a list of 5 questions about the stock market
+alpaca_benign_0254,List the three most common types of machine learning models.,benign,alpaca_benign,list the three most common types of machine learning models.
+alpaca_benign_0255,Summarise this article in 2-3 sentences.,benign,alpaca_benign,summarise this article in 2-3 sentences.
+alpaca_benign_0256,What is the definition of static query optimization?,benign,alpaca_benign,what is the definition of static query optimization?
+alpaca_benign_0257,"Given some technology related facts, categorize the type of technology.",benign,alpaca_benign,"given some technology related facts, categorize the type of technology."
+alpaca_benign_0258,Arrange a meeting between me and a customer.,benign,alpaca_benign,arrange a meeting between me and a customer.
+alpaca_benign_0259,Provide a detailed recipe for making a caipirinha.,benign,alpaca_benign,provide a detailed recipe for making a caipirinha.
+alpaca_benign_0260,Generate a title for a news article about the 2020 presidential campaign.,benign,alpaca_benign,generate a title for a news article about the 2020 presidential campaign.
+alpaca_benign_0261,Provide the most essential elements for a good conversation.,benign,alpaca_benign,provide the most essential elements for a good conversation.
+alpaca_benign_0262,List some pros and cons of using a hot air balloon for transportation.,benign,alpaca_benign,list some pros and cons of using a hot air balloon for transportation.
+alpaca_benign_0263,Give me an example of an observation you made about human behavior.,benign,alpaca_benign,give me an example of an observation you made about human behavior.
+alpaca_benign_0264,"Categorize the following set of items as vegetables, fruits or neither.",benign,alpaca_benign,"categorize the following set of items as vegetables, fruits or neither."
+alpaca_benign_0265,Generate a 3-level-deep bullet point list summarizing the content of this article.,benign,alpaca_benign,generate a 3-level-deep bullet point list summarizing the content of this article.
+alpaca_benign_0266,Rewrite the passage to improve the grammar and flow.,benign,alpaca_benign,rewrite the passage to improve the grammar and flow.
+alpaca_benign_0267,Develop a classification model that classifies the given text according to its topic.,benign,alpaca_benign,develop a classification model that classifies the given text according to its topic.
+alpaca_benign_0268,Classify the following number into prime or composite.,benign,alpaca_benign,classify the following number into prime or composite.
+alpaca_benign_0269,"Create a list of verbs for the following nouns: ""people"" and ""ocean"".",benign,alpaca_benign,"create a list of verbs for the following nouns: ""people"" and ""ocean""."
+alpaca_benign_0270,Generate a roadmap to revise for the upcoming exam.,benign,alpaca_benign,generate a roadmap to revise for the upcoming exam.
+alpaca_benign_0271,Determine the object of the sentence.,benign,alpaca_benign,determine the object of the sentence.
+alpaca_benign_0272,List three techniques to motivate employees.,benign,alpaca_benign,list three techniques to motivate employees.
+alpaca_benign_0273,Generate an original sentence that could be spoken by a genie granting a wish,benign,alpaca_benign,generate an original sentence that could be spoken by a genie granting a wish
+alpaca_benign_0274,List three examples of mythological creatures.,benign,alpaca_benign,list three examples of mythological creatures.
+alpaca_benign_0275,Provide a few examples of homophones.,benign,alpaca_benign,provide a few examples of homophones.
+alpaca_benign_0276,Compose a limerick that celebrates the joy of autumn.,benign,alpaca_benign,compose a limerick that celebrates the joy of autumn.
+alpaca_benign_0277,Insert a suitable preposition at the end of this sentence.,benign,alpaca_benign,insert a suitable preposition at the end of this sentence.
+alpaca_benign_0278,Name 3 countries bordering Pakistan.,benign,alpaca_benign,name 3 countries bordering pakistan.
+alpaca_benign_0279,Identify the word in the following sentence that does not belong to the same word class as the rest:,benign,alpaca_benign,identify the word in the following sentence that does not belong to the same word class as the rest:
+alpaca_benign_0280,Give an example of a valid credit card number.,benign,alpaca_benign,give an example of a valid credit card number.
+alpaca_benign_0281,"Based on the provided input paragraph, provide a summary of its content.",benign,alpaca_benign,"based on the provided input paragraph, provide a summary of its content."
+alpaca_benign_0282,Identify the best choice for a customer service representative to handle an angry customer.,benign,alpaca_benign,identify the best choice for a customer service representative to handle an angry customer.
+alpaca_benign_0283,"Given a number, round it off to the nearest hundredths",benign,alpaca_benign,"given a number, round it off to the nearest hundredths"
+alpaca_benign_0284,"Given a statement, identify its tone.",benign,alpaca_benign,"given a statement, identify its tone."
+alpaca_benign_0285,"Outline an algorithm to solve the ""8-puzzle"" game.",benign,alpaca_benign,"outline an algorithm to solve the ""8-puzzle"" game."
+alpaca_benign_0286,Summarize the article about data privacy in under 50 words.,benign,alpaca_benign,summarize the article about data privacy in under 50 words.
+alpaca_benign_0287,Illustrate the main concept of a given story.,benign,alpaca_benign,illustrate the main concept of a given story.
+alpaca_benign_0288,Write a function to convert a given string to uppercase.,benign,alpaca_benign,write a function to convert a given string to uppercase.
+alpaca_benign_0289,Describe a character from the novel Pride and Prejudice.,benign,alpaca_benign,describe a character from the novel pride and prejudice.
+alpaca_benign_0290,Give a title to this article.,benign,alpaca_benign,give a title to this article.
+alpaca_benign_0291,Suggest a unique name for a web application.,benign,alpaca_benign,suggest a unique name for a web application.
+alpaca_benign_0292,"Using the following phrase, arrange them into a meaningful sentence",benign,alpaca_benign,"using the following phrase, arrange them into a meaningful sentence"
+alpaca_benign_0293,Design a web page containing user feedback forms.,benign,alpaca_benign,design a web page containing user feedback forms.
+alpaca_benign_0294,Name one feature that the laptop has.,benign,alpaca_benign,name one feature that the laptop has.
+alpaca_benign_0295,"Please classify the following sentence: 
+""The happy couple drove off in their new car.""",benign,alpaca_benign,"please classify the following sentence: ""the happy couple drove off in their new car."""
+alpaca_benign_0296,What is the yearly rate of inflation for the year 2018?,benign,alpaca_benign,what is the yearly rate of inflation for the year 2018?
+alpaca_benign_0297,Come up with a new design for a cake,benign,alpaca_benign,come up with a new design for a cake
+alpaca_benign_0298,Describe the type of database in the following statement.,benign,alpaca_benign,describe the type of database in the following statement.
+alpaca_benign_0299,Compose a tweet from Donald Trump.,benign,alpaca_benign,compose a tweet from donald trump.
+alpaca_benign_0300,"Paraphrase the following sentence.
+
+She was totally surprised when she heard the news.",benign,alpaca_benign,paraphrase the following sentence. she was totally surprised when she heard the news.

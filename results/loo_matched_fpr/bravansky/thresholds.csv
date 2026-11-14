@@ -1,6 +1,6 @@
 fold,method,threshold,semantic_hard_sim,val_FPR,val_FPR_gap,val_bypass,feasible_on_val
-bravansky,context_aware,0.170535,0.4,0.1,0.05,0.0,True
+bravansky,context_aware,0.226164,0.55,0.05,0.0,0.10833333333333334,True
 bravansky,keyword,0.030999,,0.0,0.05,0.6666666666666666,True
-bravansky,context_aware_learned,0.025457,,0.1,0.05,0.05,True
-bravansky,similarity_only,0.397429,,0.1,0.05,0.06666666666666667,True
-bravansky,deberta_finetuned,0.998254,,0.1,0.05,0.041666666666666664,True
+bravansky,context_aware_learned,0.059332,,0.05,0.0,0.18333333333333332,True
+bravansky,similarity_only,0.523474,,0.05,0.0,0.31666666666666665,True
+bravansky,deberta_finetuned,0.053956,,0.05,0.0,0.016666666666666666,True

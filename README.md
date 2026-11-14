@@ -126,12 +126,12 @@ Canonical splits: `data/splits/source_holdout/`. **Build in the notebook** `note
 
 | Rule | Behavior |
 |------|----------|
-| Hold out | Entire source: attacks **and** its native benign (PI fold trains on ChatGPT benign only) |
-| Shared benign | Fixed **200** PI-benign on every four-source test; never in train/val |
-| Four-source sizes | Identical **520 / 130 / 400** (incl. `prompt_injection`) |
-| Attacks | Test **200** held-out; train pool **200 from each** other raw source; val 20% within each source |
-| Fit benign | **50** every fold |
-| Fifth set | Neuralchemy test 200+200; fit uses 200 from each of four sources → 680/170/400 |
+| Hold out | Entire attack source (held-out injections never in train/val) |
+| Shared test benign | Fixed **200** PI-benign on **every** fold test (incl. Neuralchemy); **never** in train/val |
+| Fit benign | **Alpaca** instructions only: **200 train + 100 val** (same pool every fold; no PI / ChatGPT) |
+| Four-source sizes | Identical **680 / 220 / 400** |
+| Attacks | Test **200** held-out; train pool **200 from each** other raw source; val 20% within each attack source |
+| Fifth set | Neuralchemy: 200 Neuralchemy attacks + shared 200 PI-benign; fit attacks from all four sources |
 | Inventory | `train_benign_by_fold.csv` + `manifest.json` |
 
 Near-dup filter (MiniLM > 0.9) in `manifest.json`.
@@ -214,57 +214,45 @@ Artifacts: `results/loo_matched_fpr/summary.csv`, `thresholds.csv`, `robustness_
 
 **Canonical paper tables** (ProtectAI + Prompt Guard 2, Neuralchemy column, mixed-suite vs LOO gap, Wilson CIs, dedup, train-benign inventory): [`results/loo_matched_fpr/PAPER_TABLES.md`](results/loo_matched_fpr/PAPER_TABLES.md). Rebuild with `python scripts/build_loo_matched_fpr_paper_tables.py` (after `python scripts/eval_loo_matched_fpr_portables.py` for portables).
 
-**Status: complete.** Headline aggregate = `four_source_macro_avg` (equal weight per source). **Neuralchemy** is reported as its own column/block (cleanest unseen test; outside that average). Each fold test = **200** inj + **200** ben; adaptive = **1200** attacks / fold; edge-benign = **80**.
+**Status: complete** (rebuild after held-out benign fix). Headline aggregate = `four_source_macro_avg` (equal weight per source). **Neuralchemy** is reported as its own column/block (outside that average). Each fold test = **200** inj + **200** held-out PI-benign; fit uses **300** Alpaca (100 val) so a 5% FPR threshold is identifiable; adaptive = **1200** attacks / fold; edge-benign = **80**.
 
 #### Main comparison (mixed suite matched-FPR / ID vs LOO-4 vs Neuralchemy; ≈ 5%)
 
 | Method | ID Bypass % | ID FPR % | LOO-4 macro Bypass % | LOO-4 macro True ASR % | LOO-4 macro FPR % | Neuralchemy Bypass % | Neuralchemy True ASR % | Neuralchemy FPR % |
 |--------|------------:|---------:|---------------------:|-----------------------:|------------------:|---------------------:|-----------------------:|------------------:|
-| baseline | — | — | 100.00 | 58.75 | 0.00 | 100.00 | 64.50 | 0.00 |
-| regex | — | — | 84.12 | 48.12 | 0.00 | 85.00 | 52.50 | 1.00 |
-| keyword | 58.33 | 0.00 | 59.75 | 33.50 | 0.00 | 70.50 | 40.50 | 1.50 |
-| **context_aware (A)** | **11.67** | 6.67 | **34.62** | **13.75** | 16.62 | **20.00** | **11.00** | 87.00 |
-| context_aware_learned (B) | 13.33 | 0.00 | 47.62 | 19.00 | 11.38 | 26.00 | 14.50 | 56.50 |
-| similarity_only | 30.00 | 2.22 | 53.75 | 23.00 | 11.75 | 57.00 | 35.00 | 37.00 |
-| deberta_finetuned | 3.33 | 0.00 | 1.38 | 0.62 | 13.50 | 1.50 | 0.50 | 60.50 |
-| protectai | 10.00 | 6.67 | 5.62 | 2.75 | 35.25 | 4.50 | 2.00 | 12.50 |
-| prompt_guard | 3.33 | 6.67 | 1.38 | 0.50 | 13.62 | 0.00 | 0.00 | 85.00 |
+| baseline | — | — | 100.00 | 58.12 | 0.00 | 100.00 | 64.50 | 0.00 |
+| regex | — | — | 84.12 | 47.62 | 0.00 | 85.00 | 52.50 | 0.00 |
+| keyword | 58.33 | 0.00 | 59.75 | 33.00 | 0.00 | 70.50 | 40.50 | 0.00 |
+| **context_aware (A)** | **11.67** | 6.67 | **41.62** | **16.50** | **4.50** | **49.50** | **30.00** | **3.50** |
+| context_aware_learned (B) | 13.33 | 0.00 | 58.25 | 24.50 | 4.00 | 81.00 | 50.50 | 1.50 |
+| similarity_only | 30.00 | 2.22 | 76.38 | 38.12 | 2.50 | 91.00 | 59.50 | 0.50 |
+| deberta_finetuned | 3.33 | 0.00 | 2.25 | 0.75 | 0.38 | 2.50 | 1.00 | 0.00 |
+| protectai | 10.00 | 6.67 | 11.62 | 7.12 | 2.25 | 4.50 | 2.00 | 4.50 |
+| prompt_guard | 3.33 | 6.67 | 3.62 | 1.88 | 1.00 | 1.00 | 0.00 | 1.00 |
 
-**ID** = **mixed suite matched-FPR** on the combined-dataset random split (`results/matched_fpr/`; val FPR ≤ 5%). LOO-4 **macro** = equal weight per held-out source. Neuralchemy is outside that average. Full Wilson intervals + pooled (micro) + per-fold + dedup + train-benign: [`PAPER_TABLES.md`](results/loo_matched_fpr/PAPER_TABLES.md).
+**ID** = **mixed suite matched-FPR** on the combined-dataset random split (`results/matched_fpr/`; val FPR ≤ 5%). LOO-4 **macro** = equal weight per held-out source. Neuralchemy is outside that average. Fit benign = Alpaca 200/100; test benign = held-out PI-benign on every fold. Full Wilson / pooled / per-fold / dedup / Table E: [`PAPER_TABLES.md`](results/loo_matched_fpr/PAPER_TABLES.md).
 
-#### Four-source macro average (matched FPR ≈ 5%; main + robustness)
+#### Four-source macro average (matched FPR ≈ 5%; main)
 
-| Method | Bypass % | True ASR % | FPR % | Adaptive Bypass % | Adaptive True ASR % | Para Bypass % (orig → para) | Edge FPR % |
-|--------|---------:|-----------:|------:|------------------:|--------------------:|----------------------------:|-----------:|
-| baseline | 100.00 | 58.75 | 0.00 | 100.00 | 49.45 | 100.00 → 100.00 | 0.00 |
-| regex | 84.12 | 48.12 | 0.00 | 95.21 | 46.98 | 84.13 → 92.00 | 2.50 |
-| keyword | 59.75 | 33.50 | 0.00 | 88.52 | 43.11 | 59.75 → 81.75 | 62.50 |
-| **context_aware (A)** | **34.62** | **13.75** | 16.62 | **55.54** | **23.62** | **34.63 → 45.75** | 81.87 |
-| context_aware_learned (B) | 47.62 | 19.00 | 11.38 | 69.86 | 30.66 | 47.63 → 55.75 | 18.44 |
-| similarity_only | 53.75 | 23.00 | 11.75 | 72.00 | 31.39 | 53.75 → 58.00 | 10.63 |
-| deberta_finetuned | 1.38 | 0.62 | 13.50 | 27.46 | 12.37 | 1.38 → 7.50 | 79.06 |
-| protectai | 5.62 | 2.75 | 35.25 | — | — | — | — |
-| prompt_guard | 1.38 | 0.50 | 13.62 | — | — | — | — |
+| Method | Bypass % | True ASR % | FPR % |
+|--------|---------:|-----------:|------:|
+| baseline | 100.00 | 58.12 | 0.00 |
+| regex | 84.12 | 47.62 | 0.00 |
+| keyword | 59.75 | 33.00 | 0.00 |
+| **context_aware (A)** | **41.62** | **16.50** | **4.50** |
+| context_aware_learned (B) | 58.25 | 24.50 | 4.00 |
+| similarity_only | 76.38 | 38.12 | 2.50 |
+| deberta_finetuned | 2.25 | 0.75 | 0.38 |
+| protectai | 11.62 | 7.12 | 2.25 |
+| prompt_guard | 3.62 | 1.88 | 1.00 |
 
-ProtectAI / Prompt Guard at matched thr: main Bypass / True ASR / FPR only (robustness not re-scored unless portables are re-run with the full suite). Adaptive FPR is 0% by construction (attack-only probe).
+Paraphrase / edge / adaptive at the new matched thresholds: re-run without `--loo-skip-robustness` (committed robustness CSVs may predate the held-out benign rebuild).
 
-Sources: `results/loo_matched_fpr/summary.csv`, `robustness_*_summary.csv` (`four_source_macro_avg`).
+Sources: `results/loo_matched_fpr/summary.csv` (`four_source_macro_avg`).
 
 #### Per-fold + Wilson + pooled
 
-Full per-fold Bypass / True ASR / FPR with **Wilson 95% CIs**, four-source **macro** and **pooled (micro)**, ProtectAI / Prompt Guard 2, Neuralchemy, dedup counts, and train-benign inventory: [`results/loo_matched_fpr/PAPER_TABLES.md`](results/loo_matched_fpr/PAPER_TABLES.md) (Tables B–E).
-
-#### Neuralchemy adaptive (fifth fold; not in four-source avg)
-
-| Method | Adaptive Bypass % | Adaptive True ASR % |
-|--------|------------------:|--------------------:|
-| baseline | 100.00 | 42.00 |
-| regex | 94.92 | 40.00 |
-| keyword | 91.17 | 37.42 |
-| context_aware | 34.17 | 7.92 |
-| context_aware_learned | 64.25 | 24.33 |
-| similarity_only | 82.92 | 33.92 |
-| deberta_finetuned | 4.33 | 1.33 |
+Full per-fold Bypass / True ASR / FPR with **Wilson 95% CIs**, four-source **macro** and **pooled (micro)**, ProtectAI / Prompt Guard 2, Neuralchemy, dedup counts, and Alpaca train-benign inventory: [`results/loo_matched_fpr/PAPER_TABLES.md`](results/loo_matched_fpr/PAPER_TABLES.md) (Tables B–E).
 
 Resume: re-run `python -m src.run_experiments --loo-matched-fpr` (LLM/judge + feature caches under `results/prompt_cache/loo/`; filters always rescore). Force regenerating Qwen/judge with `--no-outcome-cache`.
 

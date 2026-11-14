@@ -9,6 +9,7 @@ This repository is the code / data / results companion for the paper
 - **Compiled dataset:** CC BY-NC 4.0 (`data_cards/Data_Card.md`, `data_cards/license_log.txt`)
 - **Mixed corpus:** v3.0 ~700 prompts (`data/cleaned/combined_dataset.csv`); v2.0 350 archived under `data/cleaned/legacy/`. Rebuild: `python scripts/build_combined_dataset.py`.
 - **External Neuralchemy test:** Apache-2.0 dataset card, with HackAPrompt (CC BY 4.0), HarmBench (MIT), and WildGuard constituents. Files under `data/external/neuralchemy/`. Not part of the mixed corpus and not used for training.
+- **LOO fit benign:** Stanford Alpaca instructions (`tatsu-lab/alpaca`), cached under `data/external/alpaca/benign_fit_pool.csv` (200 train + 100 val). Shared LOO test benign = 200 PI-benign held out of all train/val.
 
 ## Models
 

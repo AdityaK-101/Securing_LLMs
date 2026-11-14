@@ -29,16 +29,22 @@ CLEAN = PROJECT_ROOT / "data" / "cleaned"
 
 ATTACK_SOURCES = ("simsonsun", "mpdd", "prompt_injection", "bravansky")
 EXTERNAL_SOURCE = "neuralchemy"
-# Benign rows that belong to the prompt-injection attack source.
+# Benign rows that belong to the prompt-injection attack source (legacy helper).
 SOURCE_BENIGN = {
     "prompt_injection": ("prompt_injection_benign",),
 }
 BENIGN_TEST_SIZE = 200
+# Public instruction benign used for train/val fit (PI-benign is test-only).
+ALPACA_FIT_TOTAL = 300
+ALPACA_FIT_TRAIN = 200
+ALPACA_FIT_VAL = 100
+ALPACA_SOURCE = "alpaca_benign"
 BRAVANSKY_TEST_SIZE = 250
 VAL_FRACTION = 0.2
 NEAR_DUP_THRESHOLD = 0.9
 SPOT_CHECK_N = 20
 COLUMNS = ["id", "prompt", "label", "source"]
+ALPACA_CACHE = PROJECT_ROOT / "data" / "external" / "alpaca" / "benign_fit_pool.csv"
 
 
 def _norm(text: object) -> str:
@@ -120,6 +126,7 @@ def load_prompt_injection() -> tuple[pd.DataFrame, pd.DataFrame]:
 
 
 def load_chatgpt_benign() -> pd.DataFrame:
+    """Legacy ChatGPT benign loader (not used by the held-out Alpaca protocol)."""
     raw = pd.read_csv(RAW / "benign_prompts_chatgpt.csv")
     rows = [
         {
@@ -132,6 +139,92 @@ def load_chatgpt_benign() -> pd.DataFrame:
         if _norm(text)
     ]
     return _as_frame(rows)
+
+
+def load_alpaca_benign(
+    n: int = ALPACA_FIT_TOTAL,
+    seed: int = RANDOM_SEED,
+    cache_path: Path | None = None,
+    refresh: bool = False,
+) -> pd.DataFrame:
+    """Sample ordinary instruction prompts from Stanford Alpaca for fit benign.
+
+    Uses the ``instruction`` field only (no jailbreak / injection labels). Writes
+    a local cache under ``data/external/alpaca/`` so rebuilds are reproducible
+    offline after the first download.
+    """
+    path = Path(cache_path) if cache_path else ALPACA_CACHE
+    if path.is_file() and not refresh:
+        frame = pd.read_csv(path)
+        need = {"id", "prompt", "label", "source", "prompt_key"}
+        if need.issubset(frame.columns) and len(frame) >= n:
+            out = frame.head(n).copy().reset_index(drop=True)
+            out["prompt_key"] = out["prompt"].map(_norm)
+            print(
+                f"[source_holdout] Alpaca benign from cache {path.name}: {len(out)}",
+                flush=True,
+            )
+            return out[list(need)]
+
+    try:
+        from datasets import load_dataset
+    except ImportError as exc:  # pragma: no cover
+        raise ImportError(
+            "datasets is required to download Alpaca benign prompts "
+            "(pip install datasets). Or place a cache at "
+            f"{ALPACA_CACHE}"
+        ) from exc
+
+    print("[source_holdout] Downloading tatsu-lab/alpaca for fit benign…", flush=True)
+    ds = load_dataset("tatsu-lab/alpaca", split="train")
+    rows = []
+    seen: set[str] = set()
+    for item in ds:
+        text = str(item.get("instruction") or "").strip()
+        key = _norm(text)
+        if not key or key in seen:
+            continue
+        # Skip empty / extremely short instructions.
+        if len(text.split()) < 3:
+            continue
+        seen.add(key)
+        rows.append(
+            {
+                "prompt": text,
+                "prompt_key": key,
+                "label": "benign",
+                "source": ALPACA_SOURCE,
+            }
+        )
+    pool = _as_frame(rows)
+    if len(pool) < n:
+        raise ValueError(f"Alpaca pool too small: need {n}, have {len(pool)}")
+    sampled = pool.sample(n=n, random_state=seed).reset_index(drop=True)
+    sampled["id"] = [f"{ALPACA_SOURCE}_{i:04d}" for i in range(1, len(sampled) + 1)]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    sampled.to_csv(path, index=False)
+    print(
+        f"[source_holdout] Alpaca benign sampled {len(sampled)} → {path}",
+        flush=True,
+    )
+    return sampled
+
+
+def split_alpaca_fit(
+    alpaca: pd.DataFrame,
+    n_train: int = ALPACA_FIT_TRAIN,
+    n_val: int = ALPACA_FIT_VAL,
+    seed: int = RANDOM_SEED,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Explicit 200/100 Alpaca train/val split (val ≥ 100 for ~5% FPR tuning)."""
+    if len(alpaca) < n_train + n_val:
+        raise ValueError(
+            f"Need ≥{n_train + n_val} Alpaca prompts, have {len(alpaca)}"
+        )
+    shuffled = alpaca.sample(frac=1.0, random_state=seed).reset_index(drop=True)
+    train = shuffled.iloc[:n_train].reset_index(drop=True)
+    val = shuffled.iloc[n_train : n_train + n_val].reset_index(drop=True)
+    return train, val
 
 
 def load_bravansky_gallery() -> pd.DataFrame:
@@ -447,8 +540,13 @@ def external_fold(
     attacks: dict[str, pd.DataFrame],
     benign_fit: pd.DataFrame,
     blocked: set[str],
+    benign_test: pd.DataFrame | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, int]:
-    """Train on all four sources. Test is the Neuralchemy main slice."""
+    """Train on all four sources. Test = Neuralchemy attacks + shared PI-benign.
+
+    When ``benign_test`` is provided (held-out protocol), Neuralchemy's own
+    benign rows are not used on test so FPR is comparable to four-source folds.
+    """
     neuralchemy = pd.read_csv(EXTERNAL_TEST_MAIN_CSV)
     neuralchemy["prompt_key"] = neuralchemy["prompt"].map(_norm)
     dropped = int(neuralchemy["prompt_key"].isin(blocked).sum())
@@ -456,6 +554,10 @@ def external_fold(
     neuralchemy["source"] = "neuralchemy:" + neuralchemy["source"].astype(str)
     pool = pd.concat(list(attacks.values()) + [benign_fit], ignore_index=True)
     train, val = _fit_split(pool)
+    if benign_test is not None:
+        inj = neuralchemy[neuralchemy["label"] == "injection"].copy()
+        test = pd.concat([inj, benign_test], ignore_index=True)
+        return train, val, test, dropped
     return train, val, neuralchemy, dropped
 
 

@@ -1,6 +1,6 @@
-fold            , train, val, test, test_injection, test_benign, test_shared_benign
-simsonsun       ,   520, 130,  400,            200,         200,                200
-mpdd            ,   520, 130,  400,            200,         200,                200
-prompt_injection,   520, 130,  400,            200,         200,                200
-bravansky       ,   520, 130,  400,            200,         200,                200
-neuralchemy     ,   680, 170,  400,            200,         200,                   
+fold,train,val,test,test_injection,test_benign,train_inj,val_inj,train_alpaca,val_alpaca
+simsonsun,680,220,400,200,200,480,120,200,100
+mpdd,680,220,400,200,200,480,120,200,100
+prompt_injection,680,220,400,200,200,480,120,200,100
+bravansky,680,220,400,200,200,480,120,200,100
+neuralchemy,840,260,400,200,200,640,160,200,100

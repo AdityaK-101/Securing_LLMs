@@ -1,28 +1,30 @@
 {
   "seed": 42,
-  "protocol": "final source-holdout (fully uniform + raw)",
+  "protocol": "source-holdout (Alpaca fit benign; PI-benign test-only; attacks restored from prior seed)",
   "output_dir": "data/splits/source_holdout",
   "built_by": "notebooks/build_source_holdout.ipynb",
   "rules": [
     "Raw sources only (Simsonsun Dataset_2, MPDD, PI jsonl, Bravanskycompact CSV)",
     "Leave-one-source-out: held-out attacks never in train/val",
-    "Held-out source native benign never in that fold's train/val",
-    "Four-source folds have identical train/val/test sizes (PI included)",
-    "Shared 200 benign = PI-benign only; identical on every four-source test",
+    "Exactly 200 Alpaca train + 100 Alpaca val on every fold",
+    "Shared 200 test benign = PI-benign only; identical on every fold including Neuralchemy",
+    "PI-benign never appears in train or validation",
+    "Four-source folds have identical train/val/test sizes",
     "Exactly 200 train-pool attacks from EACH other source",
-    "Exactly 50 fit benign every fold (PI fold: ChatGPT only)",
-    "Leftover PI-benign not in shared stay out of the PI fold entirely (not on test)",
-    "Val = 20% split within each source piece",
+    "Attack val = 20% split within each attack-source piece; Alpaca uses fixed 200/100",
     "Method A fixed paper threshold; tune Method B / fold baselines on val only"
   ],
   "knobs": {
     "n_attack_test": 200,
     "n_shared_benign_test": 200,
     "n_attack_train_per_source": 200,
-    "n_benign_fit": 50,
+    "n_benign_fit": 300,
+    "n_benign_fit_train": 200,
+    "n_benign_fit_val": 100,
+    "fit_benign_source": "alpaca_benign",
     "bravansky_raw_cap": 2500,
     "neuralchemy_attack": 200,
-    "neuralchemy_benign": 200
+    "neuralchemy_test_benign": "shared_pi_benign"
   },
   "near_duplicate_filter": {
     "threshold": 0.9,
@@ -70,13 +72,21 @@
     "by_source": {
       "prompt_injection_benign": 200
     },
-    "note": "All from prompt_injection_benign so ChatGPT can fill PI-fold train benign."
+    "note": "PI-benign is test-only on every fold (including Neuralchemy). Fit uses Alpaca; leftover PI-benign after the shared 200 is unused."
+  },
+  "alpaca_fit": {
+    "rows": 300,
+    "train": 200,
+    "val": 100,
+    "source": "alpaca_benign",
+    "dataset": "tatsu-lab/alpaca",
+    "field": "instruction"
   },
   "pi_benign_held_out_unused": 49,
   "folds": {
     "simsonsun": {
-      "train": 520,
-      "val": 130,
+      "train": 680,
+      "val": 220,
       "test": 400,
       "test_injection": 200,
       "test_benign": 200,
@@ -97,17 +107,15 @@
         "bravansky": 40
       },
       "train_benign_by_source": {
-        "chatgpt_benign": 21,
-        "prompt_injection_benign": 19
+        "alpaca_benign": 200
       },
       "val_benign_by_source": {
-        "chatgpt_benign": 6,
-        "prompt_injection_benign": 4
+        "alpaca_benign": 100
       }
     },
     "mpdd": {
-      "train": 520,
-      "val": 130,
+      "train": 680,
+      "val": 220,
       "test": 400,
       "test_injection": 200,
       "test_benign": 200,
@@ -128,17 +136,15 @@
         "bravansky": 40
       },
       "train_benign_by_source": {
-        "chatgpt_benign": 25,
-        "prompt_injection_benign": 15
+        "alpaca_benign": 200
       },
       "val_benign_by_source": {
-        "prompt_injection_benign": 6,
-        "chatgpt_benign": 4
+        "alpaca_benign": 100
       }
     },
     "prompt_injection": {
-      "train": 520,
-      "val": 130,
+      "train": 680,
+      "val": 220,
       "test": 400,
       "test_injection": 200,
       "test_benign": 200,
@@ -159,15 +165,15 @@
         "bravansky": 40
       },
       "train_benign_by_source": {
-        "chatgpt_benign": 40
+        "alpaca_benign": 200
       },
       "val_benign_by_source": {
-        "chatgpt_benign": 10
+        "alpaca_benign": 100
       }
     },
     "bravansky": {
-      "train": 520,
-      "val": 130,
+      "train": 680,
+      "val": 220,
       "test": 400,
       "test_injection": 200,
       "test_benign": 200,
@@ -188,20 +194,19 @@
         "prompt_injection": 40
       },
       "train_benign_by_source": {
-        "prompt_injection_benign": 21,
-        "chatgpt_benign": 19
+        "alpaca_benign": 200
       },
       "val_benign_by_source": {
-        "prompt_injection_benign": 8,
-        "chatgpt_benign": 2
+        "alpaca_benign": 100
       }
     },
     "neuralchemy": {
-      "train": 680,
-      "val": 170,
+      "train": 840,
+      "val": 260,
       "test": 400,
       "test_injection": 200,
       "test_benign": 200,
+      "test_shared_benign": 200,
       "dropped_overlap_with_four_sources": 1,
       "fit_attack_per_source": {
         "simsonsun": 200,
@@ -222,17 +227,15 @@
         "bravansky": 40
       },
       "train_benign_by_source": {
-        "prompt_injection_benign": 21,
-        "chatgpt_benign": 19
+        "alpaca_benign": 200
       },
       "val_benign_by_source": {
-        "prompt_injection_benign": 5,
-        "chatgpt_benign": 5
+        "alpaca_benign": 100
       }
     }
   },
   "how_to_score": [
-    "python scripts/eval_loo_holdout.py",
-    "results land in results/source_holdout/"
+    "python -m src.run_experiments --loo-matched-fpr",
+    "results land in results/loo_matched_fpr/"
   ]
 }
