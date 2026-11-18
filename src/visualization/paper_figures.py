@@ -721,8 +721,45 @@ def plot_loo_headline_bars(out: Path | None = None) -> Path:
     return path
 
 
+def _annotate_fpr_on_axis(ax, bars_and_vals, *, lo: float, hi: float, fontsize: float = 8.0) -> None:
+    """Place value labels only for bars whose height falls in ``[lo, hi)`` (broken-axis aware)."""
+    for bar, v in bars_and_vals:
+        if not np.isfinite(v) or v < 0.05:
+            continue  # skip exact zeros; empty bar already reads as 0
+        if not (lo <= v < hi):
+            continue
+        x = bar.get_x() + bar.get_width() / 2
+        lab = f"{v:.1f}" if v < 10 else f"{v:.0f}"
+        # Room above bar inside this panel?
+        panel_span = hi - lo
+        if v + 0.12 * panel_span < hi:
+            ax.text(
+                x,
+                v + 0.04 * panel_span,
+                lab,
+                ha="center",
+                va="bottom",
+                fontsize=fontsize,
+                color=TEXT,
+                clip_on=False,
+                zorder=5,
+            )
+        else:
+            ax.text(
+                x,
+                v - 0.06 * panel_span,
+                lab,
+                ha="center",
+                va="top",
+                fontsize=fontsize,
+                color="white",
+                clip_on=False,
+                zorder=5,
+            )
+
+
 def plot_fpr_three_regime(out: Path | None = None) -> Path:
-    """Three-regime FPR bars (NeurIPS theme)."""
+    """Three-regime FPR bars with a broken y-axis so low and high values both read."""
     _apply_theme()
     out = out or (IMAGES_DIR / "fpr_three_regime.pdf")
     metrics = pd.read_csv(RESULTS_DIR / "loo_matched_fpr" / "metrics.csv")
@@ -757,50 +794,80 @@ def plot_fpr_three_regime(out: Path | None = None) -> Path:
         )
     df = pd.DataFrame(rows)
     labels = [METHOD_SHORT[m] for m in df["method"]]
-    x = np.arange(len(df)) * 1.15
-    w = 0.30
-    fig, ax = plt.subplots(figsize=COL_SIZE)
-    ax.bar(
-        x - w,
-        df["pi"],
-        w,
-        label="PI-benign",
-        color=BLUE,
-        edgecolor="white",
-        linewidth=0.5,
-        zorder=3,
+    x = np.arange(len(df)) * 1.2
+    w = 0.32
+
+    # Broken axis: bottom = fine-grained low FPR; top = high Edge FPR.
+    low_hi, high_lo = 12.0, 18.0
+    fig, (ax_hi, ax_lo) = plt.subplots(
+        2,
+        1,
+        sharex=True,
+        figsize=(3.55, 3.55),
+        gridspec_kw={"height_ratios": [1.55, 1.0], "hspace": 0.08},
     )
-    ax.bar(
-        x,
-        df["neur"],
-        w,
-        label="Neur.-side",
-        color=SLATE,
-        edgecolor="white",
-        linewidth=0.5,
-        zorder=3,
-    )
-    b_edge = ax.bar(
-        x + w,
-        df["edge"],
-        w,
-        label="Edge",
-        color=RED,
-        edgecolor="white",
-        linewidth=0.5,
-        zorder=3,
-    )
-    # Label only Edge (main contrast); upright ints stay readable without crowding PI/Neur.
-    _annotate_bars(b_edge, min_h=5.0, fontsize=8, dy=1.2)
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels, rotation=40, ha="right", fontsize=8)
-    ax.set_ylabel("FPR (%)", fontsize=12)
-    ax.set_ylim(0, 112)
-    ax.set_yticks(np.arange(0, 101, 20))
-    _neurips_axes(ax)
-    _legend_above(ax, ncol=3, fontsize=9)
-    fig.tight_layout(pad=0.2)
-    fig.subplots_adjust(bottom=0.24)
+    series = [
+        (df["pi"], "PI-benign", BLUE, x - w),
+        (df["neur"], "Neur.-side", SLATE, x),
+        (df["edge"], "Edge", RED, x + w),
+    ]
+    hi_pairs: list[tuple] = []
+    lo_pairs: list[tuple] = []
+    for vals, lab, color, xpos in series:
+        b_hi = ax_hi.bar(
+            xpos,
+            vals,
+            w,
+            label=lab,
+            color=color,
+            edgecolor="white",
+            linewidth=0.5,
+            zorder=3,
+        )
+        b_lo = ax_lo.bar(
+            xpos,
+            vals,
+            w,
+            color=color,
+            edgecolor="white",
+            linewidth=0.5,
+            zorder=3,
+        )
+        for bar, v in zip(b_hi, vals):
+            hi_pairs.append((bar, float(v)))
+        for bar, v in zip(b_lo, vals):
+            lo_pairs.append((bar, float(v)))
+
+    ax_hi.set_ylim(high_lo, 100)
+    ax_lo.set_ylim(0, low_hi)
+    ax_hi.set_yticks([20, 40, 60, 80, 100])
+    ax_lo.set_yticks([0, 4, 8, 12])
+
+    _annotate_fpr_on_axis(ax_lo, lo_pairs, lo=0.0, hi=low_hi, fontsize=8)
+    _annotate_fpr_on_axis(ax_hi, hi_pairs, lo=high_lo, hi=100.5, fontsize=8)
+
+    ax_lo.set_xticks(x)
+    ax_lo.set_xticklabels(labels, rotation=40, ha="right", fontsize=8)
+    ax_hi.tick_params(axis="x", bottom=False, labelbottom=False)
+    ax_lo.set_ylabel("FPR (%)", fontsize=12)
+
+    for ax in (ax_hi, ax_lo):
+        _neurips_axes(ax)
+
+    ax_hi.spines["bottom"].set_visible(False)
+    ax_lo.spines["top"].set_visible(False)
+
+    # Diagonal break marks between panels.
+    d = 0.015
+    kw_hi = dict(transform=ax_hi.transAxes, color=SPINE, clip_on=False, linewidth=0.9)
+    ax_hi.plot((-d, +d), (-d, +d), **kw_hi)
+    ax_hi.plot((1 - d, 1 + d), (-d, +d), **kw_hi)
+    kw_lo = dict(transform=ax_lo.transAxes, color=SPINE, clip_on=False, linewidth=0.9)
+    ax_lo.plot((-d, +d), (1 - d, 1 + d), **kw_lo)
+    ax_lo.plot((1 - d, 1 + d), (1 - d, 1 + d), **kw_lo)
+
+    _legend_above(ax_hi, ncol=3, fontsize=9)
+    fig.subplots_adjust(bottom=0.20, top=0.88, hspace=0.08)
     path = _save(fig, out)
     import shutil
 
@@ -826,12 +893,94 @@ def _pareto_front(df: pd.DataFrame) -> pd.DataFrame:
     return pts.loc[keep]
 
 
+def _asr_at_fpr_budget(fpr: np.ndarray, asr: np.ndarray, grid: np.ndarray) -> np.ndarray:
+    """Best True ASR achievable at each FPR budget (min ASR among points with FPR ≤ budget)."""
+    order = np.argsort(fpr, kind="mergesort")
+    fpr_s = fpr[order]
+    asr_s = asr[order]
+    best = np.minimum.accumulate(asr_s)
+    # For budget g: last index with fpr_s <= g; if none, use least-blocking (max ASR).
+    idx = np.searchsorted(fpr_s, grid, side="right") - 1
+    out = np.empty_like(grid, dtype=float)
+    none_mask = idx < 0
+    out[none_mask] = float(np.max(asr_s)) if asr_s.size else np.nan
+    ok = ~none_mask
+    out[ok] = best[idx[ok]]
+    return out
+
+
+def _loo_macro_frontier(
+    group: pd.DataFrame,
+    folds: list[str],
+    fpr_grid: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """LOO-4 macro frontier: average per-fold ASR-at-FPR-budget curves.
+
+    Pooling all fold points then taking a single Pareto front is *incorrect*:
+    it keeps the easiest fold at each FPR and systematically understates True ASR
+    relative to the LOO-4 macro matched stars.
+    """
+    curves = []
+    for fold in folds:
+        g = group[group["fold"].astype(str) == fold]
+        if g.empty:
+            continue
+        fpr = g["FPR"].astype(float).to_numpy()
+        asr = g["True_ASR"].astype(float).to_numpy()
+        curves.append(_asr_at_fpr_budget(fpr, asr, fpr_grid))
+    if not curves:
+        return fpr_grid, np.full_like(fpr_grid, np.nan, dtype=float)
+    return fpr_grid, np.nanmean(np.vstack(curves), axis=0)
+
+
+def _simplify_monotone_curve(x: np.ndarray, y: np.ndarray, *, atol: float = 1e-4) -> tuple[np.ndarray, np.ndarray]:
+    """Keep endpoints and ASR change-points so step curves stay clean."""
+    if x.size <= 2:
+        return x, y
+    keep = [0]
+    for i in range(1, len(y)):
+        if abs(float(y[i]) - float(y[keep[-1]])) > atol:
+            keep.append(i)
+    if keep[-1] != len(y) - 1:
+        keep.append(len(y) - 1)
+    idx = np.asarray(keep, dtype=int)
+    return x[idx], y[idx]
+
+
+def _display_smooth_frontier(
+    x: np.ndarray,
+    y: np.ndarray,
+    *,
+    n_pts: int = 16,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Resample a monotone frontier onto a coarse grid for a clean solid line."""
+    if x.size <= 2:
+        return x, y
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    order = np.argsort(x)
+    x, y = x[order], y[order]
+    x, y = _simplify_monotone_curve(x, y, atol=0.75)
+    # Prefer a fixed, readable FPR grid inside the plotted window.
+    lo, hi = float(x[0]), float(x[-1])
+    grid = np.array(
+        [0.0, 1.0, 2.0, 2.5, 3.0, 4.0, 5.0, 7.5, 10.0, 12.5, 15.0, 17.5, 20.0, 22.5, 25.0],
+        dtype=float,
+    )
+    grid = grid[(grid >= lo - 1e-9) & (grid <= hi + 1e-9)]
+    if grid.size < 3:
+        grid = np.linspace(lo, hi, int(n_pts))
+    y_new = np.interp(grid, x, y)
+    y_new = np.minimum.accumulate(y_new)
+    return grid, y_new
+
+
 def plot_loo_true_asr_vs_fpr(
     out: Path | None = None,
     *,
     benign_kind: str = "ordinary",
 ) -> Path:
-    """Security–usability frontier: LOO True ASR vs FPR threshold sweeps."""
+    """Security–usability frontier: LOO-4 macro True ASR vs FPR sweeps."""
     _apply_theme()
     out = out or (IMAGES_DIR / "true_asr_vs_fpr_loo.pdf")
     curve = pd.read_csv(RESULTS_DIR / "loo_matched_fpr" / "true_asr_vs_fpr_curves.csv")
@@ -848,93 +997,154 @@ def plot_loo_true_asr_vs_fpr(
     if sub.empty:
         raise FileNotFoundError(f"No LOO curve rows for benign_kind={benign_kind}")
 
-    line_color = {
-        "baseline": RED,
-        "regex": "#B85A5E",
-        "keyword": SLATE,
-        "context_aware": BLUE,
-        "context_aware_learned": RED,
-        "similarity_only": "#7A8499",
-        "deberta_finetuned": "#2F3F66",
-        "protectai": "#5C4A3A",
-        "prompt_guard": "#44403c",
+    # Sweepable frontiers: solid lines only (color + weight for separation).
+    style = {
+        "baseline": dict(color="#6B4E3D", marker="o"),
+        "regex": dict(color="#C47A2C", marker="s"),
+        "keyword": dict(color="#5F6B5A", marker="^"),
+        "similarity_only": dict(color="#A0A6B0", ls="-", lw=1.6, z=2, alpha=0.95),
+        "context_aware": dict(color=BLUE, ls="-", lw=2.4, z=4, alpha=1.0),
+        "context_aware_learned": dict(color=RED, ls="-", lw=2.4, z=4, alpha=1.0),
+        "deberta_finetuned": dict(color="#2F5D50", ls="-", lw=2.2, z=3, alpha=1.0),
     }
-    order = [
-        "baseline",
-        "regex",
-        "keyword",
+    labels = {
+        "baseline": "None",
+        "regex": "Regex",
+        "keyword": "Keyword",
+        "similarity_only": "Sim-only",
+        "context_aware": "Method A",
+        "context_aware_learned": "Method B",
+        "deberta_finetuned": "DeBERTa",
+    }
+    sweep_order = [
         "similarity_only",
-        "context_aware",
-        "context_aware_learned",
         "deberta_finetuned",
+        "context_aware_learned",
+        "context_aware",
     ]
+    # No FPR sweep in this suite (always FPR=0, or 0↔100 only).
+    point_methods = ("baseline", "regex", "keyword")
 
-    fig, ax = plt.subplots(figsize=COL_SIZE)
-    for method in order:
+    fpr_grid = np.linspace(0.0, 0.25, 101)
+    macro = metrics[metrics["fold"].astype(str) == "four_source_macro_avg"].copy()
+    macro_map = {str(r["method"]).strip(): r for _, r in macro.iterrows()}
+
+    fig, ax = plt.subplots(figsize=COL_SIZE_TALL)
+    ax.axvspan(0.0, 5.0, color="#EEF1F6", zorder=0)
+    ax.axvline(5.0, color="#9AA3B2", linestyle="-", linewidth=0.7, alpha=0.85, zorder=1)
+
+    line_handles = []
+    line_labels = []
+    for method in sweep_order:
         group = sub[sub["method"].astype(str) == method]
         if group.empty:
             continue
-        g = (
-            group[["FPR", "True_ASR"]]
-            .drop_duplicates()
-            .sort_values("FPR")
-            .reset_index(drop=True)
-        )
-        front = _pareto_front(g)
-        lw = 2.4 if method in ("context_aware", "context_aware_learned") else 1.6
-        ax.plot(
-            front["FPR"] * 100.0,
-            front["True_ASR"] * 100.0,
-            label=METHOD_SHORT.get(method, method),
-            color=line_color.get(method, SLATE),
-            linewidth=lw,
-            marker="o" if method in ("baseline", "regex") else None,
-            markersize=5 if method in ("baseline", "regex") else 2,
-            zorder=4 if method.startswith("context_aware") else 3,
-        )
-
-    # Matched ≈5% operating points from LOO-4 macro (anchors the headline).
-    macro = metrics[metrics["fold"].astype(str) == "four_source_macro_avg"].copy()
-    for _, r in macro.iterrows():
-        m = str(r["method"]).strip()
-        if m not in order:
+        st = style[method]
+        x_fpr, y_asr = _loo_macro_frontier(group, list(LOO_SOURCE_FOLDS), fpr_grid)
+        finite = np.isfinite(y_asr)
+        x_pct = x_fpr[finite] * 100.0
+        y_pct = y_asr[finite] * 100.0
+        if x_pct.size == 0:
             continue
-        ax.scatter(
+        x_pct, y_pct = _display_smooth_frontier(x_pct, y_pct, n_pts=40)
+        h = ax.plot(
+            x_pct,
+            y_pct,
+            color=st["color"],
+            linestyle="-",
+            linewidth=st["lw"],
+            alpha=st.get("alpha", 1.0),
+            solid_capstyle="round",
+            solid_joinstyle="round",
+            antialiased=True,
+            label=labels[method],
+            zorder=st["z"],
+        )[0]
+        line_handles.append(h)
+        line_labels.append(labels[method])
+
+    # Matched operating points = LOO-4 macro from metrics (realized test FPR, not forced to 5%).
+    # Val thresholds target ≈5% FPR; test FPR can land elsewhere (e.g. DeBERTa 0.38%).
+    point_handles = []
+    point_labels = []
+    for method in point_methods:
+        if method not in macro_map:
+            continue
+        r = macro_map[method]
+        x = float(r["FPR_%"])
+        y = float(r["True_ASR_%"])
+        st = style[method]
+        h = ax.scatter(
+            [x],
+            [y],
+            s=40,
+            marker=st["marker"],
+            color=st["color"],
+            edgecolors="white",
+            linewidths=0.7,
+            zorder=6,
+            label=labels[method],
+        )
+        point_handles.append(h)
+        point_labels.append(labels[method])
+
+    star_h = None
+    for method in sweep_order:
+        if method not in macro_map:
+            continue
+        r = macro_map[method]
+        h = ax.scatter(
             float(r["FPR_%"]),
             float(r["True_ASR_%"]),
-            s=55,
+            s=48,
             marker="*",
-            color=line_color.get(m, SLATE),
+            color=style[method]["color"],
             edgecolors="white",
-            linewidths=0.5,
-            zorder=6,
+            linewidths=0.55,
+            zorder=7,
         )
+        if star_h is None:
+            star_h = h
 
-    ax.axvline(5.0, color=SPINE, linestyle="--", linewidth=0.9, alpha=0.7)
-    ax.set_xlabel("FPR % (held-out PI-benign)", fontsize=12)
-    ax.set_ylabel("True ASR %", fontsize=12)
-    ax.set_xlim(left=0)
-    ax.set_ylim(bottom=0)
-    _neurips_axes(ax, grid_y=True, grid_x=True)
-    ax.tick_params(axis="both", labelsize=10)
-    ax.legend(
-        frameon=False,
-        fontsize=9,
-        loc="upper right",
-        handlelength=1.4,
-        borderaxespad=0.2,
-    )
+    ax.set_xlabel("False positive rate (%)", fontsize=11)
+    ax.set_ylabel("True ASR (%)", fontsize=11)
+    ax.set_xlim(-0.4, 25)
+    ax.set_ylim(0, 62)
+    ax.set_xticks([0, 5, 10, 15, 20, 25])
+    ax.set_yticks([0, 10, 20, 30, 40, 50, 60])
+    _neurips_axes(ax, grid_y=True, grid_x=False)
+    ax.tick_params(axis="both", labelsize=9)
     ax.text(
-        0.98,
-        0.02,
-        "★ = matched FPR≈5% (LOO-4 macro)",
-        transform=ax.transAxes,
-        ha="right",
-        va="bottom",
-        fontsize=8,
-        color=TEXT,
+        5.15,
+        60.2,
+        "val target 5%",
+        fontsize=7.5,
+        color="#6B7280",
+        ha="left",
+        va="top",
     )
-    fig.tight_layout(pad=0.3)
+
+    handles = point_handles + line_handles
+    labs = point_labels + line_labels
+    if star_h is not None:
+        handles.append(star_h)
+        labs.append("Matched point")
+    preferred = [
+        "None",
+        "Regex",
+        "Keyword",
+        "Sim-only",
+        "Method A",
+        "Method B",
+        "DeBERTa",
+        "Matched point",
+    ]
+    order_map = {lab: i for i, lab in enumerate(preferred)}
+    pairs = sorted(zip(handles, labs), key=lambda t: order_map.get(t[1], 99))
+    handles, labs = [p[0] for p in pairs], [p[1] for p in pairs]
+    _legend_above(ax, handles, labs, ncol=4, fontsize=8)
+    fig.tight_layout(pad=0.25)
+    fig.subplots_adjust(top=0.82)
     path = _save(fig, out)
     import shutil
 
@@ -1154,7 +1364,7 @@ def plot_adaptive_bars(out: Path | None = None) -> Path:
         label="Bypass Rate",
         zorder=3,
     )
-    # True ASR only where judged (ProtectAI / PG are gate-only → NaN).
+    # Skip True ASR bars only if a method lacks judged outcomes (NaN).
     asr_plot = np.where(np.isnan(asr), 0.0, asr)
     asr_mask = ~np.isnan(asr)
     b2 = ax.bar(

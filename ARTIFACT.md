@@ -88,4 +88,6 @@ python scripts/run_paper.py              # core paper holdout
 python scripts/run_paper.py --mode full  # + suites / ablations / judge HV
 ```
 
-Also: `README.md` §9–§10, `scripts/README.md`. Gate-only smoke: `scripts/reproduce.ps1`.
+Also: `README.md` §9–§10, `scripts/README.md`, `results/PAPER.md`.  
+Gate-only smoke (not paper): `scripts/reproduce.ps1`.  
+AAAI draft (local, gitignored): `report/aaai/` — see `report/README.md`.

@@ -25,7 +25,7 @@ One-shot rebuild: `python scripts/run_paper.py` (or `python -m src.run_experimen
 |--------|-------|------------|-----------|---------|
 | **`loo_matched_fpr/`** | Leave-one-source-out | val **FPR ≈ 5%** | Yes | **Main paper holdout** |
 | **`loo/`** | Leave-one-source-out | default / F1 | Yes | Contrast operating point |
-| **`matched_fpr/`** | Mixed random | val **FPR ≤ 5%** | No (Bypass/FPR) | Mixed suite matched-FPR (**ID** column) |
+| **`matched_fpr/`** | Mixed random | val **FPR ≤ 5%** | Yes (via prompt cache when present) | Mixed suite matched-FPR (**ID** column) |
 | **`source_holdout/`** | Leave-one-source-out | default gates | No | Gate-only / may be stale |
 | **`suite_a/` `suite_b/`** | Mixed | default / F1 | Yes | Archived mixed suite |
 | **`protectai/` `prompt_guard/`** | Mixed test | published argmax | Yes* | Static portable baselines |

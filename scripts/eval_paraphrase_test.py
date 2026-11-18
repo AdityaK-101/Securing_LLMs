@@ -1,6 +1,10 @@
 """
 Paraphrase probe on mixed-suite test injections (v3.0 ~60).
 
+WARNING: default / F1 thresholds on the mixed split — NOT the paper LOO
+matched-FPR paraphrase deltas (those: ``results/loo_matched_fpr/`` via
+``scripts/rerun_loo_matched_fpr_paraphrase.py`` or ``--loo-matched-fpr``).
+
 Expanded synonym list + FLAN-T5 fallback for prompts synonyms leave unchanged.
 Gate-only Bypass. Loads Method A and Method B together (shared MiniLM/DistilGPT-2).
 """

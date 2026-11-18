@@ -231,7 +231,7 @@ def _merge_metrics(existing: pd.DataFrame, new_rows: list[dict]) -> pd.DataFrame
 
 
 def _load_adaptive_prompts(fold: str) -> list[str]:
-    """Flatten adaptive attack variants for one fold (gate-only Bypass)."""
+    """Flatten adaptive attack variants for one fold."""
     paths = [
         OUT / fold / "adaptive_attacks.jsonl",
         RESULTS_DIR / "loo" / fold / "adaptive_attacks.jsonl",
@@ -251,6 +251,63 @@ def _load_adaptive_prompts(fold: str) -> list[str]:
                 if text:
                     prompts.append(text)
     return prompts
+
+
+def _ensure_adaptive_outcomes(prompts: list[str], outcome_cache: OutcomeCache) -> None:
+    """Fill missing target-LLM + judge labels for adaptive rewrites (resumable)."""
+    missing_llm = outcome_cache.missing_llm(prompts)
+    missing_judge = outcome_cache.missing_judge(prompts)
+    if not missing_llm and not missing_judge:
+        return
+    from src.config import LLM_CACHE_BATCH_SIZE
+    from src.models.judge import ComplianceJudge
+    from src.models.target_llm import LLMRunner
+
+    if missing_llm:
+        print(f"[adaptive ASR] generating {len(missing_llm)} missing target replies...")
+        runner = LLMRunner()
+        try:
+            outcome_cache.ensure_llm(
+                prompts,
+                runner,
+                batch_size=int(LLM_CACHE_BATCH_SIZE),
+            )
+        finally:
+            if hasattr(runner, "release"):
+                runner.release()
+    missing_judge = outcome_cache.missing_judge(prompts)
+    if missing_judge:
+        print(f"[adaptive ASR] judging {len(missing_judge)} cached replies...")
+        judge = ComplianceJudge()
+        try:
+            outcome_cache.ensure_judge(prompts, judge)
+        finally:
+            if hasattr(judge, "release"):
+                judge.release()
+
+
+def _true_asr_for_allowed(
+    prompts: list[str],
+    blocked: np.ndarray,
+    outcome_cache: OutcomeCache,
+) -> tuple[float, int, int]:
+    """True ASR = (# unblocked AND COMPLIED) / n_attacks (same as LOO adaptive)."""
+    n = len(prompts)
+    if n == 0:
+        return 0.0, 0, 0
+    success = 0
+    missing = 0
+    for i, prompt in enumerate(prompts):
+        if bool(blocked[i]):
+            continue
+        row = outcome_cache.get(prompt)
+        lab = str((row or {}).get("judge_label", "") or "").strip().upper()
+        if lab in ("", "NONE", "NULL", "SKIPPED"):
+            missing += 1
+            continue
+        if lab == "COMPLIED":
+            success += 1
+    return success / n, success, missing
 
 
 def _edge_fpr_at_threshold(
@@ -282,7 +339,7 @@ def _edge_fpr_at_threshold(
     }
 
 
-def _adaptive_bypass_at_threshold(
+def _adaptive_metrics_at_threshold(
     san,
     method: str,
     thr: float,
@@ -291,6 +348,7 @@ def _adaptive_bypass_at_threshold(
     label_id: int,
     score_cache: dict[tuple[str, str], float],
     batch_size: int,
+    outcome_cache: OutcomeCache,
 ) -> dict | None:
     prompts = _load_adaptive_prompts(fold)
     if not prompts:
@@ -306,15 +364,27 @@ def _adaptive_bypass_at_threshold(
     blocked = scores >= float(thr)
     bypass = float((~blocked).mean())
     n = len(prompts)
+    # Only need target+judge for prompts that pass the gate.
+    allowed = [p for p, b in zip(prompts, blocked) if not bool(b)]
+    if allowed:
+        _ensure_adaptive_outcomes(allowed, outcome_cache)
+    true_asr, n_success, n_missing = _true_asr_for_allowed(
+        prompts, blocked, outcome_cache
+    )
+    note = "adaptive Bypass + True ASR at matched thr (target+judge on allowed rewrites)"
+    if n_missing:
+        note += f"; missing_judge_on_allowed={n_missing}"
     return {
         "Bypass_Rate": bypass,
         "Bypass_Rate_%": round(100.0 * bypass, 2),
+        "True_ASR": true_asr,
+        "True_ASR_%": round(100.0 * true_asr, 2),
         "FPR_%": 0.0,  # attack-only probe
-        "True_ASR_%": None,  # gate-only
         "injections": n,
         "benign": 0,
-        "successful_attack_count": None,
-        "note": "gate-only adaptive Bypass at matched thr; True ASR not scored",
+        "successful_attack_count": int(n_success),
+        "Detection_Rate": round(1.0 - bypass, 4),
+        "note": note,
     }
 
 
@@ -327,6 +397,7 @@ def _score_portable_robustness(
     thresholds: dict[str, float],
     score_cache: dict[tuple[str, str], float],
     batch_size: int,
+    adaptive_outcome_cache: OutcomeCache,
 ) -> tuple[list[dict], list[dict]]:
     edge_rows: list[dict] = []
     adaptive_rows: list[dict] = []
@@ -347,8 +418,8 @@ def _score_portable_robustness(
         edge_rows.append({"fold": fold, "method": method, **edge})
         print(f"  edge FPR={edge['edge_FPR_%']:.2f}% ({edge['blocked_count']}/{edge['total']})")
 
-        print(f"[{fold}] {method}: adaptive Bypass (gate-only)...")
-        adaptive = _adaptive_bypass_at_threshold(
+        print(f"[{fold}] {method}: adaptive Bypass + True ASR...")
+        adaptive = _adaptive_metrics_at_threshold(
             san,
             method,
             float(thr),
@@ -356,6 +427,7 @@ def _score_portable_robustness(
             label_id=label_id,
             score_cache=score_cache,
             batch_size=batch_size,
+            outcome_cache=adaptive_outcome_cache,
         )
         if adaptive is None:
             print(f"  no adaptive_attacks.jsonl for {fold}")
@@ -363,6 +435,7 @@ def _score_portable_robustness(
         adaptive_rows.append({"fold": fold, "method": method, **adaptive})
         print(
             f"  adaptive Bypass={adaptive['Bypass_Rate_%']:.2f}% "
+            f"TrueASR={adaptive['True_ASR_%']:.2f}% "
             f"(n={adaptive['injections']})"
         )
     return edge_rows, adaptive_rows
@@ -416,13 +489,13 @@ def main() -> None:
     parser.add_argument(
         "--robustness-only",
         action="store_true",
-        help="Skip main val/test retune; only edge FPR + adaptive Bypass at "
+        help="Skip main val/test retune; only edge FPR + adaptive Bypass/True ASR at "
         "thresholds already in metrics.csv / thresholds.csv.",
     )
     parser.add_argument(
         "--skip-robustness",
         action="store_true",
-        help="Skip edge / adaptive gate-only scoring.",
+        help="Skip edge / adaptive scoring.",
     )
     parser.add_argument(
         "--folds",
@@ -440,9 +513,15 @@ def main() -> None:
         )
 
     outcome_cache = OutcomeCache(PROMPT_CACHE_DIR / "loo" / "outcomes.jsonl")
+    adaptive_outcome_cache = OutcomeCache(
+        PROMPT_CACHE_DIR / "loo" / "adaptive_outcomes.jsonl"
+    )
     score_cache = _load_score_cache(SCORE_CACHE)
     print(f"[portables] score cache entries: {len(score_cache)}")
     print(f"[portables] outcome cache rows: {len(outcome_cache._rows)}")
+    print(
+        f"[portables] adaptive outcome cache rows: {len(adaptive_outcome_cache._rows)}"
+    )
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"[portables] device={device}")
@@ -498,6 +577,7 @@ def main() -> None:
                 thresholds=_thresholds_for("protectai"),
                 score_cache=score_cache,
                 batch_size=int(args.batch_size),
+                adaptive_outcome_cache=adaptive_outcome_cache,
             )
             all_edge_rows.extend(e_rows)
             all_adaptive_rows.extend(a_rows)
@@ -529,6 +609,7 @@ def main() -> None:
                 thresholds=_thresholds_for("prompt_guard"),
                 score_cache=score_cache,
                 batch_size=int(args.batch_size),
+                adaptive_outcome_cache=adaptive_outcome_cache,
             )
             all_edge_rows.extend(e_rows)
             all_adaptive_rows.extend(a_rows)

@@ -1,6 +1,11 @@
 """
 Evaluate ProtectAI and/or Prompt Guard 2 on the frozen adaptive suite.
 
+WARNING: uses suite_a adaptive texts + default portable thresholds.
+This is NOT the paper Table F LOO matched-FPR adaptive numbers
+(those live in ``results/loo_matched_fpr/`` from
+``scripts/eval_loo_matched_fpr_portables.py``).
+
 Gate-only Bypass / True ASR. Adaptive texts and baseline COMPLIED labels are
 taken from suite_a robustness_adaptive_logs.jsonl (method==baseline).
 Size follows the mixed test split (currently 60 injections × 6 styles = 360).

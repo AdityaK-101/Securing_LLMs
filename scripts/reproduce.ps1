@@ -1,19 +1,25 @@
-# Gate-only checks (paraphrase + judge HV offline; portable baselines need HF).
-# Does not overwrite paper ablation CSVs (those need a full target+judge run).
+# Short gate-only smoke (NOT the paper holdout pipeline).
+# For AAAI tables:  python scripts/run_paper.py
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "..")
 
-Write-Host "[1/3] Paraphrase gate-only (test injections)"
+Write-Host "NOTE: This is a smoke check. Paper numbers: python scripts/run_paper.py"
+Write-Host "      Cite results/loo_matched_fpr/PAPER_TABLES.md"
+Write-Host ""
+
+Write-Host "[1/4] Dataset sizes"
+python scripts/print_dataset_sizes.py
+
+Write-Host "[2/4] Paraphrase gate-only (mixed test; not LOO matched-FPR)"
 python scripts/eval_paraphrase_test.py
 
-Write-Host "[2/3] Judge human-validation score (offline)"
+Write-Host "[3/4] Judge human-validation score (offline)"
 python scripts/score_judge_human_validation.py
 
-Write-Host "[3/3] Portable baselines (ProtectAI / Prompt Guard) — needs HF models"
+Write-Host "[4/4] Portable baselines (ProtectAI / Prompt Guard) — needs HF models"
 python -m src.run_experiments --portable-baselines
 
-Write-Host "Done. Paper tables live in committed results/."
-Write-Host "  Full suites (target + judge): python -m src.run_experiments --suite a|b"
-Write-Host "  Ablations with True ASR:      python -m src.run_experiments --hard-trigger-ablation"
-Write-Host "  Ablations sanitizer-only:     python -m src.run_experiments --hard-trigger-ablation --no-llm"
-Write-Host "    (--no-llm zeros True ASR; it does not read previous CSVs.)"
+Write-Host "Done (smoke)."
+Write-Host "  Paper holdout:  python scripts/run_paper.py"
+Write-Host "  Consistency:    python scripts/audit_pipeline_consistency.py"
+Write-Host "  Ablations:      python -m src.run_experiments --hard-trigger-ablation"

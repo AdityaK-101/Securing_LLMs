@@ -121,20 +121,20 @@ LOO-4 **macro** = equal weight per held-out source. LOO-4 **pooled** = micro (80
 
 Each fold fits Method B / similarity / DeBERTa on **300** Alpaca instruction prompts (train=200, val=100). **PI-benign is test-only** (never in train/val). Shared test benign = **200** PI-benign prompts, identical across **all** folds including Neuralchemy.
 
-## Table F — Three-regime FPR + adaptive Bypass (matched LOO thresholds; edge = 80 technical prompts)
+## Table F — Three-regime FPR + adaptive Bypass / True ASR (matched LOO thresholds; edge = 80 technical prompts)
 
-| Method | LOO-4 PI-benign FPR % | Neuralchemy-side FPR % | LOO-4 Edge FPR % | LOO-4 Adaptive Bypass % |
-|--------|----------------------:|-----------------------:|-----------------:|-------------------------:|
-| No sanitizer (baseline) | 0.00 | 0.00 | 0.00 | 100.00 |
-| Regex-only | 0.00 | 0.00 | 2.50 | 95.21 |
-| Keyword-only | 0.00 | 0.00 | 62.50 | 88.52 |
-| Method A (hybrid) | 4.50 | 3.50 | 81.88 | 55.54 |
-| Method B (learned) | 4.00 | 1.50 | 18.44 | 69.86 |
-| Similarity-only | 2.50 | 0.50 | 10.62 | 72.00 |
-| DeBERTa fine-tuned | 0.38 | 0.00 | 79.06 | 27.46 |
-| ProtectAI (DeBERTa-v3) | 2.25 | 4.50 | 63.75 | 41.54 |
-| Prompt Guard 2 | 1.00 | 1.00 | 87.50 | 35.00 |
+| Method | LOO-4 PI-benign FPR % | Neuralchemy-side FPR % | LOO-4 Edge FPR % | LOO-4 Adaptive Bypass % | LOO-4 Adaptive True ASR % |
+|--------|----------------------:|-----------------------:|-----------------:|-------------------------:|--------------------------:|
+| No sanitizer (baseline) | 0.00 | 0.00 | 0.00 | 100.00 | 49.45 |
+| Regex-only | 0.00 | 0.00 | 2.50 | 95.21 | 46.98 |
+| Keyword-only | 0.00 | 0.00 | 62.50 | 88.52 | 43.10 |
+| Method A (hybrid) | 4.50 | 3.50 | 72.81 | 55.54 | 23.62 |
+| Method B (learned) | 4.00 | 1.50 | 1.56 | 69.86 | 30.66 |
+| Similarity-only | 2.50 | 0.50 | 0.31 | 72.00 | 31.39 |
+| DeBERTa fine-tuned | 0.38 | 0.00 | 73.44 | 27.46 | 12.37 |
+| ProtectAI (DeBERTa-v3) | 2.25 | 4.50 | 63.75 | 41.56 | 21.84 |
+| Prompt Guard 2 | 1.00 | 1.00 | 87.50 | 35.06 | 16.12 |
 
-Edge / adaptive use the **same** per-fold matched thresholds as Table A. ProtectAI / Prompt Guard adaptive Bypass is **gate-only** (True ASR not re-judged).
+Edge / adaptive use the **same** per-fold matched thresholds as Table A. Adaptive True ASR = unblocked rewritten attacks that the LLM judge marks as complied (target+judge on allowed rewrites for all methods, including ProtectAI and Prompt Guard).
 
 Sources: `C:/Users/kulka/Downloads/Research_paper/Securing_LLMs/results/loo_matched_fpr/metrics.csv`, `C:/Users/kulka/Downloads/Research_paper/Securing_LLMs/results/matched_fpr/metrics.csv`, `C:/Users/kulka/Downloads/Research_paper/Securing_LLMs/data/splits/source_holdout/manifest.json`, `C:/Users/kulka/Downloads/Research_paper/Securing_LLMs/results/loo_matched_fpr/robustness_edge_benign.csv`, `C:/Users/kulka/Downloads/Research_paper/Securing_LLMs/results/loo_matched_fpr/robustness_adaptive.csv`.

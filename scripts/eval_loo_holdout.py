@@ -1,5 +1,9 @@
 """Score source-holdout folds with the gate only.
 
+WARNING: writes ``results/source_holdout/`` — NOT the paper main tree.
+For AAAI LOO matched-FPR numbers use ``results/loo_matched_fpr/`` via
+``python scripts/run_paper.py`` or ``--loo-matched-fpr``.
+
 Methods per fold:
   baseline, regex, keyword, Method A, Method B,
   similarity_only (fold-trained), deberta_finetuned (fold-trained)

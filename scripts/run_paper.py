@@ -162,11 +162,28 @@ def run_paper(
             _py("scripts/score_judge_human_validation.py"),
             step="Judge human-validation score",
         )
+        # Optional local draft figures (report/ is gitignored; skip if unavailable).
+        fig_script = ROOT / "scripts" / "generate_paper_figures.py"
+        if fig_script.is_file():
+            try:
+                _run(
+                    _py(str(fig_script)),
+                    step="Generate AAAI paper figures (report/aaai/images)",
+                )
+            except subprocess.CalledProcessError as exc:
+                print(f"[WARN] Paper figure generation failed (non-fatal): {exc}")
+
+    # Consistency gate: fold CSVs must match aggregates; paraphrase orig ≈ Table A.
+    _run(
+        _py("scripts/audit_pipeline_consistency.py"),
+        step="Consistency gate (loo_matched_fpr artifacts)",
+    )
 
     paper = RESULTS_DIR / "loo_matched_fpr" / "PAPER_TABLES.md"
     _banner("Paper pipeline complete")
     print(f"Mode: {mode}")
     print(f"Main tables: {paper}")
+    print(f"Paper tree:  {RESULTS_DIR / 'loo_matched_fpr'}  (NOT results/loo or source_holdout)")
     print(f"Folder map:  {RESULTS_DIR / 'README.md'}")
     print(f"Index:       {RESULTS_DIR / 'PAPER.md'}")
 

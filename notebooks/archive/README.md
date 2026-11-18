@@ -10,4 +10,6 @@ These notebooks are **not** part of the primary evaluation path
 Provenance notebooks that remain under `notebooks/`:
 
 - `preprocess_*.ipynb`, `combined_create.ipynb`, `EDA.ipynb`, `build_source_holdout.ipynb`
-- `data/splits/split.ipynb`
+
+Also: `data/splits/split.ipynb` (mixed-split provenance). Canonical CSVs:
+`data/splits/{train,val,test}.csv` (rebuild via `scripts/build_combined_dataset.py`).

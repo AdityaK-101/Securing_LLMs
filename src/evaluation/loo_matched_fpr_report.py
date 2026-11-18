@@ -437,21 +437,21 @@ def build_paper_tables(out_dir: Path | None = None) -> Path:
     lines.append(benign_md)
     lines.append("")
 
-    # --- Table F: three-regime FPR + adaptive Bypass (incl. portables) ---
+    # --- Table F: three-regime FPR + adaptive Bypass/True ASR (incl. portables) ---
     edge_path = out / "robustness_edge_benign.csv"
     adaptive_path = out / "robustness_adaptive.csv"
     lines.append(
-        "## Table F — Three-regime FPR + adaptive Bypass "
+        "## Table F — Three-regime FPR + adaptive Bypass / True ASR "
         "(matched LOO thresholds; edge = 80 technical prompts)"
     )
     lines.append("")
     lines.append(
         "| Method | LOO-4 PI-benign FPR % | Neuralchemy-side FPR % | "
-        "LOO-4 Edge FPR % | LOO-4 Adaptive Bypass % |"
+        "LOO-4 Edge FPR % | LOO-4 Adaptive Bypass % | LOO-4 Adaptive True ASR % |"
     )
     lines.append(
         "|--------|----------------------:|-----------------------:|"
-        "-----------------:|-------------------------:|"
+        "-----------------:|-------------------------:|--------------------------:|"
     )
 
     def _edge_macro_pct(method: str) -> float | None:
@@ -479,7 +479,7 @@ def build_paper_tables(out_dir: Path | None = None) -> Path:
             return float(src["edge_FPR"].mean()) * 100.0
         return None
 
-    def _adaptive_macro_pct(method: str) -> float | None:
+    def _adaptive_macro_pct(method: str, col: str = "Bypass_Rate_%") -> float | None:
         if not adaptive_path.is_file():
             return None
         a = pd.read_csv(adaptive_path)
@@ -488,14 +488,14 @@ def build_paper_tables(out_dir: Path | None = None) -> Path:
             (a["fold"].astype(str) == "four_source_macro_avg")
             & (a["method"].astype(str) == method)
         ]
-        if not macro.empty and "Bypass_Rate_%" in macro.columns:
-            return float(macro.iloc[0]["Bypass_Rate_%"])
+        if not macro.empty and col in macro.columns and pd.notna(macro.iloc[0].get(col)):
+            return float(macro.iloc[0][col])
         src = a[
             (a["fold"].isin(LOO_SOURCE_FOLDS)) & (a["method"].astype(str) == method)
         ]
-        if src.empty or "Bypass_Rate_%" not in src.columns:
+        if src.empty or col not in src.columns or not src[col].notna().any():
             return None
-        return float(src["Bypass_Rate_%"].mean())
+        return float(src[col].mean())
 
     for method in methods:
         lab = METHOD_LABEL.get(method, method)
@@ -506,16 +506,18 @@ def build_paper_tables(out_dir: Path | None = None) -> Path:
         pi_fpr = float(macro.iloc[0]["FPR_%"]) if not macro.empty else None
         neur_fpr = float(neur.iloc[0]["FPR_%"]) if not neur.empty else None
         edge_fpr = _edge_macro_pct(method)
-        adapt_b = _adaptive_macro_pct(method)
+        adapt_b = _adaptive_macro_pct(method, "Bypass_Rate_%")
+        adapt_asr = _adaptive_macro_pct(method, "True_ASR_%")
         lines.append(
             f"| {lab} | {_fmt(pi_fpr)} | {_fmt(neur_fpr)} | "
-            f"{_fmt(edge_fpr)} | {_fmt(adapt_b)} |"
+            f"{_fmt(edge_fpr)} | {_fmt(adapt_b)} | {_fmt(adapt_asr)} |"
         )
     lines.append("")
     lines.append(
         "Edge / adaptive use the **same** per-fold matched thresholds as Table A. "
-        "ProtectAI / Prompt Guard adaptive Bypass is **gate-only** (True ASR not "
-        "re-judged)."
+        "Adaptive True ASR = unblocked rewritten attacks that the LLM judge marks "
+        "as complied (target+judge on allowed rewrites for all methods, including "
+        "ProtectAI and Prompt Guard)."
     )
     lines.append("")
     lines.append(

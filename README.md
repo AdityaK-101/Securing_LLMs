@@ -79,6 +79,7 @@ Securing_LLMs/
 │   ├── protectai/ prompt_guard/
 │   ├── prompt_cache/      ← shared LLM/judge caches
 │   └── …
+├── report/                ← local LaTeX (gitignored); aaai/ = canonical draft
 ├── ARTIFACT.md / CITATION.cff / LICENSE / requirements.txt
 └── README.md
 ```
@@ -160,7 +161,7 @@ Every sanitizer implements `sanitize(prompt) -> (sanitized_text, blocked)` (bina
 
 - **Regex** — 45 case-insensitive patterns (overrides, personas, DAN-style names, developer mode, German overrides, hypothetical framing); any match blocks.
 - **Keyword** — 37 weighted phrases; block if sum ≥ 0.5.
-- **Method A** — eight shared signals (regex, keyword, semantic, intent, roleplay, instruction shift, objective conflict, perplexity). Hard triggers: semantic stepped score > 0.6, intent = 1.0, or roleplay = 1.0 with keyword > 0.3. Else soft aggregate (weights in paper §Method A) blocks at ≥ 0.40.
+- **Method A** — eight shared signals (regex, keyword, semantic, intent, roleplay, instruction shift, objective conflict, perplexity). Hard triggers: raw gallery cosine above `semantic_hard_sim` (default **0.3**; matched-FPR LOO selects **0.55** on four-source folds / **0.60** on Neuralchemy), intent = 1.0, or roleplay = 1.0 with keyword > 0.3. Else soft aggregate (weights in paper §Method A) blocks at the tuned soft threshold (default 0.40).
 - **Method B** — same evidence; three continuous semantic features + LR on train, threshold tuned on val (F1, tie-break lower Bypass/FPR); **no hard triggers**.
 - **ProtectAI / Prompt Guard 2** — published classifiers on CPU; no fine-tuning on our split (`src/sanitizers/protectai.py`, `prompt_guard.py`). Run via scripts / `--portable-baselines`.
 - **Similarity-only** — MiniLM max-cosine to the train injection gallery; threshold F1-tuned on val (`similarity_only.py`). Fair baseline on mixed suites and LOO.
@@ -246,7 +247,7 @@ Artifacts: `results/loo_matched_fpr/summary.csv`, `thresholds.csv`, `robustness_
 | protectai | 11.62 | 7.12 | 2.25 |
 | prompt_guard | 3.62 | 1.88 | 1.00 |
 
-Paraphrase / edge / adaptive at the new matched thresholds: re-run without `--loo-skip-robustness` (committed robustness CSVs may predate the held-out benign rebuild).
+Paraphrase / edge / adaptive at the same matched thresholds are in `results/loo_matched_fpr/robustness_*` (regenerate via `--loo-matched-fpr` or the `rerun_loo_matched_fpr_{paraphrase,edge}.py` helpers). Run `python scripts/audit_pipeline_consistency.py` after partial re-scores.
 
 Sources: `results/loo_matched_fpr/summary.csv` (`four_source_macro_avg`).
 
@@ -449,7 +450,7 @@ python -m src.run_experiments --hard-trigger-ablation --no-llm
 
 → `results/weighted_ablation_metrics.csv`, `hard_trigger_ablation.csv`, `learned_ablation_metrics.csv`, `ab_comparison_metrics.csv`.
 
-Hard triggers drive most of Method A’s blocking; removing the semantic hard trigger raises Bypass by **+56.66 pp** (paper Table 2). Semantic features dominate Method B (removing all three semantic features → Bypass 100%, True ASR 46.67%).
+Hard triggers drive most of Method A’s blocking; removing the semantic hard trigger raises Bypass by **+60.00 pp** on the mixed default-OP ablation (paper Table 2–style). Semantic features dominate Method B (removing all three semantic features → Bypass 100%, True ASR 58.33% on that split).
 
 ---
 
@@ -517,7 +518,7 @@ python -m src.run_experiments --help
 
 ### Data / utility scripts
 
-See [`scripts/README.md`](scripts/README.md). Short gate-only smoke (not full paper):
+See [`scripts/README.md`](scripts/README.md). Inventory sizes: `python scripts/print_dataset_sizes.py`. Short gate-only smoke (not full paper):
 
 ```powershell
 .\scripts\reproduce.ps1
@@ -624,7 +625,7 @@ Aligned with paper §Limitations:
 - Train/test injections share public sources (distribution overlap); adaptive FLAN-T5 + similarity evasion is the main shift probe (four-source DeBERTa adaptive Bypass ~20.6%).
 - **Direct, single-turn, English, text-only** injection only; indirect / agentic / multimodal out of scope
 - True ASR depends on an LLM judge (same checkpoint as target); blind author labeling on the small mixed suite: 83.3% agreement, κ = 0.67
-- Method A/B ordinary + edge FPR remain high on LOO; usability cost is material
+- At matched LOO thresholds, Method A and several classifiers show high **edge** FPR on the 80 technical prompts; Method B and similarity-only stay low on that probe — matched PI-benign FPR does not imply matched edge behaviour
 - Prompt Guard may require Hugging Face gated access
 
 ---

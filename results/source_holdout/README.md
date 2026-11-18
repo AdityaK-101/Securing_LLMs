@@ -1,28 +1,15 @@
 # Source-holdout gate-only results
 
-**Gate-only** Bypass / FPR from `python scripts/eval_loo_holdout.py`.  
+**Not the paper main tree.**
+
+Gate-only Bypass / FPR from `python scripts/eval_loo_holdout.py`.  
 Committed CSVs here may be stale relative to the current uniform holdout splits.
+Do **not** cite these numbers in the AAAI paper.
 
-**Main LOO report** (FPR ≈ 5%, full suite):
+| Want | Path / command |
+|------|----------------|
+| **Main LOO (cite)** | `results/loo_matched_fpr/` ← `python scripts/run_paper.py` or `--loo-matched-fpr` |
+| Default-thr LOO contrast | `results/loo/` ← `--loo` |
+| Refresh this gate-only folder | `python scripts/eval_loo_holdout.py` |
 
-```powershell
-python -m src.run_experiments --loo-matched-fpr
-```
-
-→ `results/loo_matched_fpr/` (root README §6.0).
-
-**Default-threshold LOO** (contrast; complete):
-
-```powershell
-python -m src.run_experiments --loo
-```
-
-→ `results/loo/` (root README §6.0b).
-
-Rebuild gate-only scores after changing splits:
-
-```powershell
-python scripts/eval_loo_holdout.py
-```
-
-Outputs: `metrics.csv`, `summary.txt`, `logs_<fold>.csv`, `portable_prompt_decisions.csv`.
+Outputs here: `metrics.csv`, `summary.txt`, `logs_<fold>.csv`, `portable_prompt_decisions.csv`.

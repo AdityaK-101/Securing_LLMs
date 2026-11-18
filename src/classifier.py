@@ -1,10 +1,11 @@
 """
-src/classifier.py
-=================
-Stretch Goal: Logistic Regression + TF-IDF classifier for injection detection.
+Optional stretch-goal LR+TF-IDF injection classifier (``--classifier``).
 
-Trains on data/splits/train.csv and evaluates on test.csv.
-Reports accuracy, F1, and confusion matrix.
+**Not** part of the AAAI paper tables or ``run_paper.py`` pipeline.
+Prefer the sanitizer gates under ``src/sanitizers/`` and LOO matched-FPR.
+
+Trains on ``data/splits/train.csv`` and evaluates on test; reports accuracy,
+F1, and confusion matrix. Kept for optional ablation / teaching only.
 """
 
 import numpy as np

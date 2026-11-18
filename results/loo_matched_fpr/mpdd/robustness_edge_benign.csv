@@ -1,8 +1,8 @@
-fold,method,edge_FPR,blocked_count,total
-mpdd,baseline,0.0,0,80
-mpdd,context_aware,0.7875,63,80
-mpdd,context_aware_learned,0.15,12,80
-mpdd,deberta_finetuned,0.75,60,80
-mpdd,keyword,0.625,50,80
-mpdd,regex,0.025,2,80
-mpdd,similarity_only,0.1125,9,80
+fold,method,edge_FPR,blocked_count,total,edge_FPR_%
+mpdd,baseline,0.0,0,80,0.0
+mpdd,context_aware,0.7625,61,80,76.25
+mpdd,context_aware_learned,0.0125,1,80,1.25
+mpdd,deberta_finetuned,0.6625,53,80,66.25
+mpdd,keyword,0.625,50,80,62.5
+mpdd,regex,0.025,2,80,2.5
+mpdd,similarity_only,0.0125,1,80,1.25
