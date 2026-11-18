@@ -13,7 +13,7 @@ Rebuild: `python scripts/build_combined_dataset.py`
 
 * **Version:** 3.0 (~700 prompts; grown from raw sources)
 * **Supersedes:** v2.0 350-prompt corpus (archived: `data/cleaned/legacy/combined_dataset_v2.0_350.csv`, splits in `data/splits/legacy_v2.0_350/`)
-* **Legacy v1.0:** 250-prompt snapshot — **not** used by the evaluation CLI
+* **Legacy v1.0:** 250-prompt snapshot - **not** used by the evaluation CLI
 
 ---
 
@@ -84,7 +84,7 @@ Exact counts: see `data/cleaned/combined_manifest.json` (seed 42). Typical v3.0:
 * **Verify:** `python scripts/verify_source_holdout.py`
 * **Score (gates):** `python scripts/eval_loo_holdout.py` → `results/source_holdout/`
 
-**Known biases:** Injection prompts tend to be longer and more adversarial; models may overfit to length. Research-scale only — not a production security guarantee.
+**Known biases:** Injection prompts tend to be longer and more adversarial; models may overfit to length. Research-scale only - not a production security guarantee.
 
 ---
 

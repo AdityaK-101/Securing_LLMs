@@ -438,7 +438,7 @@ def robustness_adaptive(
     followed by the same two-layer pipeline as evaluate().
 
     Each held-out injection is rewritten into style attacks (roleplay, research,
-    hypothetical, indirect, multistep) plus — when enabled — a
+    hypothetical, indirect, multistep) plus - when enabled - a
     **similarity-evasion** rewrite that selects the candidate with the lowest
     max MiniLM cosine to the train injection gallery (filter-targeting attack).
 
@@ -446,10 +446,10 @@ def robustness_adaptive(
     large leave-one-source-out tests). Default: all injection rows in test_csv.
 
     Returns:
-        logs_df    — per-attack-per-method DataFrame (includes attack_style,
+        logs_df    - per-attack-per-method DataFrame (includes attack_style,
                      gallery_sim when available)
-        metrics_df — per-method summary (Bypass Rate, True ASR, FPR, TP/TN/FP/FN)
-        cm_dict    — per-method confusion matrices
+        metrics_df - per-method summary (Bypass Rate, True ASR, FPR, TP/TN/FP/FN)
+        cm_dict    - per-method confusion matrices
     """
     from ..config import LLM_CACHE_BATCH_SIZE, PROMPT_CACHE_DIR
     from ..models.attack_generator import (
@@ -596,7 +596,7 @@ def robustness_adaptive(
             f"{len(attack_items)} adaptive attacks × {len(sanitizers)} methods..."
         )
     print(
-        f"[Adaptive] Judge (COMPLIED/REFUSED) — "
+        f"[Adaptive] Judge (COMPLIED/REFUSED) - "
         f"{'enabled' if not skip_judge else 'disabled'}"
     )
 

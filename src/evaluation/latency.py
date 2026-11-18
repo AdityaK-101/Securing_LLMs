@@ -2,8 +2,8 @@
 Runtime / latency overhead for auxiliary models used by context-aware sanitizers.
 
 Reports average time per prompt for:
-  - MiniLM (sentence-transformers/all-MiniLM-L6-v2) — semantic signal
-  - DistilGPT-2 — perplexity signal
+  - MiniLM (sentence-transformers/all-MiniLM-L6-v2) - semantic signal
+  - DistilGPT-2 - perplexity signal
 
 Also records the hardware used for the measurement.
 """
@@ -157,9 +157,9 @@ def run_runtime_overhead_benchmark(
     keyword_san = KeywordHeuristicSanitizer()
 
     if san._embed_model is None:
-        print("[Latency] Warning: MiniLM unavailable — semantic timings will be empty.")
+        print("[Latency] Warning: MiniLM unavailable - semantic timings will be empty.")
     if san._ppl_model is None:
-        print("[Latency] Warning: DistilGPT-2 unavailable — perplexity timings will be empty.")
+        print("[Latency] Warning: DistilGPT-2 unavailable - perplexity timings will be empty.")
 
     # Warmup (exclude from stats)
     for p in warmup_prompts:

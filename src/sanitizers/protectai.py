@@ -1,5 +1,5 @@
 """
-ProtectAI DeBERTa prompt-injection classifier — off-the-shelf portable gate (CPU).
+ProtectAI DeBERTa prompt-injection classifier - off-the-shelf portable gate (CPU).
 
 Default model: protectai/deberta-v3-base-prompt-injection-v2
 Block when predicted label is INJECTION (no retuning).

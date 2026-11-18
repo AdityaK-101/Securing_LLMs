@@ -1,5 +1,5 @@
 """
-src/sanitizers — Prompt injection defense strategies.
+src/sanitizers - Prompt injection defense strategies.
 
 Sanitizer classes all implement the common interface:
     sanitizer.sanitize(prompt: str) -> (sanitized: str, blocked: bool)

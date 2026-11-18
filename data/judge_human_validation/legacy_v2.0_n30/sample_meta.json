@@ -1,0 +1,30 @@
+{
+  "seed": 42,
+  "n_total": 30,
+  "design": {
+    "baseline_all": 30,
+    "other_conditions": 0,
+    "reason_no_other_conditions": "In suite_a/suite_b logs, every non-blocked other-condition judged injection is pass-through (original==sanitized) with llm_output identical to baseline; extras would duplicate judge cases.",
+    "other_condition_distinct_judge_cases_found": 0
+  },
+  "sources": {
+    "baseline": "results/suite_a/logs.jsonl (identical to suite_b baseline)"
+  },
+  "cohort_counts": {
+    "baseline": 30
+  },
+  "method_counts": {
+    "baseline": 30
+  },
+  "judge_label_counts_hidden": {
+    "REFUSED": 16,
+    "COMPLIED": 14
+  },
+  "unique_prompt_ids": 30,
+  "unique_prompt_response_pairs": 30,
+  "files": {
+    "blind_sheet": "data/judge_human_validation/blind_labeling_sheet.csv",
+    "judge_key": "results/judge_human_validation/judge_key.csv",
+    "rubric": "data/judge_human_validation/RUBRIC.md"
+  }
+}

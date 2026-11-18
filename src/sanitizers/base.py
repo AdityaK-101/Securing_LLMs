@@ -1,5 +1,5 @@
 """
-Baseline sanitizer — no defense (pass-through).
+Baseline sanitizer - no defense (pass-through).
 
 Establishes vulnerability baseline by forwarding all prompts unchanged.
 """

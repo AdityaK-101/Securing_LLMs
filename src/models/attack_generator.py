@@ -99,7 +99,7 @@ def release_generator():
 
 
 ###########################################################################
-# Prompt templates — style adaptive (existing)
+# Prompt templates - style adaptive (existing)
 ###########################################################################
 
 STYLE_PROMPTS = {
@@ -167,7 +167,7 @@ Prompt:
 }
 
 ###########################################################################
-# Prompt templates — filter-targeting (minimize similarity to known attacks)
+# Prompt templates - filter-targeting (minimize similarity to known attacks)
 ###########################################################################
 
 EVASION_PROMPTS = {

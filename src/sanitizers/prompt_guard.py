@@ -1,5 +1,5 @@
 """
-Meta Llama Prompt Guard 2 — off-the-shelf portable gate (CPU).
+Meta Llama Prompt Guard 2 - off-the-shelf portable gate (CPU).
 
 Default model: meta-llama/Llama-Prompt-Guard-2-86M
 Block when the predicted label is MALICIOUS (no retuning).

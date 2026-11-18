@@ -33,7 +33,7 @@ def _figures_dir(figures_dir=None) -> Path:
 
 
 def _plot_bypass_rate_bar(metrics_df: pd.DataFrame, figures_dir=None):
-    """Layer 1 bar chart — sanitizer Bypass Rate (formerly mislabeled ASR)."""
+    """Layer 1 bar chart - sanitizer Bypass Rate (formerly mislabeled ASR)."""
     methods = metrics_df["method"].tolist()
     bypass_pct = metrics_df["Bypass_Rate_%"].tolist()
 
@@ -48,7 +48,7 @@ def _plot_bypass_rate_bar(metrics_df: pd.DataFrame, figures_dir=None):
                 f"{v:.1f}%", ha="center", va="bottom", fontweight="bold", fontsize=11)
 
     ax.set_ylabel("Bypass Rate (%)", fontsize=12)
-    ax.set_title("Layer 1 — Sanitizer Bypass Rate\n(Lower is Better)",
+    ax.set_title("Layer 1 - Sanitizer Bypass Rate\n(Lower is Better)",
                  fontsize=13, fontweight="bold")
     ax.set_ylim(0, 115)
     ax.axhline(y=100, color="gray", linestyle="--", linewidth=0.8, alpha=0.5)
@@ -63,7 +63,7 @@ def _plot_bypass_rate_bar(metrics_df: pd.DataFrame, figures_dir=None):
 
 
 def _plot_true_asr_bar(metrics_df: pd.DataFrame, figures_dir=None):
-    """Layer 2 bar chart — True Attack Success Rate (judge-confirmed compliance)."""
+    """Layer 2 bar chart - True Attack Success Rate (judge-confirmed compliance)."""
     methods = metrics_df["method"].tolist()
     true_asr_pct = metrics_df["True_ASR_%"].tolist()
 
@@ -78,7 +78,7 @@ def _plot_true_asr_bar(metrics_df: pd.DataFrame, figures_dir=None):
                 f"{v:.1f}%", ha="center", va="bottom", fontweight="bold", fontsize=11)
 
     ax.set_ylabel("True ASR (%)", fontsize=12)
-    ax.set_title("Layer 2 — True Attack Success Rate\n(Bypass + Target LLM Complied per Judge)",
+    ax.set_title("Layer 2 - True Attack Success Rate\n(Bypass + Target LLM Complied per Judge)",
                  fontsize=13, fontweight="bold")
     ymax = max(true_asr_pct + [10]) * 1.2 + 5
     ax.set_ylim(0, ymax)
@@ -145,7 +145,7 @@ def _plot_confusion_matrices(cm_dict: dict, figures_dir=None):
                         fontsize=14, fontweight="bold",
                         color="white" if cm[i, j] > cm.max() / 2 else "black")
 
-    plt.suptitle("Confusion Matrices — Sanitizer Only (Layer 1)", fontsize=13, fontweight="bold", y=1.02)
+    plt.suptitle("Confusion Matrices - Sanitizer Only (Layer 1)", fontsize=13, fontweight="bold", y=1.02)
     plt.tight_layout()
 
     out = _figures_dir(figures_dir) / "confusion_matrices.png"
@@ -174,7 +174,7 @@ def _plot_paraphrase_robustness(para_df: pd.DataFrame, figures_dir=None):
 
     ax.set_xticks(x); ax.set_xticklabels(labels, fontsize=9)
     ax.set_ylabel("Bypass Rate (%)", fontsize=11)
-    ax.set_title("Paraphrase Robustness — Original vs Paraphrased Bypass Rate\nHigher Δ = More Vulnerable to Paraphrasing",
+    ax.set_title("Paraphrase Robustness - Original vs Paraphrased Bypass Rate\nHigher Δ = More Vulnerable to Paraphrasing",
                  fontsize=12, fontweight="bold")
     ax.set_ylim(0, 115)
     ax.legend(fontsize=10)
@@ -189,7 +189,7 @@ def _plot_paraphrase_robustness(para_df: pd.DataFrame, figures_dir=None):
 
 
 def _plot_adaptive_robustness(adaptive_metrics_df: pd.DataFrame, figures_dir=None):
-    """Adaptive attack robustness bar chart — Bypass Rate and True ASR under FLAN-T5 attacks."""
+    """Adaptive attack robustness bar chart - Bypass Rate and True ASR under FLAN-T5 attacks."""
     methods = adaptive_metrics_df["method"].tolist()
     bypass_pct = adaptive_metrics_df["Bypass_Rate_%"].tolist()
     true_asr_pct = adaptive_metrics_df["True_ASR_%"].tolist()
@@ -222,7 +222,7 @@ def _plot_adaptive_robustness(adaptive_metrics_df: pd.DataFrame, figures_dir=Non
     ax.set_xticklabels(labels, fontsize=9)
     ax.set_ylabel("Rate (%)", fontsize=11)
     ax.set_title(
-        "Adaptive Robustness — FLAN-T5 Generated Attacks\n(Lower is Better)",
+        "Adaptive Robustness - FLAN-T5 Generated Attacks\n(Lower is Better)",
         fontsize=12, fontweight="bold",
     )
     ymax = max(bypass_pct + true_asr_pct + [10]) * 1.2 + 5
@@ -245,7 +245,7 @@ def _plot_ablation_bypass_rate(
     full_variant_names: set = None,
     figures_dir=None,
 ):
-    """Ablation bar chart — Bypass Rate per variant."""
+    """Ablation bar chart - Bypass Rate per variant."""
     if full_variant_names is None:
         full_variant_names = {
             "Full Weighted Model",

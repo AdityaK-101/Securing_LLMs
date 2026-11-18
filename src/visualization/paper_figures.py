@@ -225,7 +225,7 @@ def plot_pipeline(out: Path | None = None) -> Path:
     ax.text(
         6.55,
         3.75,
-        "Layer 1 — Bypass Rate",
+        "Layer 1 - Bypass Rate",
         ha="center",
         va="center",
         fontsize=8.5,
@@ -235,7 +235,7 @@ def plot_pipeline(out: Path | None = None) -> Path:
     ax.text(
         9.9,
         1.55,
-        "Layer 2 — True ASR",
+        "Layer 2 - True ASR",
         ha="center",
         va="center",
         fontsize=8.5,
@@ -308,7 +308,7 @@ def plot_methods_ab(out: Path | None = None) -> list[Path]:
     paths = [
         _plot_method_schematic(
             dest / "methods_a.pdf",
-            title="Method A — hybrid hard gates",
+            title="Method A - hybrid hard gates",
             stages=[
                 (
                     "Shared signals\n(regex, keyword, MiniLM $s_{max}$, intent,\n"
@@ -330,7 +330,7 @@ def plot_methods_ab(out: Path | None = None) -> list[Path]:
         ),
         _plot_method_schematic(
             dest / "methods_b.pdf",
-            title="Method B — learned soft fusion",
+            title="Method B - learned soft fusion",
             stages=[
                 (
                     "Same base signals +\n$s_{max}$, top-3 mean, benign contrast",
@@ -633,7 +633,7 @@ def plot_ablation_combined(out: Path | None = None) -> Path:
         ),
         ylabel=True,
     )
-    axes[0].set_title("(a) Method A — Hard-trigger ablation", fontsize=12, color=TEXT, pad=8)
+    axes[0].set_title("(a) Method A - Hard-trigger ablation", fontsize=12, color=TEXT, pad=8)
 
     panel(
         axes[1],
@@ -648,7 +648,7 @@ def plot_ablation_combined(out: Path | None = None) -> Path:
             RED,
         ),
     )
-    axes[1].set_title("(b) Method B — Feature ablation", fontsize=12, color=TEXT, pad=8)
+    axes[1].set_title("(b) Method B - Feature ablation", fontsize=12, color=TEXT, pad=8)
 
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(

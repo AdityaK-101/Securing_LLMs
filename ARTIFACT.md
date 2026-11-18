@@ -72,7 +72,7 @@ Committed `results/` tables match the paper. Re-run full LLM suites only if you 
 | Paper table / section | Artifact path(s) |
 |-----------------------|------------------|
 | **Main holdout (cite first)** | `results/loo_matched_fpr/PAPER_TABLES.md` (mixed suite matched-FPR / ID vs LOO-4 vs Neuralchemy, Wilson, ProtectAI / Prompt Guard 2, dedup, train-benign) |
-| LOO matched-FPR suite | `results/loo_matched_fpr/` — `python scripts/run_paper.py` or `--loo-matched-fpr` |
+| LOO matched-FPR suite | `results/loo_matched_fpr/` - `python scripts/run_paper.py` or `--loo-matched-fpr` |
 | Mixed suite matched-FPR (**ID** column) | `results/matched_fpr/metrics.csv` |
 | Default-thr LOO (contrast) | `results/loo/` |
 | Mixed suite (archived v2.0) | `results/suite_a/`, `results/suite_b/`, `results/protectai/`, `results/prompt_guard/` |
@@ -90,4 +90,4 @@ python scripts/run_paper.py --mode full  # + suites / ablations / judge HV
 
 Also: `README.md` §9–§10, `scripts/README.md`, `results/PAPER.md`.  
 Gate-only smoke (not paper): `scripts/reproduce.ps1`.  
-AAAI draft (local, gitignored): `report/aaai/` — see `report/README.md`.
+AAAI draft (local, gitignored): `report/aaai/` - see `report/README.md`.

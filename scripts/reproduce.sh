@@ -17,7 +17,7 @@ python scripts/eval_paraphrase_test.py
 echo "[3/4] Judge human-validation score (offline)"
 python scripts/score_judge_human_validation.py
 
-echo "[4/4] Portable baselines (ProtectAI / Prompt Guard) — needs HF models"
+echo "[4/4] Portable baselines (ProtectAI / Prompt Guard) - needs HF models"
 python -m src.run_experiments --portable-baselines
 
 echo "Done (smoke)."

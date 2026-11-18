@@ -1,7 +1,7 @@
 """
 Model wrappers used by the experiment pipeline.
 
-No shared abstract base class — each wrapper keeps its own load/release logic
+No shared abstract base class - each wrapper keeps its own load/release logic
 to avoid behavioural changes.
 """
 

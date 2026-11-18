@@ -1,7 +1,7 @@
 Leave-one-source-out matched-FPR report (main LOO table).
 Val target FPR = 5% (closest achievable); test Bypass / True ASR / FPR.
 Method A: soft threshold × semantic_hard_sim swept to hit val FPR≈target (default cut 0.3).
-Architecture of Methods A/B unchanged — validation thresholding only.
+Architecture of Methods A/B unchanged - validation thresholding only.
 Also: paraphrase + edge-benign + adaptive at the same matched thresholds.
 True ASR from results/prompt_cache/loo/outcomes.jsonl (unblocked injections).
 four_source_macro_avg weights each of the four attack sources equally.

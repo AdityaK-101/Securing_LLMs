@@ -412,7 +412,7 @@ def run_matched_fpr_study(
     rows = []
     mode_name = f"matched_fpr_{int(round(100 * target_fpr))}pct"
 
-    # Fixed binary gates (no score retune) — still appear in the ID column.
+    # Fixed binary gates (no score retune) - still appear in the ID column.
     for name, san in (
         ("baseline", BaselineSanitizer()),
         ("regex", RegexSanitizer()),

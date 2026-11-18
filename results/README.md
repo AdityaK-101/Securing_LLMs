@@ -5,7 +5,7 @@ Other folders are contrast, smoke, or legacy. Mixing them silently is a common f
 
 | Folder / file | Role | How to produce |
 |---------------|------|----------------|
-| **[`PAPER.md`](PAPER.md)** | **Index of what to cite** | — |
+| **[`PAPER.md`](PAPER.md)** | **Index of what to cite** | - |
 | **`loo_matched_fpr/`** | **Main LOO report** (val FPR ≈ 5%) + [`PAPER_TABLES.md`](loo_matched_fpr/PAPER_TABLES.md) | `python scripts/run_paper.py` or `--loo-matched-fpr` |
 | **`matched_fpr/`** | **Mixed suite matched-FPR** (combined-dataset random split, val FPR ≤ 5%; paper **ID** column) | `--matched-fpr` (also in `run_paper.py`) |
 | **`loo/`** | Default / F1 LOO (**contrast only**) | `--loo` or `run_paper.py --mode full` |
@@ -24,11 +24,11 @@ Other folders are contrast, smoke, or legacy. Mixing them silently is a common f
 | Path | Is |
 |------|----|
 | `matched_fpr/` | **Mixed suite matched-FPR** (combined random split), FPR **≤** 5% |
-| `loo_matched_fpr/` | **Leave-one-source-out**, FPR **≈** 5% — **main paper holdout** |
-| `loo/` | Same LOO folds, **default/F1** thresholds — contrast only |
+| `loo_matched_fpr/` | **Leave-one-source-out**, FPR **≈** 5% - **main paper holdout** |
+| `loo/` | Same LOO folds, **default/F1** thresholds - contrast only |
 | `source_holdout/` | Gate-only LOO; **not** the matched-FPR paper tree |
-| `suite_a` + `eval_portable_adaptive.py` | Default portable thresholds on suite adaptive texts — **≠** Table F LOO matched adaptive |
-| Root paraphrase CSV | Mixed gate-only smoke — **≠** `loo_matched_fpr/robustness_paraphrase*.csv` |
+| `suite_a` + `eval_portable_adaptive.py` | Default portable thresholds on suite adaptive texts - **≠** Table F LOO matched adaptive |
+| Root paraphrase CSV | Mixed gate-only smoke - **≠** `loo_matched_fpr/robustness_paraphrase*.csv` |
 
 ### Consistency
 

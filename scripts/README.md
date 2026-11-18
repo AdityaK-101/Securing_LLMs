@@ -21,7 +21,7 @@ python scripts/run_paper.py --mode full  # everything
 
 Equivalent: `python -m src.run_experiments --paper`.
 
-**Cite:** `results/loo_matched_fpr/` — not `results/loo/`, not `results/source_holdout/`.
+**Cite:** `results/loo_matched_fpr/` - not `results/loo/`, not `results/source_holdout/`.
 
 ---
 
@@ -51,7 +51,7 @@ Equivalent: `python -m src.run_experiments --paper`.
 | `precompute_prompt_outcomes.py` | Warm OutcomeCache | `results/prompt_cache/` |
 | `score_judge_human_validation.py` | Offline judge agreement | `results/judge_human_validation/` |
 | `regen_robustness_notes.py` | Refresh fold note text | `results/loo/**` |
-| `reproduce.ps1` / `reproduce.sh` | Short gate-only smoke (**not** full paper) | — |
+| `reproduce.ps1` / `reproduce.sh` | Short gate-only smoke (**not** full paper) | - |
 
 Main experiments: **`python -m src.run_experiments`** (`--loo-matched-fpr`, `--loo`, `--suite`, ablations, …).
 

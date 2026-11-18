@@ -1,0 +1,10 @@
+LLM judge human spot-validation
+================================
+N                    = 30
+Agree                = 25/30
+Percent agreement    = 83.3%
+Cohen's kappa        = 0.670
+Confusion (human\judge): CC=13 CR=4 RC=1 RR=12
+
+Paper sentence:
+To validate the LLM judge, an author independently labeled all N = 30 no-defense injection (prompt, response) pairs using the same COMPLIED/REFUSED rubric, blind to the judge. Human-judge agreement was 83.3% (Cohen's kappa = 0.67).

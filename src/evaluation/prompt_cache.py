@@ -1,7 +1,7 @@
 """
 Shared prompt caches for the speedup path.
 
-Resume policy (all pipelines — suite, LOO, LOO matched-FPR, ablations):
+Resume policy (all pipelines - suite, LOO, LOO matched-FPR, ablations):
 
   - Reuse **only** cached generations when present: Qwen replies, judge labels,
     MiniLM/PPL features, and FLAN adaptive attack texts.
@@ -10,11 +10,11 @@ Resume policy (all pipelines — suite, LOO, LOO matched-FPR, ablations):
   - Pass ``--no-outcome-cache`` (or ``--rerun``, alias) to regenerate Qwen/judge
     instead of looking up ``results/prompt_cache/``.
 
-1. OutcomeCache — greedy target-LLM reply + judge label, once per attack prompt.
+1. OutcomeCache - greedy target-LLM reply + judge label, once per attack prompt.
    True ASR for every method/fold is then a lookup (decoding does not depend on
    which filter let the prompt through).
 
-2. FeatureCache — MiniLM embedding + raw DistilGPT-2 perplexity once per prompt,
+2. FeatureCache - MiniLM embedding + raw DistilGPT-2 perplexity once per prompt,
    reused across folds (gallery / PPL calibration still fold-specific).
 
 Both caches append to disk as they go so a crash can resume generation only.

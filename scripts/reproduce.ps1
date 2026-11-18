@@ -16,7 +16,7 @@ python scripts/eval_paraphrase_test.py
 Write-Host "[3/4] Judge human-validation score (offline)"
 python scripts/score_judge_human_validation.py
 
-Write-Host "[4/4] Portable baselines (ProtectAI / Prompt Guard) — needs HF models"
+Write-Host "[4/4] Portable baselines (ProtectAI / Prompt Guard) - needs HF models"
 python -m src.run_experiments --portable-baselines
 
 Write-Host "Done (smoke)."

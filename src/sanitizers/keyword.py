@@ -1,12 +1,12 @@
 """
-Keyword heuristic sanitizer — weighted keyword scoring.
+Keyword heuristic sanitizer - weighted keyword scoring.
 
 Computes a weighted score from suspicious keywords (expanded for dataset).
 Blocks prompt if cumulative score >= threshold.
 """
 
 
-# Expanded weights — original spec keywords + dataset-derived additions
+# Expanded weights - original spec keywords + dataset-derived additions
 # Spec-required keywords kept at original weights
 KEYWORD_WEIGHTS = {
     # --- Original spec keywords (required) ---
@@ -79,5 +79,5 @@ class KeywordHeuristicSanitizer:
     def sanitize(self, prompt: str):
         s = self.score(prompt)
         blocked = s >= self.threshold
-        sanitized = "[PROMPT BLOCKED — HIGH SUSPICION SCORE]" if blocked else prompt
+        sanitized = "[PROMPT BLOCKED - HIGH SUSPICION SCORE]" if blocked else prompt
         return sanitized, blocked

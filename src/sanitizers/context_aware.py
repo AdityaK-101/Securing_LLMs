@@ -1,15 +1,15 @@
 """
-Context-Aware sanitizer — multi-signal proposed defense method.
+Context-Aware sanitizer - multi-signal proposed defense method.
 
 Uses 8 signals combined into a weighted score, plus hard-trigger overrides:
-  1. regex           — binary, matches known injection regex patterns
-  2. keyword         — normalized keyword heuristic score
-  3. semantic        — MiniLM cosine similarity to known injection embeddings
-  4. intent          — structural injection pattern detection
-  5. roleplay        — roleplay/persona hijacking detection
-  6. shift           — multi-step instruction shift detection
-  7. obj_conflict    — instruction objective conflict detection
-  8. perplexity      — language-model naturalness (distilgpt2)
+  1. regex           - binary, matches known injection regex patterns
+  2. keyword         - normalized keyword heuristic score
+  3. semantic        - MiniLM cosine similarity to known injection embeddings
+  4. intent          - structural injection pattern detection
+  5. roleplay        - roleplay/persona hijacking detection
+  6. shift           - multi-step instruction shift detection
+  7. obj_conflict    - instruction objective conflict detection
+  8. perplexity      - language-model naturalness (distilgpt2)
 """
 
 import re
@@ -39,19 +39,19 @@ INTENT_PATTERNS = [
     re.compile(r"(behave|respond)\s+as\s+(a\s+|an\s+)?\S+\s+(without|with\s+no)", re.IGNORECASE),
 ]
 
-# Scoring weights — 8-signal formula (upgraded from 7 signals)
+# Scoring weights - 8-signal formula (upgraded from 7 signals)
 # Changed: TF-IDF semantic → MiniLM embeddings; added perplexity signal.
 W1 = 0.12  # regex
 W2 = 0.12  # keyword
-W3 = 0.20  # semantic (MiniLM embeddings — upgraded from TF-IDF)
+W3 = 0.20  # semantic (MiniLM embeddings - upgraded from TF-IDF)
 W4 = 0.18  # intent
 W5 = 0.10  # roleplay
 W6 = 0.08  # instruction_shift
 W7 = 0.08  # objective_conflict
-W8 = 0.12  # perplexity (NEW — language-model naturalness signal)
+W8 = 0.12  # perplexity (NEW - language-model naturalness signal)
 # total = 1.00
 
-CONTEXT_THRESHOLD = 0.40  # Fix 3 — lower to catch borderline cases
+CONTEXT_THRESHOLD = 0.40  # Fix 3 - lower to catch borderline cases
 
 
 class ContextAwareSanitizer:
@@ -62,14 +62,14 @@ class ContextAwareSanitizer:
           + w5*roleplay + w6*shift + w7*obj_conflict + w8*perplexity
 
     Signals:
-      1. regex           — binary, matches known injection regex patterns
-      2. keyword         — normalized keyword heuristic score
-      3. semantic        — MiniLM cosine similarity to known injection embeddings
-      4. intent          — structural injection pattern detection
-      5. roleplay        — roleplay/persona hijacking detection
-      6. shift           — multi-step instruction shift detection
-      7. obj_conflict    — instruction objective conflict detection
-      8. perplexity      — language-model naturalness (distilgpt2)
+      1. regex           - binary, matches known injection regex patterns
+      2. keyword         - normalized keyword heuristic score
+      3. semantic        - MiniLM cosine similarity to known injection embeddings
+      4. intent          - structural injection pattern detection
+      5. roleplay        - roleplay/persona hijacking detection
+      6. shift           - multi-step instruction shift detection
+      7. obj_conflict    - instruction objective conflict detection
+      8. perplexity      - language-model naturalness (distilgpt2)
 
     Blocks if Score >= threshold, with hard-trigger overrides for strong
     individual signals.
@@ -119,7 +119,7 @@ class ContextAwareSanitizer:
         self._embed_model = None
         self._injection_embeddings = None  # numpy array of cached injection embeddings
 
-        # --- Perplexity model (distilgpt2 — lightweight causal LM) ---
+        # --- Perplexity model (distilgpt2 - lightweight causal LM) ---
         self._ppl_model = None
         self._ppl_tokenizer = None
         self._ppl_low = None   # 5th percentile of train perplexities (calibration)
@@ -144,7 +144,7 @@ class ContextAwareSanitizer:
             if not injections:
                 raise ValueError("No injection rows found.")
         except Exception as e:
-            print(f"[ContextAwareSanitizer] Warning: Could not read train data — {e}")
+            print(f"[ContextAwareSanitizer] Warning: Could not read train data - {e}")
             return
 
         # -- A) Load MiniLM and encode injection embeddings --
@@ -173,9 +173,9 @@ class ContextAwareSanitizer:
                 self._injection_embeddings = self._embed_model.encode(
                     injections, convert_to_numpy=True, show_progress_bar=False
                 )
-            print(f"[ContextAwareSanitizer] MiniLM loaded — encoded {len(injections)} injection embeddings.")
+            print(f"[ContextAwareSanitizer] MiniLM loaded - encoded {len(injections)} injection embeddings.")
         except Exception as e:
-            print(f"[ContextAwareSanitizer] Warning: MiniLM loading failed — {e}")
+            print(f"[ContextAwareSanitizer] Warning: MiniLM loading failed - {e}")
             print(f"[ContextAwareSanitizer] Semantic signal will degrade to 0.0.")
             self._embed_model = None
             self._injection_embeddings = None
@@ -189,7 +189,7 @@ class ContextAwareSanitizer:
             model_name = "distilgpt2"
             self._ppl_tokenizer = AutoTokenizer.from_pretrained(model_name)
             
-            # Keep perplexity on CPU — leaves GPU for target LLM and judge
+            # Keep perplexity on CPU - leaves GPU for target LLM and judge
             self._device = "cpu"
             self._ppl_model = AutoModelForCausalLM.from_pretrained(model_name).to(self._device)
             self._ppl_model.eval()
@@ -211,7 +211,7 @@ class ContextAwareSanitizer:
                 if self._ppl_high <= self._ppl_low:
                     self._ppl_high = self._ppl_low + 1.0
                 print(
-                    f"[ContextAwareSanitizer] Perplexity model (distilgpt2) loaded — "
+                    f"[ContextAwareSanitizer] Perplexity model (distilgpt2) loaded - "
                     f"calibrated on {len(ppls)} prompts "
                     f"(p5={self._ppl_low:.1f}, p95={self._ppl_high:.1f})."
                 )
@@ -221,7 +221,7 @@ class ContextAwareSanitizer:
                 self._ppl_tokenizer = None
 
         except Exception as e:
-            print(f"[ContextAwareSanitizer] Warning: Perplexity model loading failed — {e}")
+            print(f"[ContextAwareSanitizer] Warning: Perplexity model loading failed - {e}")
             print(f"[ContextAwareSanitizer] Perplexity signal will degrade to 0.0.")
             self._ppl_model = None
             self._ppl_tokenizer = None
@@ -501,11 +501,11 @@ class ContextAwareSanitizer:
         # semantic_raw > semantic_hard_sim (default 0.3): gallery cosine match.
         # intent == 1.0: structural injection pattern found by regex.
         # roleplay + keyword combo: roleplay frame with suspicious keywords.
-        # No hard trigger for perplexity — it is a supplementary naturalness
+        # No hard trigger for perplexity - it is a supplementary naturalness
         # signal, not discriminative enough alone for hard blocking.
         blocked = self._hard_trigger_blocked(signals) or signals["total"] >= self.threshold
 
-        sanitized = "[PROMPT BLOCKED — CONTEXT ANALYSIS]" if blocked else prompt
+        sanitized = "[PROMPT BLOCKED - CONTEXT ANALYSIS]" if blocked else prompt
         return sanitized, blocked
 
     _CONFIG_KEYS = (

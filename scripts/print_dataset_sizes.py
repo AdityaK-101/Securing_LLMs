@@ -23,7 +23,7 @@ from src.utils.data import load_external_test, load_splits
 def main() -> None:
     train, val, test = load_splits()
     print(
-        f"Mixed corpus — Train: {len(train)}  Val: {len(val)}  Test: {len(test)}  "
+        f"Mixed corpus - Train: {len(train)}  Val: {len(val)}  Test: {len(test)}  "
         f"(inj test={int((test['label'] == 'injection').sum())}, "
         f"ben test={int((test['label'] == 'benign').sum())})"
     )

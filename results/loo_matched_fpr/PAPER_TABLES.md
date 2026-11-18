@@ -1,10 +1,10 @@
-# LOO matched-FPR ≈ 5% — paper tables
+# LOO matched-FPR ≈ 5% - paper tables
 
 Operating point: per-fold validation threshold chosen to **hit val FPR ≈ 5%** (closest). ProtectAI / Prompt Guard 2 keep published weights; only the score threshold is retuned. Soft features / Method A–B architecture unchanged.
 
 **ID** column = **mixed suite matched-FPR** on the combined-dataset random split (`test.csv` → `results/matched_fpr/`, val FPR ≤ 5%). LOO columns use leave-one-source-out test sets (200 inj / 200 ben each).
 
-## Table A — Main comparison (mixed suite matched-FPR / ID vs four-source LOO vs Neuralchemy)
+## Table A - Main comparison (mixed suite matched-FPR / ID vs four-source LOO vs Neuralchemy)
 
 | Method | ID Bypass % | ID True ASR % | ID FPR % | LOO-4 macro Bypass % | LOO-4 macro True ASR % | LOO-4 macro FPR % | LOO-4 pooled Bypass % (Wilson) | LOO-4 pooled True ASR % (Wilson) | LOO-4 pooled FPR % (Wilson) | Neuralchemy Bypass % (Wilson) | Neuralchemy True ASR % (Wilson) | Neuralchemy FPR % (Wilson) |
 |--------|------------:|--------------:|---------:|---------------------:|-----------------------:|------------------:|--------------------------------:|----------------------------------:|------------------------------:|-------------------------------:|---------------------------------:|-----------------------------:|
@@ -20,7 +20,7 @@ Operating point: per-fold validation threshold chosen to **hit val FPR ≈ 5%** 
 
 LOO-4 **macro** = equal weight per held-out source. LOO-4 **pooled** = micro (800 inj / 800 ben) with Wilson 95% CI. Neuralchemy is the cleanest unseen external holdout and is **not** inside the four-source average.
 
-## Table B — Per-fold main metrics with Wilson 95% CIs
+## Table B - Per-fold main metrics with Wilson 95% CIs
 
 | Fold | Method | Bypass % (Wilson) | True ASR % (Wilson) | FPR % (Wilson) |
 |------|--------|------------------:|--------------------:|---------------:|
@@ -70,7 +70,7 @@ LOO-4 **macro** = equal weight per held-out source. LOO-4 **pooled** = micro (80
 | `neuralchemy` | ProtectAI (DeBERTa-v3) | 4.50 [2.4, 8.3] | 2.00 [0.8, 5.0] | 4.50 [2.4, 8.3] |
 | `neuralchemy` | Prompt Guard 2 | 1.00 [0.3, 3.6] | 0.00 [0.0, 1.9] | 1.00 [0.3, 3.6] |
 
-## Table C — Four-source average and pooled
+## Table C - Four-source average and pooled
 
 | Method | Macro Bypass % | Macro True ASR % | Macro FPR % | Pooled Bypass % (Wilson) | Pooled True ASR % (Wilson) | Pooled FPR % (Wilson) |
 |--------|---------------:|-----------------:|------------:|------------------------:|--------------------------:|----------------------:|
@@ -84,7 +84,7 @@ LOO-4 **macro** = equal weight per held-out source. LOO-4 **pooled** = micro (80
 | ProtectAI (DeBERTa-v3) | 11.62 | 7.12 | 2.25 | 11.62 [9.6, 14.0] | 7.12 [5.5, 9.1] | 2.25 [1.4, 3.5] |
 | Prompt Guard 2 | 3.62 | 1.88 | 1.00 | 3.62 [2.5, 5.2] | 1.88 [1.1, 3.1] | 1.00 [0.5, 2.0] |
 
-## Table D — Deduplication
+## Table D - Deduplication
 
 | Filter | Count |
 |--------|------:|
@@ -109,7 +109,7 @@ LOO-4 **macro** = equal weight per held-out source. LOO-4 **pooled** = micro (80
 | `mpdd` | `simsonsun` | 0.961 |
 | `bravansky` | `simsonsun` | 0.909 |
 
-## Table E — Train benign inventory by fold
+## Table E - Train benign inventory by fold
 
 | Fold | Train Alpaca | Val Alpaca | Fit total (train+val) | Train PI-benign | Val PI-benign |
 |------|-------------:|-----------:|----------------------:|----------------:|--------------:|
@@ -121,7 +121,7 @@ LOO-4 **macro** = equal weight per held-out source. LOO-4 **pooled** = micro (80
 
 Each fold fits Method B / similarity / DeBERTa on **300** Alpaca instruction prompts (train=200, val=100). **PI-benign is test-only** (never in train/val). Shared test benign = **200** PI-benign prompts, identical across **all** folds including Neuralchemy.
 
-## Table F — Three-regime FPR + adaptive Bypass / True ASR (matched LOO thresholds; edge = 80 technical prompts)
+## Table F - Three-regime FPR + adaptive Bypass / True ASR (matched LOO thresholds; edge = 80 technical prompts)
 
 | Method | LOO-4 PI-benign FPR % | Neuralchemy-side FPR % | LOO-4 Edge FPR % | LOO-4 Adaptive Bypass % | LOO-4 Adaptive True ASR % |
 |--------|----------------------:|-----------------------:|-----------------:|-------------------------:|--------------------------:|

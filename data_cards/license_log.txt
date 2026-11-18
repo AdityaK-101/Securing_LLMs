@@ -84,11 +84,11 @@ LAST UPDATED: 2026-08-26
   - data/external/neuralchemy/test_main.csv (753-row direct/jailbreak + benign slice)
   - Not added to combined_dataset.csv, train.csv, or val.csv
 * Constituent sources named on the dataset card:
-  - NeurAlchemy original / neuralchemy_v1 — Apache-2.0
-  - HackAPrompt — CC BY 4.0
-  - HarmBench behavior goals and benign counterparts — MIT
-  - WildGuard / JudgeComparison — research use
-  - Hand-crafted hard negatives — Apache-2.0
+  - NeurAlchemy original / neuralchemy_v1 - Apache-2.0
+  - HackAPrompt - CC BY 4.0
+  - HarmBench behavior goals and benign counterparts - MIT
+  - WildGuard / JudgeComparison - research use
+  - Hand-crafted hard negatives - Apache-2.0
 * Attribution Required: Yes. Cite the NeurAlchemy dataset card and this log.
 * Notes: Do not train Method A or Method B on this file. The published
   Neuralchemy train split is intentionally not shipped here.

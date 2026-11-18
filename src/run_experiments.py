@@ -74,13 +74,13 @@ from .visualization import (
 
 SUITE_CONFIG = {
     "a": {
-        "label": "Suite A — baseline + regex + keyword + Method A",
+        "label": "Suite A - baseline + regex + keyword + Method A",
         "include_method_a": True,
         "include_method_b": False,
         "results_subdir": "suite_a",
     },
     "b": {
-        "label": "Suite B — baseline + regex + keyword + Method B",
+        "label": "Suite B - baseline + regex + keyword + Method B",
         "include_method_a": False,
         "include_method_b": True,
         "results_subdir": "suite_b",
@@ -168,7 +168,7 @@ def _run_full_pipeline(
     print(f"  Train  : {TRAIN_CSV}")
     print(f"  Val    : {VAL_CSV}  (Method B threshold tuning)")
     # Fair baselines (reviewer): MiniLM similarity-only + ProtectAI ckpt fine-tuned
-    # on this split — same train/val as Methods A/B (LOO already includes them).
+    # on this split - same train/val as Methods A/B (LOO already includes them).
     include_sim = True
     include_deb = True
     print(f"  Suite  : {suite_key}  (A={include_a}, B={include_b}, sim={include_sim}, deberta={include_deb})")
@@ -245,7 +245,7 @@ def _run_full_pipeline(
     _plot_fpr_bar(metrics_df, figures_dir=figures_dir)
     _plot_confusion_matrices(cm_dict, figures_dir=figures_dir)
 
-    _banner("4.6  Robustness — Paraphrase Test (held-out test injections)")
+    _banner("4.6  Robustness - Paraphrase Test (held-out test injections)")
     para_df = robustness_paraphrase(
         prompt_csv=TEST_CSV,
         train_csv=TRAIN_CSV,
@@ -262,7 +262,7 @@ def _run_full_pipeline(
     _plot_paraphrase_robustness(para_df, figures_dir=figures_dir)
     print(f"[OK] Saved: {results_dir / 'robustness_paraphrase.csv'}")
 
-    _banner("4.6  Robustness — Edge Benign Cases")
+    _banner("4.6  Robustness - Edge Benign Cases")
     edge_df = robustness_edge_benign(
         train_csv=TRAIN_CSV,
         val_csv=VAL_CSV,
@@ -276,7 +276,7 @@ def _run_full_pipeline(
     edge_df.to_csv(results_dir / "robustness_edge_benign.csv", index=False)
     print(f"[OK] Saved: {results_dir / 'robustness_edge_benign.csv'}")
 
-    _banner("4.6  Robustness — Adaptive Attacks (FLAN-T5)")
+    _banner("4.6  Robustness - Adaptive Attacks (FLAN-T5)")
     adaptive_logs_df, adaptive_metrics_df, adaptive_cm_dict = robustness_adaptive(
         test_csv=TEST_CSV,
         train_csv=TRAIN_CSV,
@@ -329,7 +329,7 @@ def _run_full_pipeline(
     )
 
     if run_classifier:
-        _banner("Stretch Goal — LR + TF-IDF Classifier")
+        _banner("Stretch Goal - LR + TF-IDF Classifier")
         from .classifier import run_classifier_experiment
         clf_results = run_classifier_experiment(
             train_csv=TRAIN_CSV, test_csv=TEST_CSV
@@ -389,7 +389,7 @@ def _run_loo(
     Train, val, and test for a fold all come from that fold's directory, so the
     held-out attack source is absent from the gallery and from Method B's
     threshold tune. After the main metrics, each fold also runs paraphrase,
-    edge-benign, and adaptive (FLAN-T5) robustness — same stages as the suite.
+    edge-benign, and adaptive (FLAN-T5) robustness - same stages as the suite.
 
     Speed path (default with LLM): one greedy Qwen+judge pass per unique attack
     prompt (shared OutcomeCache across folds), benign = filters only, shared
@@ -438,7 +438,7 @@ def _run_loo(
             if path.is_file():
                 fold_csv_paths.append(path)
     if fold_csv_paths:
-        _banner("LOO FeatureCache — MiniLM warm-up (all folds)")
+        _banner("LOO FeatureCache - MiniLM warm-up (all folds)")
         all_prompts = collect_prompts_from_csvs(fold_csv_paths)
         print(f"  Unique prompts across folds: {len(all_prompts)}")
         warm_minilm_embeddings(shared_features, all_prompts)
@@ -465,7 +465,7 @@ def _run_loo(
         adaptive_path = results_dir / "robustness_adaptive.csv"
         rob_marker = results_dir / "robustness_run_mode.txt"
 
-        _banner(f"Leave-one-source-out — {fold}")
+        _banner(f"Leave-one-source-out - {fold}")
         print(f"  Target : {TARGET_MODEL_NAME} ({'enabled' if use_llm else 'SKIP (--no-llm)'})")
         print(f"  Judge  : {JUDGE_MODEL_NAME} ({'enabled' if use_llm and not no_judge else 'SKIP'})")
         print(f"  Train  : {train_csv}")
@@ -515,7 +515,7 @@ def _run_loo(
         if skip_robustness:
             continue
 
-        _banner(f"LOO Robustness — Paraphrase ({fold})")
+        _banner(f"LOO Robustness - Paraphrase ({fold})")
         para_df = robustness_paraphrase(
             prompt_csv=str(test_csv),
             train_csv=str(train_csv),
@@ -530,7 +530,7 @@ def _run_loo(
         _plot_paraphrase_robustness(para_df, figures_dir=figures_dir)
         print(f"[OK] Saved: {para_path}")
 
-        _banner(f"LOO Robustness — Edge Benign ({fold})")
+        _banner(f"LOO Robustness - Edge Benign ({fold})")
         edge_df = robustness_edge_benign(
             train_csv=str(train_csv),
             val_csv=str(val_csv),
@@ -542,7 +542,7 @@ def _run_loo(
         edge_df.to_csv(edge_path, index=False)
         print(f"[OK] Saved: {edge_path}")
 
-        _banner(f"LOO Robustness — Adaptive ({fold})")
+        _banner(f"LOO Robustness - Adaptive ({fold})")
         if adaptive_max is not None:
             print(f"  Cap: first {adaptive_max} test injections rewritten")
         adaptive_logs_df, adaptive_metrics_df, adaptive_cm_dict = robustness_adaptive(
@@ -1057,7 +1057,7 @@ def main():
         weighted_df.to_csv(RESULTS_DIR / "weighted_ablation_metrics.csv", index=False)
         _plot_ablation_bypass_rate(
             weighted_df,
-            title="Weighted Signal Ablation — Bypass Rate by Signal\n(Hard Triggers Disabled; Lower is Better)",
+            title="Weighted Signal Ablation - Bypass Rate by Signal\n(Hard Triggers Disabled; Lower is Better)",
             filename="weighted_ablation.png",
             full_variant_names={"Full Weighted Model"},
             figures_dir=RESULTS_DIR / "figures",
@@ -1074,7 +1074,7 @@ def main():
         hard_trigger_df.to_csv(RESULTS_DIR / "hard_trigger_ablation.csv", index=False)
         _plot_ablation_bypass_rate(
             hard_trigger_df,
-            title="Hard Trigger Ablation — Full A vs Soft-Only / Trigger Removals\n(Lower Bypass is Better)",
+            title="Hard Trigger Ablation - Full A vs Soft-Only / Trigger Removals\n(Lower Bypass is Better)",
             filename="hard_trigger_ablation.png",
             full_variant_names={"Full Model (A + Hard Triggers)"},
             figures_dir=RESULTS_DIR / "figures",
@@ -1091,7 +1091,7 @@ def main():
         learned_df.to_csv(RESULTS_DIR / "learned_ablation_metrics.csv", index=False)
         _plot_ablation_bypass_rate(
             learned_df,
-            title="Method B Feature Ablation — Bypass Rate\n(Leave-one-out at Inference; Lower is Better)",
+            title="Method B Feature Ablation - Bypass Rate\n(Leave-one-out at Inference; Lower is Better)",
             filename="learned_ablation.png",
             full_variant_names={"Full Learned Model"},
             figures_dir=RESULTS_DIR / "figures",
@@ -1108,7 +1108,7 @@ def main():
         compare_df.to_csv(RESULTS_DIR / "ab_comparison_metrics.csv", index=False)
         _plot_ablation_bypass_rate(
             compare_df,
-            title="Method A vs Method B — Bypass Rate\n(Matched Test Set; Lower is Better)",
+            title="Method A vs Method B - Bypass Rate\n(Matched Test Set; Lower is Better)",
             filename="ab_comparison.png",
             full_variant_names={"Method A Full (Hard Triggers)"},
             figures_dir=RESULTS_DIR / "figures",

@@ -1,1 +1,1 @@
-# Securing LLMs — Milestone 3: Prompt Injection Defense Evaluation
+# Securing LLMs - Milestone 3: Prompt Injection Defense Evaluation

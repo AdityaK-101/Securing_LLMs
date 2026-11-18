@@ -5,7 +5,7 @@ This directory holds LaTeX drafts and is **gitignored** except this README
 
 | Path | Role |
 |------|------|
-| **`aaai/`** | **Canonical submission** — `securing_llms.tex` (AAAI 2027) |
+| **`aaai/`** | **Canonical submission** - `securing_llms.tex` (AAAI 2027) |
 | `neurips/` | Older NeurIPS-format draft; do not cite for current numbers |
 
 Figures for the AAAI draft: `aaai/images/` (regenerate with

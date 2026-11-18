@@ -5,12 +5,12 @@ Core evaluation logic for Milestone 3.
 
 Two-layer evaluation design:
 
-  Layer 1 — Sanitizer Evaluation (blocked / unblocked only):
+  Layer 1 - Sanitizer Evaluation (blocked / unblocked only):
     Detection Rate, Bypass Rate, FPR, TP, TN, FP, FN, confusion matrices.
     Bypass Rate = unblocked injection prompts / total injection prompts.
     This measures sanitizer bypass, NOT whether the target LLM actually complied.
 
-  Layer 2 — Model Security Evaluation (judge on target LLM outputs):
+  Layer 2 - Model Security Evaluation (judge on target LLM outputs):
     True ASR = successful attacks / total injection prompts, where a
     successful attack requires sanitizer bypass AND judge_label == COMPLIED.
     The judge model evaluates the relationship between original prompt
@@ -22,7 +22,7 @@ Speed path (default when use_llm=True):
   - Generate-all → unload Qwen → judge-all; disk-append for crash resume.
   - Shared MiniLM / DistilGPT-2 FeatureCache across methods (and folds when shared).
 
-Confusion matrices remain sanitizer-only — judge output does not affect
+Confusion matrices remain sanitizer-only - judge output does not affect
 TP/TN/FP/FN computation.
 """
 
@@ -90,9 +90,9 @@ def evaluate(
     unique injection prompt, benign = filters only, resumable OutcomeCache.
 
     Returns:
-        logs_df    — per-prompt-per-method DataFrame
-        metrics_df — per-method summary (Bypass Rate, True ASR, FPR, TP/TN/FP/FN)
-        cm_dict    — per-method confusion matrices
+        logs_df    - per-prompt-per-method DataFrame
+        metrics_df - per-method summary (Bypass Rate, True ASR, FPR, TP/TN/FP/FN)
+        cm_dict    - per-method confusion matrices
     """
     if use_cached_lookup is None:
         use_cached_lookup = bool(use_llm)
@@ -152,7 +152,7 @@ def evaluate(
     else:
         print("[Evaluate] Legacy path: LLM per unblocked (method, prompt).")
     print(
-        f"[Evaluate] Judge (COMPLIED/REFUSED) — "
+        f"[Evaluate] Judge (COMPLIED/REFUSED) - "
         f"{'enabled' if not skip_judge else 'disabled'}"
     )
 
@@ -228,7 +228,7 @@ def evaluate_sanitizer(
             "benign = filters only."
         )
     print(
-        f"[Evaluate] Judge (COMPLIED/REFUSED) — "
+        f"[Evaluate] Judge (COMPLIED/REFUSED) - "
         f"{'enabled' if not skip_judge else 'disabled'}"
     )
 

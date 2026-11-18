@@ -6,7 +6,7 @@ Per fold: tune each score-based method on **that fold's validation** set to
 report **test** Bypass / True ASR / FPR.
 
 Method A: jointly sweep soft ``threshold`` and ``semantic_hard_sim`` (default
-raw-cosine cut 0.3). Architecture / weights unchanged — val thresholding only.
+raw-cosine cut 0.3). Architecture / weights unchanged - val thresholding only.
 
 Also sweeps thresholds for True-ASR vs FPR curves on ordinary test benign and
 edge/technical benign (Reviewer KD6q).
@@ -1054,7 +1054,7 @@ def _summary_text(metrics: pd.DataFrame, target_fpr: float) -> str:
         "Leave-one-source-out matched-FPR report (main LOO table).",
         f"Val target FPR = {target_fpr:.0%} (closest achievable); test Bypass / True ASR / FPR.",
         "Method A: soft threshold × semantic_hard_sim swept to hit val FPR≈target (default cut 0.3).",
-        "Architecture of Methods A/B unchanged — validation thresholding only.",
+        "Architecture of Methods A/B unchanged - validation thresholding only.",
         "Also: paraphrase + edge-benign + adaptive at the same matched thresholds.",
         "True ASR from results/prompt_cache/loo/outcomes.jsonl (unblocked injections).",
         "four_source_macro_avg weights each of the four attack sources equally.",

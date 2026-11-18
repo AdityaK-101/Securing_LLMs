@@ -173,12 +173,12 @@ def main() -> int:
 
     # Cross-tree reminders (INFO only)
     if (RESULTS_DIR / "loo" / "summary.csv").is_file():
-        print("  [INFO] results/loo/ present — contrast only, not paper matched-FPR")
+        print("  [INFO] results/loo/ present - contrast only, not paper matched-FPR")
     if (RESULTS_DIR / "source_holdout").is_dir():
-        print("  [INFO] results/source_holdout/ present — gate-only; may be stale")
+        print("  [INFO] results/source_holdout/ present - gate-only; may be stale")
     if (RESULTS_DIR / "suite_a" / "robustness_adaptive_logs.jsonl").is_file():
         print(
-            "  [INFO] suite_a adaptive logs present — "
+            "  [INFO] suite_a adaptive logs present - "
             "eval_portable_adaptive uses default portable thr, not LOO matched Table F"
         )
 

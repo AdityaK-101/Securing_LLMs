@@ -2,10 +2,10 @@
 Context-Aware sanitizer ablation studies.
 
 Three modes + one comparison:
-  1. Weighted Signal Ablation (Method A) — hard triggers off; one soft signal removed.
-  2. Hard Trigger Ablation (Method A) — full model; individual hard triggers removed.
-  3. Learned Feature Ablation (Method B) — leave-one-out on continuous features.
-  4. A vs B comparison — Full A, Soft-only A, Full B on the same test set.
+  1. Weighted Signal Ablation (Method A) - hard triggers off; one soft signal removed.
+  2. Hard Trigger Ablation (Method A) - full model; individual hard triggers removed.
+  3. Learned Feature Ablation (Method B) - leave-one-out on continuous features.
+  4. A vs B comparison - Full A, Soft-only A, Full B on the same test set.
 
 All ablation tables include Δ Bypass / Δ FPR vs the study's full variant.
 """
@@ -143,13 +143,13 @@ def _run_pipeline_on_sanitizers(
     runner = LLMRunner() if use_llm else None
     skip_judge = should_skip_judge(use_llm, runner)
 
-    print(f"\n[Ablation] {study_name} — {len(sanitizers)} variants")
+    print(f"\n[Ablation] {study_name} - {len(sanitizers)} variants")
     print(
         f"[Ablation] Phase 1: {len(df_test)} prompts × "
         f"{len(sanitizers)} variants"
     )
     print(
-        f"[Ablation] Phase 2: judge — "
+        f"[Ablation] Phase 2: judge - "
         f"{'enabled' if not skip_judge else 'disabled'}"
     )
 

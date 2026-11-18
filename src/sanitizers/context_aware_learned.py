@@ -1,5 +1,5 @@
 """
-Context-Aware Learned sanitizer — soft-only Method B.
+Context-Aware Learned sanitizer - soft-only Method B.
 
 Same multi-signal direction as ContextAwareSanitizer, but:
   - continuous semantic features (raw cosine + top-3 mean + benign contrast)
@@ -113,13 +113,13 @@ class ContextAwareLearnedSanitizer:
             df_train = pd.read_csv(train_csv)
             df_val = pd.read_csv(val_csv)
         except Exception as e:
-            print(f"[ContextAwareLearned] Warning: could not read splits — {e}")
+            print(f"[ContextAwareLearned] Warning: could not read splits - {e}")
             return
 
         injections = df_train[df_train["label"] == "injection"]["prompt"].dropna().tolist()
         benign = df_train[df_train["label"] == "benign"]["prompt"].dropna().tolist()
         if not injections:
-            print("[ContextAwareLearned] Warning: no injection rows in train — skip.")
+            print("[ContextAwareLearned] Warning: no injection rows in train - skip.")
             return
 
         if self._embed_model is None:
@@ -175,11 +175,11 @@ class ContextAwareLearnedSanitizer:
                 injections, convert_to_numpy=True, show_progress_bar=False
             )
             print(
-                f"[ContextAwareLearned] MiniLM loaded — "
+                f"[ContextAwareLearned] MiniLM loaded - "
                 f"encoded {len(injections)} injection embeddings."
             )
         except Exception as e:
-            print(f"[ContextAwareLearned] Warning: MiniLM loading failed — {e}")
+            print(f"[ContextAwareLearned] Warning: MiniLM loading failed - {e}")
             self._embed_model = None
             self._injection_embeddings = None
 
@@ -196,7 +196,7 @@ class ContextAwareLearnedSanitizer:
                 f"for contrastive semantic score."
             )
         except Exception as e:
-            print(f"[ContextAwareLearned] Warning: benign encode failed — {e}")
+            print(f"[ContextAwareLearned] Warning: benign encode failed - {e}")
             self._benign_embeddings = None
 
     def _init_perplexity_model(self, injections: list, benign: list) -> None:
@@ -232,7 +232,7 @@ class ContextAwareLearnedSanitizer:
                 self._ppl_model = None
                 self._ppl_tokenizer = None
         except Exception as e:
-            print(f"[ContextAwareLearned] Warning: perplexity init failed — {e}")
+            print(f"[ContextAwareLearned] Warning: perplexity init failed - {e}")
             self._ppl_model = None
             self._ppl_tokenizer = None
 
@@ -462,7 +462,7 @@ class ContextAwareLearnedSanitizer:
         signals = self.score(prompt)
         blocked = signals["probability"] >= self.threshold
         sanitized = (
-            "[PROMPT BLOCKED — CONTEXT ANALYSIS (LEARNED)]" if blocked else prompt
+            "[PROMPT BLOCKED - CONTEXT ANALYSIS (LEARNED)]" if blocked else prompt
         )
         return sanitized, blocked
 

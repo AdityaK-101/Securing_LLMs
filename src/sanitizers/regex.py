@@ -1,5 +1,5 @@
 """
-Regex sanitizer — pattern-based injection detection.
+Regex sanitizer - pattern-based injection detection.
 
 Detects known injection patterns via 30+ compiled regexes derived from
 actual dataset vocabulary analysis (train.csv jailbreaks).
@@ -8,7 +8,7 @@ actual dataset vocabulary analysis (train.csv jailbreaks).
 import re
 
 
-# Known injection patterns — derived from actual dataset vocabulary
+# Known injection patterns - derived from actual dataset vocabulary
 REGEX_PATTERNS = [
     # Direct instruction overrides
     r"ignore\s+(all\s+)?(previous|prior|above|preceding)\s+(instructions?|rules?|tasks?|inputs?|orders?|constraints?|prompts?)",
@@ -20,7 +20,7 @@ REGEX_PATTERNS = [
     r"stop[,\s]+ignore\s+all",
     r"override\s+(the\s+)?(system|developer|your)\s*(prompt|message|instructions?|programming|rules?)",
 
-    # Persona / role hijacking — the most common jailbreak in the dataset
+    # Persona / role hijacking - the most common jailbreak in the dataset
     r"(i\s+want\s+you\s+to\s+)?act\s+as\s+(a\s+|an\s+)?\w",
     r"you\s+are\s+going\s+to\s+(pretend|act|play|simulate|behave)",
     r"pretend\s+(to\s+be|you\s+are|you're|that\s+you\s+are)",

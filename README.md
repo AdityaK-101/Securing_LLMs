@@ -35,14 +35,14 @@
 
 ## 1. Project Overview
 
-This repository supports a **controlled evaluation** of pre-inference sanitizers for **direct prompt injection** — attribution over a shared signal family, not a new detector.
+This repository supports a **controlled evaluation** of pre-inference sanitizers for **direct prompt injection** - attribution over a shared signal family, not a new detector.
 
 | Tier | Methods |
 |------|---------|
 | No gate / lexical | `baseline`, `regex` (45 patterns), `keyword` (37 weighted phrases) |
-| **Method A** | `context_aware` — hybrid hard triggers + weighted soft score |
-| **Method B** | `context_aware_learned` — learned soft fusion (no hard triggers) |
-| Portable (scripts) | ProtectAI DeBERTa-v3, Meta Prompt Guard 2 — off-the-shelf baselines |
+| **Method A** | `context_aware` - hybrid hard triggers + weighted soft score |
+| **Method B** | `context_aware_learned` - learned soft fusion (no hard triggers) |
+| Portable (scripts) | ProtectAI DeBERTa-v3, Meta Prompt Guard 2 - off-the-shelf baselines |
 
 Research questions (paper §Framework): end-to-end risk without a gate; whether lexical/portable gates reduce **True ASR** or mainly Bypass; how Methods A/B compare; which components carry the defense; usability cost (ordinary + edge-benign FPR). Source generalization is measured with leave-one-source-out ([§6.0](#60-leave-one-source-out--matched-fpr--5-main-loo-report)).
 
@@ -50,9 +50,9 @@ Research questions (paper §Framework): end-to-end risk without a gate; whether 
 
 | Metric | Layer | Definition |
 |--------|-------|------------|
-| **Bypass Rate** | Layer 1 (sanitizer) | % of injection prompts the sanitizer fails to block — lower is better |
-| **True ASR** | Layer 2 (model) | % of injection prompts where sanitizer was bypassed **and** the judge labels the target LLM reply as `COMPLIED` — lower is better |
-| **FPR** | Layer 1 | % of benign prompts incorrectly blocked — lower is better |
+| **Bypass Rate** | Layer 1 (sanitizer) | % of injection prompts the sanitizer fails to block - lower is better |
+| **True ASR** | Layer 2 (model) | % of injection prompts where sanitizer was bypassed **and** the judge labels the target LLM reply as `COMPLIED` - lower is better |
+| **FPR** | Layer 1 | % of benign prompts incorrectly blocked - lower is better |
 
 ### Enforcement mode
 
@@ -159,14 +159,14 @@ python scripts/eval_loo_holdout.py
 
 Every sanitizer implements `sanitize(prompt) -> (sanitized_text, blocked)` (binary **Block**; blocked prompts never reach the target LLM).
 
-- **Regex** — 45 case-insensitive patterns (overrides, personas, DAN-style names, developer mode, German overrides, hypothetical framing); any match blocks.
-- **Keyword** — 37 weighted phrases; block if sum ≥ 0.5.
-- **Method A** — eight shared signals (regex, keyword, semantic, intent, roleplay, instruction shift, objective conflict, perplexity). Hard triggers: raw gallery cosine above `semantic_hard_sim` (default **0.3**; matched-FPR LOO selects **0.55** on four-source folds / **0.60** on Neuralchemy), intent = 1.0, or roleplay = 1.0 with keyword > 0.3. Else soft aggregate (weights in paper §Method A) blocks at the tuned soft threshold (default 0.40).
-- **Method B** — same evidence; three continuous semantic features + LR on train, threshold tuned on val (F1, tie-break lower Bypass/FPR); **no hard triggers**.
-- **ProtectAI / Prompt Guard 2** — published classifiers on CPU; no fine-tuning on our split (`src/sanitizers/protectai.py`, `prompt_guard.py`). Run via scripts / `--portable-baselines`.
-- **Similarity-only** — MiniLM max-cosine to the train injection gallery; threshold F1-tuned on val (`similarity_only.py`). Fair baseline on mixed suites and LOO.
-- **DeBERTa (fine-tuned)** — ProtectAI DeBERTa checkpoint fine-tuned on our train split; threshold on val (`deberta_finetuned.py`). Fair baseline distinct from the off-the-shelf ProtectAI gate.
-- **Matched FPR (~5%)** — two paths: (1) **mixed suite matched-FPR** `--matched-fpr` = combined-dataset random split, val **FPR ≤ 5%** (`results/matched_fpr/`); (2) **LOO main** `--loo-matched-fpr` = val **FPR ≈ 5%** (closest) + full suite + curves (`results/loo_matched_fpr/`; Method A also sweeps `semantic_hard_sim`). Portables keep published weights; only the decision threshold is retuned.
+- **Regex** - 45 case-insensitive patterns (overrides, personas, DAN-style names, developer mode, German overrides, hypothetical framing); any match blocks.
+- **Keyword** - 37 weighted phrases; block if sum ≥ 0.5.
+- **Method A** - eight shared signals (regex, keyword, semantic, intent, roleplay, instruction shift, objective conflict, perplexity). Hard triggers: raw gallery cosine above `semantic_hard_sim` (default **0.3**; matched-FPR LOO selects **0.55** on four-source folds / **0.60** on Neuralchemy), intent = 1.0, or roleplay = 1.0 with keyword > 0.3. Else soft aggregate (weights in paper §Method A) blocks at the tuned soft threshold (default 0.40).
+- **Method B** - same evidence; three continuous semantic features + LR on train, threshold tuned on val (F1, tie-break lower Bypass/FPR); **no hard triggers**.
+- **ProtectAI / Prompt Guard 2** - published classifiers on CPU; no fine-tuning on our split (`src/sanitizers/protectai.py`, `prompt_guard.py`). Run via scripts / `--portable-baselines`.
+- **Similarity-only** - MiniLM max-cosine to the train injection gallery; threshold F1-tuned on val (`similarity_only.py`). Fair baseline on mixed suites and LOO.
+- **DeBERTa (fine-tuned)** - ProtectAI DeBERTa checkpoint fine-tuned on our train split; threshold on val (`deberta_finetuned.py`). Fair baseline distinct from the off-the-shelf ProtectAI gate.
+- **Matched FPR (~5%)** - two paths: (1) **mixed suite matched-FPR** `--matched-fpr` = combined-dataset random split, val **FPR ≤ 5%** (`results/matched_fpr/`); (2) **LOO main** `--loo-matched-fpr` = val **FPR ≈ 5%** (closest) + full suite + curves (`results/loo_matched_fpr/`; Method A also sweeps `semantic_hard_sim`). Portables keep published weights; only the decision threshold is retuned.
 
 ---
 
@@ -175,9 +175,9 @@ Every sanitizer implements `sanitize(prompt) -> (sanitized_text, blocked)` (bina
 Target and judge: **`Qwen/Qwen2.5-3B-Instruct`**. Adaptive paraphrases: **`google/flan-t5-base`**.
 
 ```
-Phase 1 — sanitize (+ target LLM if not blocked)
-Phase 2 — judge COMPLIED / REFUSED on unblocked injections
-Robustness — expanded paraphrase, edge-benign, FLAN-T5 adaptive
+Phase 1 - sanitize (+ target LLM if not blocked)
+Phase 2 - judge COMPLIED / REFUSED on unblocked injections
+Robustness - expanded paraphrase, edge-benign, FLAN-T5 adaptive
              (+ similarity-evasion rewrite minimizing max cosine to train gallery)
 ```
 
@@ -199,11 +199,11 @@ Same phases on `--loo` (per `data/splits/source_holdout/<fold>/`), writing under
 
 ## 6. Results
 
-### 6.0 Leave-one-source-out — matched FPR ≈ 5% (**main LOO report**)
+### 6.0 Leave-one-source-out - matched FPR ≈ 5% (**main LOO report**)
 
 <a id="loo-matched-fpr-main"></a>
 
-For each fold, choose each method’s threshold on **that fold’s validation** set to **hit val FPR ≈ 5%** (closest achievable; `--matched-fpr-target`), then run the **full LOO suite** at those thresholds — test Bypass / True ASR / FPR, paraphrase, edge-benign, adaptive — plus True-ASR-vs-FPR curves. Method A also sweeps `semantic_hard_sim` (default **0.3**). Soft weights / features unchanged (no A/B redesign).
+For each fold, choose each method’s threshold on **that fold’s validation** set to **hit val FPR ≈ 5%** (closest achievable; `--matched-fpr-target`), then run the **full LOO suite** at those thresholds - test Bypass / True ASR / FPR, paraphrase, edge-benign, adaptive - plus True-ASR-vs-FPR curves. Method A also sweeps `semantic_hard_sim` (default **0.3**). Soft weights / features unchanged (no A/B redesign).
 
 ```powershell
 python -m src.run_experiments --loo-matched-fpr
@@ -221,8 +221,8 @@ Artifacts: `results/loo_matched_fpr/summary.csv`, `thresholds.csv`, `robustness_
 
 | Method | ID Bypass % | ID FPR % | LOO-4 macro Bypass % | LOO-4 macro True ASR % | LOO-4 macro FPR % | Neuralchemy Bypass % | Neuralchemy True ASR % | Neuralchemy FPR % |
 |--------|------------:|---------:|---------------------:|-----------------------:|------------------:|---------------------:|-----------------------:|------------------:|
-| baseline | — | — | 100.00 | 58.12 | 0.00 | 100.00 | 64.50 | 0.00 |
-| regex | — | — | 84.12 | 47.62 | 0.00 | 85.00 | 52.50 | 0.00 |
+| baseline | - | - | 100.00 | 58.12 | 0.00 | 100.00 | 64.50 | 0.00 |
+| regex | - | - | 84.12 | 47.62 | 0.00 | 85.00 | 52.50 | 0.00 |
 | keyword | 58.33 | 0.00 | 59.75 | 33.00 | 0.00 | 70.50 | 40.50 | 0.00 |
 | **context_aware (A)** | **11.67** | 6.67 | **41.62** | **16.50** | **4.50** | **49.50** | **30.00** | **3.50** |
 | context_aware_learned (B) | 13.33 | 0.00 | 58.25 | 24.50 | 4.00 | 81.00 | 50.50 | 1.50 |
@@ -351,7 +351,7 @@ Numbers below are from the **archived v2.0** held-out test (30 injection / 23 be
 | **Method A (hybrid)** | **6.67 (2)** | **0.00 (0)** | **13.04 (3)** | **36.25 (29)** |
 | **Method B (learned)** | **20.00 (6)** | **13.33 (4)** | **8.70 (2)** | **7.50 (6)** |
 
-#### 6.2 Suite A — Method A (archived)
+#### 6.2 Suite A - Method A (archived)
 
 | Method | Bypass % ↓ | True ASR % ↓ | FPR % ↓ | Successful attacks |
 |--------|-----------:|-------------:|--------:|-------------------:|
@@ -360,7 +360,7 @@ Numbers below are from the **archived v2.0** held-out test (30 injection / 23 be
 | keyword | 96.67 | 46.67 | 0.0 | 14 |
 | **context_aware (A)** | **6.67** | **0.0** | 13.04 | **0** |
 
-#### 6.3 Suite B — Method B (archived)
+#### 6.3 Suite B - Method B (archived)
 
 | Method | Bypass % ↓ | True ASR % ↓ | FPR % ↓ | Successful attacks |
 |--------|-----------:|-------------:|--------:|-------------------:|
@@ -382,7 +382,7 @@ Source: `results/protectai/metrics.csv`, `results/prompt_guard/metrics.csv`.
 
 Canonical mixed-suite file: `results/robustness_paraphrase_test.csv` (n=30). Prefer matched-FPR LOO paraphrase in `results/loo_matched_fpr/`; default-thr contrast: `results/loo/robustness_paraphrase_summary.csv`.
 
-Probe uses an **expanded synonym list** plus **FLAN-T5 paraphrase fallback**. Re-run `python scripts/eval_paraphrase_test.py` after list changes — committed mixed-suite numbers below may be stale.
+Probe uses an **expanded synonym list** plus **FLAN-T5 paraphrase fallback**. Re-run `python scripts/eval_paraphrase_test.py` after list changes - committed mixed-suite numbers below may be stale.
 
 | Method | Orig Bypass | Para Bypass | Δ |
 |--------|------------:|------------:|--:|
@@ -456,17 +456,20 @@ Hard triggers drive most of Method A’s blocking; removing the semantic hard tr
 
 ## 8. Judge Human Validation
 
-Author-labeled all **N = 30** no-defense injection (prompt, response) pairs, blind to the judge, using the same COMPLIED/REFUSED rubric.
+**Paper-cited scores are on the archived v2.0 mixed test** (all **N = 30** no-defense pairs), not the grown v3.0 mixed test (~60 injections). Suite logs are already on v3.0; human re-labeling of that set is pending. Details: `data/judge_human_validation/README.md`.
 
 | Metric | Value |
 |--------|------:|
+| Cohort | legacy mixed test v2.0 (`legacy_v2.0_n30/`) |
 | Agreement | 25/30 = **83.3%** |
 | Cohen’s κ | **0.67** |
 
-- Rubric / blind sheet: `data/judge_human_validation/`
+- Rubric / archive: `data/judge_human_validation/`
 - Metrics: `results/judge_human_validation/metrics_summary.txt`
 
 ```powershell
+# Rebuild blank sheet from current suite_a (N≈60), then label, then:
+python scripts/build_judge_human_validation.py
 python scripts/score_judge_human_validation.py
 ```
 
@@ -553,7 +556,7 @@ Index: [`results/PAPER.md`](results/PAPER.md). `--no-llm` is sanitizer-only (Tru
 
 ## 11. Output Files
 
-### LOO matched-FPR (`results/loo_matched_fpr/`) — main report
+### LOO matched-FPR (`results/loo_matched_fpr/`) - main report
 
 | Path | Contents |
 |------|----------|
@@ -568,7 +571,7 @@ Index: [`results/PAPER.md`](results/PAPER.md). `--no-llm` is sanitizer-only (Tru
 
 Details: `results/loo_matched_fpr/README.md`. Index: `results/PAPER.md`.
 
-### LOO default thr (`results/loo/`) — contrast; complete
+### LOO default thr (`results/loo/`) - contrast; complete
 
 | Path | Contents |
 |------|----------|
@@ -624,8 +627,8 @@ Aligned with paper §Limitations:
 - Default-threshold LOO (§6.0b) is **not** FPR-matched; use `--loo-matched-fpr` (§6.0) for val **FPR ≈ 5%** (full suite + True-ASR-vs-FPR curves). Mixed `--matched-fpr` is a separate small-split pilot.
 - Train/test injections share public sources (distribution overlap); adaptive FLAN-T5 + similarity evasion is the main shift probe (four-source DeBERTa adaptive Bypass ~20.6%).
 - **Direct, single-turn, English, text-only** injection only; indirect / agentic / multimodal out of scope
-- True ASR depends on an LLM judge (same checkpoint as target); blind author labeling on the small mixed suite: 83.3% agreement, κ = 0.67
-- At matched LOO thresholds, Method A and several classifiers show high **edge** FPR on the 80 technical prompts; Method B and similarity-only stay low on that probe — matched PI-benign FPR does not imply matched edge behaviour
+- True ASR depends on an LLM judge (same checkpoint as target); blind author labeling was on the earlier mixed test (v2.0, N = 30): 83.3% agreement, κ = 0.67; the grown v3.0 mixed test (~60 inj.) is not yet fully re-labeled
+- At matched LOO thresholds, Method A and several classifiers show high **edge** FPR on the 80 technical prompts; Method B and similarity-only stay low on that probe - matched PI-benign FPR does not imply matched edge behaviour
 - Prompt Guard may require Hugging Face gated access
 
 ---
@@ -645,10 +648,10 @@ pip install -r requirements.txt
 
 ### Related work (short)
 
-- OWASP Top 10 for LLMs — LLM01 Prompt Injection
+- OWASP Top 10 for LLMs - LLM01 Prompt Injection
 - Jailbreak / GCG-style attack literature
 - Structured / alignment defenses (e.g. StruQ, SecAlign)
-- Industry regex / heuristic firewalls — related as **baselines**
+- Industry regex / heuristic firewalls - related as **baselines**
 
 ---
 

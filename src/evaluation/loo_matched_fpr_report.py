@@ -50,7 +50,7 @@ METHOD_LABEL = {
 
 def _rate_ci(successes: int, total: int, rate_pct: float) -> str:
     if total <= 0:
-        return "—"
+        return "-"
     return f"{rate_pct:.2f} {wilson_pct_str(int(successes), int(total))}"
 
 
@@ -70,7 +70,7 @@ def _enrich_with_wilson(df: pd.DataFrame) -> pd.DataFrame:
             wilson_pct_str(asr_n, n_inj) if n_inj else ""
         )
         out["FPR_Wilson95"] = wilson_pct_str(fpr_n, n_ben) if n_ben else ""
-        # Macro avg: no single binomial N — leave Wilson blank.
+        # Macro avg: no single binomial N - leave Wilson blank.
         if str(r.get("fold", "")).endswith("macro_avg"):
             out["Bypass_Wilson95"] = ""
             out["True_ASR_Wilson95"] = ""
@@ -130,8 +130,8 @@ def _dedup_and_benign_tables(manifest: dict) -> tuple[str, str, str]:
     dedup_lines = [
         "| Filter | Count |",
         "|--------|------:|",
-        f"| Cross-source MiniLM pairs compared | {nd.get('compared_prompts', '—')} |",
-        f"| Near-duplicates removed (cosine ≥ {nd.get('threshold', 0.9)}) | {nd.get('removed', '—')} |",
+        f"| Cross-source MiniLM pairs compared | {nd.get('compared_prompts', '-')} |",
+        f"| Near-duplicates removed (cosine ≥ {nd.get('threshold', 0.9)}) | {nd.get('removed', '-')} |",
     ]
     for src, n in (nd.get("removed_by_source") or {}).items():
         dedup_lines.append(f"| · removed from `{src}` | {n} |")
@@ -282,13 +282,13 @@ def build_paper_tables(out_dir: Path | None = None) -> Path:
 
     def _fmt(v, wilson=""):
         if v is None or (isinstance(v, float) and pd.isna(v)):
-            return "—"
+            return "-"
         if wilson:
             return f"{float(v):.2f} {wilson}"
         return f"{float(v):.2f}"
 
     lines: list[str] = []
-    lines.append("# LOO matched-FPR ≈ 5% — paper tables")
+    lines.append("# LOO matched-FPR ≈ 5% - paper tables")
     lines.append("")
     lines.append(
         "Operating point: per-fold validation threshold chosen to **hit val FPR ≈ 5%** "
@@ -305,7 +305,7 @@ def build_paper_tables(out_dir: Path | None = None) -> Path:
     lines.append("")
 
     lines.append(
-        "## Table A — Main comparison "
+        "## Table A - Main comparison "
         "(mixed suite matched-FPR / ID vs four-source LOO vs Neuralchemy)"
     )
     lines.append("")
@@ -369,7 +369,7 @@ def build_paper_tables(out_dir: Path | None = None) -> Path:
         )
     lines.append("")
 
-    lines.append("## Table B — Per-fold main metrics with Wilson 95% CIs")
+    lines.append("## Table B - Per-fold main metrics with Wilson 95% CIs")
     lines.append("")
     lines.append(
         "| Fold | Method | Bypass % (Wilson) | True ASR % (Wilson) | FPR % (Wilson) |"
@@ -393,7 +393,7 @@ def build_paper_tables(out_dir: Path | None = None) -> Path:
             )
     lines.append("")
 
-    lines.append("## Table C — Four-source average and pooled")
+    lines.append("## Table C - Four-source average and pooled")
     lines.append("")
     lines.append(
         "| Method | Macro Bypass % | Macro True ASR % | Macro FPR % | "
@@ -423,7 +423,7 @@ def build_paper_tables(out_dir: Path | None = None) -> Path:
         )
     lines.append("")
 
-    lines.append("## Table D — Deduplication")
+    lines.append("## Table D - Deduplication")
     lines.append("")
     lines.append(dedup_md)
     lines.append("")
@@ -432,7 +432,7 @@ def build_paper_tables(out_dir: Path | None = None) -> Path:
     lines.append(spot_md)
     lines.append("")
 
-    lines.append("## Table E — Train benign inventory by fold")
+    lines.append("## Table E - Train benign inventory by fold")
     lines.append("")
     lines.append(benign_md)
     lines.append("")
@@ -441,7 +441,7 @@ def build_paper_tables(out_dir: Path | None = None) -> Path:
     edge_path = out / "robustness_edge_benign.csv"
     adaptive_path = out / "robustness_adaptive.csv"
     lines.append(
-        "## Table F — Three-regime FPR + adaptive Bypass / True ASR "
+        "## Table F - Three-regime FPR + adaptive Bypass / True ASR "
         "(matched LOO thresholds; edge = 80 technical prompts)"
     )
     lines.append("")

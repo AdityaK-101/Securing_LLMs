@@ -1,4 +1,4 @@
-"""Deprecated shim — use ``python scripts/print_dataset_sizes.py``."""
+"""Deprecated shim - use ``python scripts/print_dataset_sizes.py``."""
 
 from __future__ import annotations
 

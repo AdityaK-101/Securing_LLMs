@@ -1,10 +1,10 @@
-# LOO matched-FPR ≈ 5% — main LOO report
+# LOO matched-FPR ≈ 5% - main LOO report
 
 **Status: complete** after **held-out benign rebuild** (Alpaca fit; PI-benign test-only). All five folds; main + paraphrase + edge-benign + adaptive + True ASR–FPR curves; ProtectAI + Prompt Guard 2 at matched thresholds.
 
 **Protocol:** fit benign = **200/100 Alpaca**; test benign = shared **200 PI-benign** on every fold (never in train/val). Val size supports a real ≈5% FPR threshold.
 
-**Paper tables (canonical):** [`PAPER_TABLES.md`](PAPER_TABLES.md) — ID vs LOO-4 vs Neuralchemy, Wilson CIs, dedup, train-benign inventory.
+**Paper tables (canonical):** [`PAPER_TABLES.md`](PAPER_TABLES.md) - ID vs LOO-4 vs Neuralchemy, Wilson CIs, dedup, train-benign inventory.
 
 ```powershell
 # Preferred one-shot (also runs mixed suite matched-FPR + portables + tables):
@@ -28,7 +28,7 @@ Do **not** confuse with `results/matched_fpr/` (mixed-split, FPR ≤ 5%, no LOO)
 
 Methods: `baseline`, `regex`, `keyword`, `context_aware` (A), `context_aware_learned` (B), `similarity_only`, `deberta_finetuned`, `protectai`, `prompt_guard`.
 
-Per fold, score-based methods (including ProtectAI / Prompt Guard 2) are tuned on **that fold’s validation** set to **hit val FPR ≈ 5%** (closest). Soft weights / published portable weights are unchanged — threshold selection only. Method A also sweeps `semantic_hard_sim`.
+Per fold, score-based methods (including ProtectAI / Prompt Guard 2) are tuned on **that fold’s validation** set to **hit val FPR ≈ 5%** (closest). Soft weights / published portable weights are unchanged - threshold selection only. Method A also sweeps `semantic_hard_sim`.
 
 ---
 
@@ -36,8 +36,8 @@ Per fold, score-based methods (including ProtectAI / Prompt Guard 2) are tuned o
 
 | Method | ID Bypass % | ID FPR % | LOO-4 macro Bypass % | LOO-4 macro True ASR % | LOO-4 macro FPR % | Neuralchemy Bypass % | Neuralchemy True ASR % | Neuralchemy FPR % |
 |--------|------------:|---------:|---------------------:|-----------------------:|------------------:|---------------------:|-----------------------:|------------------:|
-| baseline | — | — | 100.00 | 58.12 | 0.00 | 100.00 | 64.50 | 0.00 |
-| regex | — | — | 84.12 | 47.62 | 0.00 | 85.00 | 52.50 | 0.00 |
+| baseline | - | - | 100.00 | 58.12 | 0.00 | 100.00 | 64.50 | 0.00 |
+| regex | - | - | 84.12 | 47.62 | 0.00 | 85.00 | 52.50 | 0.00 |
 | keyword | 58.33 | 0.00 | 59.75 | 33.00 | 0.00 | 70.50 | 40.50 | 0.00 |
 | **context_aware (A)** | **11.67** | 6.67 | **41.62** | **16.50** | **4.50** | **49.50** | **30.00** | **3.50** |
 | context_aware_learned (B) | 13.33 | 0.00 | 58.25 | 24.50 | 4.00 | 81.00 | 50.50 | 1.50 |
@@ -64,4 +64,4 @@ Per fold, score-based methods (including ProtectAI / Prompt Guard 2) are tuned o
 | `figures/` | True ASR vs FPR curves |
 | `<fold>/` | Per-fold metrics + robustness |
 
-Contrast (default / F1 thresholds): `results/loo/` — root README §6.0b. Protocol overview: root README §6.0.
+Contrast (default / F1 thresholds): `results/loo/` - root README §6.0b. Protocol overview: root README §6.0.
