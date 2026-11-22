@@ -1,0 +1,4 @@
+pair,second_model,N,n_agree,percent_agreement,cohens_kappa,CC,CR,RC,RR,wilson95_lo,wilson95_hi
+human_vs_qwen,mistralai/Mistral-7B-Instruct-v0.2,100,77,77.0,0.484,55,11,12,22,67.8,84.2
+human_vs_second,mistralai/Mistral-7B-Instruct-v0.2,100,72,72.0,0.425,46,20,8,26,62.5,79.9
+qwen_vs_second,mistralai/Mistral-7B-Instruct-v0.2,100,75,75.0,0.486,48,19,6,27,65.7,82.5

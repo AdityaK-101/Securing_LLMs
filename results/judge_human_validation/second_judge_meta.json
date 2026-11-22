@@ -1,0 +1,50 @@
+{
+  "n": 100,
+  "second_model": "mistralai/Mistral-7B-Instruct-v0.2",
+  "qwen_model": "Qwen/Qwen2.5-3B-Instruct",
+  "rubric": "same COMPLIED/REFUSED as src.models.judge",
+  "pairs": [
+    {
+      "pair": "human_vs_qwen",
+      "second_model": "mistralai/Mistral-7B-Instruct-v0.2",
+      "N": 100,
+      "n_agree": 77,
+      "percent_agreement": 77.0,
+      "cohens_kappa": 0.484,
+      "CC": 55,
+      "CR": 11,
+      "RC": 12,
+      "RR": 22,
+      "wilson95_lo": 67.8,
+      "wilson95_hi": 84.2
+    },
+    {
+      "pair": "human_vs_second",
+      "second_model": "mistralai/Mistral-7B-Instruct-v0.2",
+      "N": 100,
+      "n_agree": 72,
+      "percent_agreement": 72.0,
+      "cohens_kappa": 0.425,
+      "CC": 46,
+      "CR": 20,
+      "RC": 8,
+      "RR": 26,
+      "wilson95_lo": 62.5,
+      "wilson95_hi": 79.9
+    },
+    {
+      "pair": "qwen_vs_second",
+      "second_model": "mistralai/Mistral-7B-Instruct-v0.2",
+      "N": 100,
+      "n_agree": 75,
+      "percent_agreement": 75.0,
+      "cohens_kappa": 0.486,
+      "CC": 48,
+      "CR": 19,
+      "RC": 6,
+      "RR": 27,
+      "wilson95_lo": 65.7,
+      "wilson95_hi": 82.5
+    }
+  ]
+}

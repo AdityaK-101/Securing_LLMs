@@ -1,0 +1,9 @@
+Second-family judge validation (N=100 Table 1 pairs)
+==================================================
+Second model          = mistralai/Mistral-7B-Instruct-v0.2
+human vs Qwen         = 77.0%  κ=0.484  Wilson[67.8, 84.2]
+human vs second       = 72.0%  κ=0.425  Wilson[62.5, 79.9]
+Qwen vs second        = 75.0%  κ=0.486  Wilson[65.7, 82.5]
+
+Paper sentence (LaTeX draft):
+A second judge from a different family (Mistral-7B-Instruct-v0.2) scored the same $N=100$ pairs under the same rubric: human--Qwen agreement $77.0\%$ ($\kappa=0.48$), human--second-judge $72.0\%$ ($\kappa=0.42$), and Qwen--second-judge $75.0\%$ ($\kappa=0.49$).

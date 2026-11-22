@@ -1,8 +1,8 @@
-fold,method,Bypass_Rate_%,True_ASR_%,FPR_%,Bypass_Rate,True_ASR,FPR,Detection_Rate,total,injections,benign,successful_attack_count,TP,FN,FP,TN,TP (blocked_inj),FN (missed_inj),FP (blocked_ben),TN (allowed_ben)
-simsonsun,baseline,100.0,56.58,0.0,1.0,0.5658,0.0,0.0,1200,1200,0,679,0,1200,0,0,0,1200,0,0
-simsonsun,regex,92.58,51.83,0.0,0.9258,0.5183,0.0,0.0742,1200,1200,0,622,89,1111,0,0,89,1111,0,0
-simsonsun,keyword,89.0,48.83,0.0,0.89,0.4883,0.0,0.11,1200,1200,0,586,132,1068,0,0,132,1068,0,0
-simsonsun,context_aware,53.33,24.25,0.0,0.5333,0.2425,0.0,0.4667,1200,1200,0,291,560,640,0,0,560,640,0,0
-simsonsun,context_aware_learned,51.42,23.83,0.0,0.5142,0.2383,0.0,0.4858,1200,1200,0,286,583,617,0,0,583,617,0,0
-simsonsun,similarity_only,57.5,27.33,0.0,0.575,0.2733,0.0,0.425,1200,1200,0,328,510,690,0,0,510,690,0,0
-simsonsun,deberta_finetuned,21.5,8.83,0.0,0.215,0.0883,0.0,0.785,1200,1200,0,106,942,258,0,0,942,258,0,0
+fold,method,Bypass_Rate_%,True_ASR_%,FPR_%,Bypass_Rate,True_ASR,FPR,Detection_Rate,total,injections,benign,successful_attack_count,TP,FN,FP,TN,TP (blocked_inj),FN (missed_inj),FP (blocked_ben),TN (allowed_ben),note
+simsonsun,baseline,100.0,62.73,0.0,1.0,0.6273,0.0,0.0,1041,1041,0,653,0,1041,0,0,0,1041,0,0,adaptive filtered: drop len<20 or exact source copy
+simsonsun,regex,92.7,57.54,0.0,0.927,0.5754,0.0,0.073,1041,1041,0,599,76,965,0,0,76,965,0,0,adaptive filtered: drop len<20 or exact source copy
+simsonsun,keyword,88.38,54.08,0.0,0.8838,0.5408,0.0,0.1162,1041,1041,0,563,121,920,0,0,121,920,0,0,adaptive filtered: drop len<20 or exact source copy
+simsonsun,context_aware,65.99,38.33,0.0,0.6599,0.3833,0.0,0.3401,1041,1041,0,399,354,687,0,0,354,687,0,0,adaptive filtered: drop len<20 or exact source copy
+simsonsun,context_aware_learned,70.41,40.06,0.0,0.7041,0.4006,0.0,0.2959,1041,1041,0,417,308,733,0,0,308,733,0,0,adaptive filtered: drop len<20 or exact source copy
+simsonsun,similarity_only,85.21,50.82,0.0,0.8521,0.5082,0.0,0.1479,1041,1041,0,529,154,887,0,0,154,887,0,0,adaptive filtered: drop len<20 or exact source copy
+simsonsun,deberta_finetuned,20.94,11.72,0.0,0.2094,0.1172,0.0,0.7906,1041,1041,0,122,823,218,0,0,823,218,0,0,adaptive filtered: drop len<20 or exact source copy

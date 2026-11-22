@@ -1,8 +1,8 @@
-fold,method,Bypass_Rate_%,True_ASR_%,FPR_%,Bypass_Rate,True_ASR,FPR,Detection_Rate,total,injections,benign,successful_attack_count,TP,FN,FP,TN,TP (blocked_inj),FN (missed_inj),FP (blocked_ben),TN (allowed_ben)
-neuralchemy,baseline,100.0,42.0,0.0,1.0,0.42,0.0,0.0,1200,1200,0,504,0,1200,0,0,0,1200,0,0
-neuralchemy,regex,94.92,40.0,0.0,0.9492,0.4,0.0,0.0508,1200,1200,0,480,61,1139,0,0,61,1139,0,0
-neuralchemy,keyword,91.17,37.42,0.0,0.9117,0.3742,0.0,0.0883,1200,1200,0,449,106,1094,0,0,106,1094,0,0
-neuralchemy,context_aware,34.17,7.92,0.0,0.3417,0.0792,0.0,0.6583,1200,1200,0,95,790,410,0,0,790,410,0,0
-neuralchemy,context_aware_learned,64.25,24.33,0.0,0.6425,0.2433,0.0,0.3575,1200,1200,0,292,429,771,0,0,429,771,0,0
-neuralchemy,similarity_only,82.92,33.92,0.0,0.8292,0.3392,0.0,0.1708,1200,1200,0,407,205,995,0,0,205,995,0,0
-neuralchemy,deberta_finetuned,4.33,1.33,0.0,0.0433,0.0133,0.0,0.9567,1200,1200,0,16,1148,52,0,0,1148,52,0,0
+fold,method,Bypass_Rate_%,True_ASR_%,FPR_%,Bypass_Rate,True_ASR,FPR,Detection_Rate,total,injections,benign,successful_attack_count,TP,FN,FP,TN,TP (blocked_inj),FN (missed_inj),FP (blocked_ben),TN (allowed_ben),note
+neuralchemy,baseline,100.0,41.47,0.0,1.0,0.4147,0.0,0.0,586,586,0,243,0,586,0,0,0,586,0,0,adaptive filtered: drop len<20 or exact source copy
+neuralchemy,regex,93.69,40.27,0.0,0.9369,0.4027,0.0,0.0631,586,586,0,236,37,549,0,0,37,549,0,0,adaptive filtered: drop len<20 or exact source copy
+neuralchemy,keyword,87.03,35.49,0.0,0.8703,0.3549,0.0,0.1297,586,586,0,208,76,510,0,0,76,510,0,0,adaptive filtered: drop len<20 or exact source copy
+neuralchemy,context_aware,67.75,27.99,0.0,0.6775,0.2799,0.0,0.3225,586,586,0,164,189,397,0,0,189,397,0,0,adaptive filtered: drop len<20 or exact source copy
+neuralchemy,context_aware_learned,89.76,38.91,0.0,0.8976,0.3891,0.0,0.1024,586,586,0,228,60,526,0,0,60,526,0,0,adaptive filtered: drop len<20 or exact source copy
+neuralchemy,similarity_only,94.88,40.61,0.0,0.9488,0.4061,0.0,0.0512,586,586,0,238,30,556,0,0,30,556,0,0,adaptive filtered: drop len<20 or exact source copy
+neuralchemy,deberta_finetuned,10.24,4.1,0.0,0.1024,0.041,0.0,0.8976,586,586,0,24,526,60,0,0,526,60,0,0,adaptive filtered: drop len<20 or exact source copy

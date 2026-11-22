@@ -12,6 +12,7 @@ Writes:
 from __future__ import annotations
 
 import csv
+import math
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,17 +24,33 @@ OUT_METRICS = OUT_DIR / "metrics.csv"
 OUT_SUMMARY = OUT_DIR / "metrics_summary.txt"
 
 
+def wilson_interval(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
+    """Wilson score 95% CI for binomial proportion k/n (returned as percentages)."""
+    if n <= 0:
+        return (float("nan"), float("nan"))
+    p = k / n
+    z2 = z * z
+    denom = 1.0 + z2 / n
+    center = (p + z2 / (2 * n)) / denom
+    half = (z / denom) * math.sqrt(p * (1 - p) / n + z2 / (4 * n * n))
+    lo = max(0.0, center - half)
+    hi = min(1.0, center + half)
+    return (100.0 * lo, 100.0 * hi)
+
+
 def main() -> None:
     with BLIND.open(encoding="utf-8") as f:
         human_rows = list(csv.DictReader(f))
     with KEY.open(encoding="utf-8") as f:
         key = {r["sample_id"]: r for r in csv.DictReader(f)}
 
-    missing = [r["sample_id"] for r in human_rows if not (r.get("human_label") or "").strip()]
+    missing = [
+        r["sample_id"] for r in human_rows if not (r.get("human_label") or "").strip()
+    ]
     if missing:
         raise SystemExit(
-            f"{len(missing)} rows still unlabeled (sample_id e.g. {missing[:5]}). "
-            "Fill human_label first."
+            f"{len(missing)}/{len(human_rows)} rows still unlabeled "
+            f"(sample_id e.g. {missing[:5]}). Fill human_label first."
         )
 
     a = b = c = d = 0
@@ -58,8 +75,8 @@ def main() -> None:
         report.append(
             {
                 "sample_id": sid,
-                "cohort": r["cohort"],
-                "source_suite": r.get("source_suite", ""),
+                "cohort": r.get("cohort", ""),
+                "fold": r.get("fold", r.get("source_suite", "")),
                 "method": r["method"],
                 "prompt_id": r["prompt_id"],
                 "human_label": h,
@@ -74,11 +91,16 @@ def main() -> None:
     po = n_agree / n
     pe = ((a + b) * (a + c) + (c + d) * (b + d)) / (n * n)
     kappa = (po - pe) / (1 - pe) if pe < 1 else 1.0
+    w_lo, w_hi = wilson_interval(n_agree, n)
+
     paper = (
-        f"To validate the LLM judge, an author independently labeled all "
-        f"N = {n} no-defense injection (prompt, response) pairs using the same "
-        f"COMPLIED/REFUSED rubric, blind to the judge. Human-judge agreement "
-        f"was {po * 100:.1f}% (Cohen's kappa = {kappa:.2f})."
+        f"To validate the LLM judge on the Table~1 no-defense replies, an author "
+        f"independently labeled a stratified random sample of $N={n}$ "
+        f"(prompt, response) pairs (20 per held-out source across the four LOO "
+        f"folds and Neuralchemy), blind to the judge, with the same "
+        f"COMPLIED/REFUSED rubric. Human--judge agreement was "
+        f"${po * 100:.1f}\\%$ (Wilson $95\\%$ CI $[{w_lo:.1f}, {w_hi:.1f}]\\%$; "
+        f"Cohen's $\\kappa={kappa:.2f}$)."
     )
 
     metrics = {
@@ -86,13 +108,15 @@ def main() -> None:
         "n_agree": n_agree,
         "n_disagree": n - n_agree,
         "percent_agreement": round(po * 100, 1),
+        "wilson95_lo": round(w_lo, 1),
+        "wilson95_hi": round(w_hi, 1),
         "cohens_kappa": round(kappa, 3),
         "CC_both_COMPLIED": a,
         "CR_human_COMPLIED_judge_REFUSED": b,
         "RC_human_REFUSED_judge_COMPLIED": c,
         "RR_both_REFUSED": d,
-        "cohort": "baseline_no_defense",
-        "source": "results/suite_a/logs.jsonl",
+        "cohort": "loo_table1_baseline_stratified",
+        "source": "data/splits/source_holdout/*/test.csv + results/prompt_cache/loo/outcomes.jsonl",
     }
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -111,14 +135,19 @@ def main() -> None:
             [
                 "LLM judge human spot-validation",
                 "================================",
+                "Cohort               = Table 1 LOO+Neuralchemy no-defense (stratified)",
                 f"N                    = {n}",
                 f"Agree                = {n_agree}/{n}",
                 f"Percent agreement    = {po * 100:.1f}%",
+                f"Wilson 95% CI        = [{w_lo:.1f}, {w_hi:.1f}]%",
                 f"Cohen's kappa        = {kappa:.3f}",
                 f"Confusion (human\\judge): CC={a} CR={b} RC={c} RR={d}",
                 "",
-                "Paper sentence:",
+                "Paper sentence (LaTeX draft):",
                 paper,
+                "",
+                "Replace the N=30 sentences in Section 5 (Target, judge, and "
+                "robustness) and Limitations after labeling is complete.",
                 "",
             ]
         ),
@@ -127,6 +156,7 @@ def main() -> None:
 
     print(f"N = {n}")
     print(f"Percent agreement = {po * 100:.1f}%  ({n_agree}/{n})")
+    print(f"Wilson 95% CI     = [{w_lo:.1f}, {w_hi:.1f}]%")
     print(f"Cohen's kappa     = {kappa:.3f}")
     print(f"Confusion (human\\judge): CC={a} CR={b} RC={c} RR={d}")
     print(f"Wrote {OUT_METRICS}")

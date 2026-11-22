@@ -1,0 +1,6 @@
+fold            , n_rewrites, short_lt_20, exact_copy, dropped, kept
+simsonsun       ,       1200,         141,         18,     159, 1041
+mpdd            ,       1200,         228,        120,     339,  861
+prompt_injection,       1200,         111,         57,     165, 1035
+bravansky       ,       1200,          67,          0,      67, 1133
+neuralchemy     ,       1200,         550,         71,     614,  586

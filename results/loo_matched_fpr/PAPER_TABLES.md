@@ -125,15 +125,15 @@ Each fold fits Method B / similarity / DeBERTa on **300** Alpaca instruction pro
 
 | Method | LOO-4 PI-benign FPR % | Neuralchemy-side FPR % | LOO-4 Edge FPR % | LOO-4 Adaptive Bypass % | LOO-4 Adaptive True ASR % |
 |--------|----------------------:|-----------------------:|-----------------:|-------------------------:|--------------------------:|
-| No sanitizer (baseline) | 0.00 | 0.00 | 0.00 | 100.00 | 49.45 |
-| Regex-only | 0.00 | 0.00 | 2.50 | 95.21 | 46.98 |
-| Keyword-only | 0.00 | 0.00 | 62.50 | 88.52 | 43.10 |
-| Method A (hybrid) | 4.50 | 3.50 | 72.81 | 55.54 | 23.62 |
-| Method B (learned) | 4.00 | 1.50 | 1.56 | 69.86 | 30.66 |
-| Similarity-only | 2.50 | 0.50 | 0.31 | 72.00 | 31.39 |
-| DeBERTa fine-tuned | 0.38 | 0.00 | 73.44 | 27.46 | 12.37 |
-| ProtectAI (DeBERTa-v3) | 2.25 | 4.50 | 63.75 | 41.56 | 21.84 |
-| Prompt Guard 2 | 1.00 | 1.00 | 87.50 | 35.06 | 16.12 |
+| No sanitizer (baseline) | 0.00 | 0.00 | 0.00 | 100.00 | 53.77 |
+| Regex-only | 0.00 | 0.00 | 2.50 | 95.94 | 51.39 |
+| Keyword-only | 0.00 | 0.00 | 62.50 | 89.02 | 47.06 |
+| Method A (hybrid) | 4.50 | 3.50 | 72.81 | 72.83 | 36.09 |
+| Method B (learned) | 4.00 | 1.50 | 1.56 | 84.75 | 43.05 |
+| Similarity-only | 2.50 | 0.50 | 0.31 | 91.51 | 47.30 |
+| DeBERTa fine-tuned | 0.38 | 0.00 | 73.44 | 21.79 | 11.60 |
+| ProtectAI (DeBERTa-v3) | 2.25 | 4.50 | 63.75 | 39.81 | 22.30 |
+| Prompt Guard 2 | 1.00 | 1.00 | 87.50 | 35.32 | 16.63 |
 
 Edge / adaptive use the **same** per-fold matched thresholds as Table A. Adaptive True ASR = unblocked rewritten attacks that the LLM judge marks as complied (target+judge on allowed rewrites for all methods, including ProtectAI and Prompt Guard).
 

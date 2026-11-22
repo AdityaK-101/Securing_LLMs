@@ -68,11 +68,14 @@ WIDE_SIZE = (7.0, 3.35)
 
 
 def _apply_theme() -> None:
+    # AAAI rejects Type 3 fonts even inside figures; embed TrueType as Type 42.
     plt.rcParams.update(
         {
             "font.family": "serif",
             "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
-            "mathtext.fontset": "cm",
+            "mathtext.fontset": "stix",
+            "pdf.fonttype": 42,
+            "ps.fonttype": 42,
             "svg.fonttype": "none",
             "axes.facecolor": "white",
             "figure.facecolor": "white",
@@ -115,8 +118,9 @@ def _annotate_bars(
     fontsize: float = 8.0,
     dy: float = 1.0,
     rotation: float = 0.0,
+    fmt: str = "{:.1f}",
 ) -> None:
-    """Value labels above bars; integers, skip short bars; optional rotation avoids overlap."""
+    """Value labels above bars; skip short bars; optional rotation avoids overlap."""
     for bar in bars:
         v = float(bar.get_height())
         if not np.isfinite(v) or v < min_h:
@@ -125,7 +129,7 @@ def _annotate_bars(
         ax.text(
             bar.get_x() + bar.get_width() / 2,
             v + dy,
-            f"{v:.0f}",
+            fmt.format(v),
             ha="center",
             va="bottom",
             fontsize=fontsize,
@@ -153,6 +157,9 @@ def _legend_above(ax_or_fig, handles=None, labels=None, *, ncol: int = 2, fontsi
 
 def _save(fig, path: Path, *, dpi: int = 300) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
+    # Re-assert Type 42 embedding (AAAI rejects Type 3 fonts in figures).
+    plt.rcParams["pdf.fonttype"] = 42
+    plt.rcParams["ps.fonttype"] = 42
     kwargs = dict(bbox_inches="tight", pad_inches=0.04, facecolor="white")
     fig.savefig(path, format="pdf", **kwargs)
     fig.savefig(path.with_suffix(".png"), dpi=dpi, **kwargs)
@@ -1006,6 +1013,9 @@ def plot_loo_true_asr_vs_fpr(
         "context_aware": dict(color=BLUE, ls="-", lw=2.4, z=4, alpha=1.0),
         "context_aware_learned": dict(color=RED, ls="-", lw=2.4, z=4, alpha=1.0),
         "deberta_finetuned": dict(color="#2F5D50", ls="-", lw=2.2, z=3, alpha=1.0),
+        # Portables: matched OP markers only (no continuous FPR sweep in this suite).
+        "protectai": dict(color="#7A5C8A", marker="D"),
+        "prompt_guard": dict(color="#3D5A80", marker="P"),
     }
     labels = {
         "baseline": "None",
@@ -1015,6 +1025,8 @@ def plot_loo_true_asr_vs_fpr(
         "context_aware": "Method A",
         "context_aware_learned": "Method B",
         "deberta_finetuned": "DeBERTa",
+        "protectai": "ProtectAI",
+        "prompt_guard": "PG2",
     }
     sweep_order = [
         "similarity_only",
@@ -1024,6 +1036,8 @@ def plot_loo_true_asr_vs_fpr(
     ]
     # No FPR sweep in this suite (always FPR=0, or 0↔100 only).
     point_methods = ("baseline", "regex", "keyword")
+    # Matched Table-1 points without curve sweeps.
+    portable_point_methods = ("protectai", "prompt_guard")
 
     fpr_grid = np.linspace(0.0, 0.25, 101)
     macro = metrics[metrics["fold"].astype(str) == "four_source_macro_avg"].copy()
@@ -1106,6 +1120,25 @@ def plot_loo_true_asr_vs_fpr(
         if star_h is None:
             star_h = h
 
+    for method in portable_point_methods:
+        if method not in macro_map:
+            continue
+        r = macro_map[method]
+        st = style[method]
+        h = ax.scatter(
+            float(r["FPR_%"]),
+            float(r["True_ASR_%"]),
+            s=44,
+            marker=st["marker"],
+            color=st["color"],
+            edgecolors="white",
+            linewidths=0.7,
+            zorder=8,
+            label=labels[method],
+        )
+        point_handles.append(h)
+        point_labels.append(labels[method])
+
     ax.set_xlabel("False positive rate (%)", fontsize=11)
     ax.set_ylabel("True ASR (%)", fontsize=11)
     ax.set_xlim(-0.4, 25)
@@ -1137,6 +1170,8 @@ def plot_loo_true_asr_vs_fpr(
         "Method A",
         "Method B",
         "DeBERTa",
+        "ProtectAI",
+        "PG2",
         "Matched point",
     ]
     order_map = {lab: i for i, lab in enumerate(preferred)}

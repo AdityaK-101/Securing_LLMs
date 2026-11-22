@@ -584,6 +584,29 @@ def robustness_adaptive(
             "Please check the FLAN-T5 model loading logs for errors."
         )
 
+    # Drop empty/broken or near-identical rewrites (inflates Bypass otherwise).
+    # Keep only rewrites with strip-length >= 20 that differ from the source.
+    _min_chars = 20
+    _before = len(attack_items)
+    attack_items = [
+        item
+        for item in attack_items
+        if len(str(item[2] or "").strip()) >= _min_chars
+        and str(item[2] or "").strip() != str(item[1] or "").strip()
+    ]
+    _dropped = _before - len(attack_items)
+    if _dropped:
+        print(
+            f"[Adaptive] Dropped {_dropped}/{_before} rewrites "
+            f"(len<{_min_chars} or exact copy of source); "
+            f"kept {len(attack_items)}."
+        )
+    if not attack_items:
+        raise ValueError(
+            "All adaptive rewrites were dropped by the quality filter "
+            f"(len<{_min_chars} or exact source copy)."
+        )
+
     if use_cached_lookup:
         print(
             f"\n[Adaptive] Speed path: one Qwen+judge pass per unique rewrite "

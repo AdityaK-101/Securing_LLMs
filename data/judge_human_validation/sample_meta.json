@@ -1,32 +1,47 @@
 {
   "seed": 42,
-  "n_total": 60,
-  "mixed_suite_version_note": "Built from current results/suite_a/logs.jsonl. Paper-cited scores remain legacy_v2.0_n30 (N=30) until this sheet is labeled.",
+  "n_total": 100,
+  "per_fold": 20,
   "design": {
-    "baseline_all": 60,
-    "other_conditions": 0,
-    "reason_no_other_conditions": "In suite_a/suite_b logs, every non-blocked other-condition judged injection is pass-through (original==sanitized) with llm_output identical to baseline; extras would duplicate judge cases.",
-    "other_condition_distinct_judge_cases_found": 0
+    "protocol": "Stratified random sample of no-defense (baseline) (prompt, response) pairs from Table 1 LOO+Neuralchemy test sets",
+    "folds": [
+      "simsonsun",
+      "mpdd",
+      "prompt_injection",
+      "bravansky",
+      "neuralchemy"
+    ],
+    "eligible_pool_per_fold": {
+      "simsonsun": 200,
+      "mpdd": 190,
+      "prompt_injection": 200,
+      "bravansky": 200,
+      "neuralchemy": 200
+    },
+    "note_mpdd_cache_missing": "MPDD Table 1 reports 10 true_asr_cache_missing; those prompts lack COMPLIED/REFUSED in the outcome cache and are not sampled."
   },
   "sources": {
-    "baseline": "results/suite_a/logs.jsonl (identical to suite_b baseline)"
+    "test_splits": "data/splits/source_holdout/<fold>/test.csv",
+    "outcomes": "results/prompt_cache/loo/outcomes.jsonl",
+    "headline_metrics": "results/loo_matched_fpr/metrics.csv"
   },
-  "cohort_counts": {
-    "baseline": 60
-  },
-  "method_counts": {
-    "baseline": 60
+  "fold_counts": {
+    "simsonsun": 20,
+    "bravansky": 20,
+    "neuralchemy": 20,
+    "mpdd": 20,
+    "prompt_injection": 20
   },
   "judge_label_counts_hidden": {
-    "REFUSED": 25,
-    "COMPLIED": 35
+    "COMPLIED": 67,
+    "REFUSED": 33
   },
-  "unique_prompt_ids": 60,
-  "unique_prompt_response_pairs": 60,
+  "unique_prompt_ids": 100,
   "files": {
     "blind_sheet": "data/judge_human_validation/blind_labeling_sheet.csv",
     "judge_key": "results/judge_human_validation/judge_key.csv",
     "rubric": "data/judge_human_validation/RUBRIC.md",
     "legacy_paper_cited": "data/judge_human_validation/legacy_v2.0_n30/"
-  }
+  },
+  "paper_status": "Legacy N=30 (83.3%, \u03ba=0.67) remains in the paper until this N=100 sheet is labeled and scored."
 }

@@ -1,8 +1,8 @@
-fold,method,Bypass_Rate_%,True_ASR_%,FPR_%,Bypass_Rate,True_ASR,FPR,Detection_Rate,total,injections,benign,successful_attack_count,TP,FN,FP,TN,TP (blocked_inj),FN (missed_inj),FP (blocked_ben),TN (allowed_ben)
-mpdd,baseline,100.0,42.58,0.0,1.0,0.4258,0.0,0.0,1200,1200,0,511,0,1200,0,0,0,1200,0,0
-mpdd,regex,92.08,39.08,0.0,0.9208,0.3908,0.0,0.0792,1200,1200,0,469,95,1105,0,0,95,1105,0,0
-mpdd,keyword,84.83,35.42,0.0,0.8483,0.3542,0.0,0.1517,1200,1200,0,425,182,1018,0,0,182,1018,0,0
-mpdd,context_aware,69.58,29.67,0.0,0.6958,0.2967,0.0,0.3042,1200,1200,0,356,365,835,0,0,365,835,0,0
-mpdd,context_aware_learned,86.67,35.0,0.0,0.8667,0.35,0.0,0.1333,1200,1200,0,420,160,1040,0,0,160,1040,0,0
-mpdd,similarity_only,86.08,34.5,0.0,0.8608,0.345,0.0,0.1392,1200,1200,0,414,167,1033,0,0,167,1033,0,0
-mpdd,deberta_finetuned,47.17,17.08,0.0,0.4717,0.1708,0.0,0.5283,1200,1200,0,205,634,566,0,0,634,566,0,0
+fold,method,Bypass_Rate_%,True_ASR_%,FPR_%,Bypass_Rate,True_ASR,FPR,Detection_Rate,total,injections,benign,successful_attack_count,TP,FN,FP,TN,TP (blocked_inj),FN (missed_inj),FP (blocked_ben),TN (allowed_ben),note
+mpdd,baseline,100.0,47.62,0.0,1.0,0.4762,0.0,0.0,861,861,0,410,0,861,0,0,0,861,0,0,adaptive filtered: drop len<20 or exact source copy
+mpdd,regex,94.19,44.6,0.0,0.9419,0.446,0.0,0.0581,861,861,0,384,50,811,0,0,50,811,0,0,adaptive filtered: drop len<20 or exact source copy
+mpdd,keyword,85.83,40.19,0.0,0.8583,0.4019,0.0,0.1417,861,861,0,346,122,739,0,0,122,739,0,0,adaptive filtered: drop len<20 or exact source copy
+mpdd,context_aware,73.87,34.49,0.0,0.7387,0.3449,0.0,0.2613,861,861,0,297,225,636,0,0,225,636,0,0,adaptive filtered: drop len<20 or exact source copy
+mpdd,context_aware_learned,93.38,44.48,0.0,0.9338,0.4448,0.0,0.0662,861,861,0,383,57,804,0,0,57,804,0,0,adaptive filtered: drop len<20 or exact source copy
+mpdd,similarity_only,95.7,44.6,0.0,0.957,0.446,0.0,0.043,861,861,0,384,37,824,0,0,37,824,0,0,adaptive filtered: drop len<20 or exact source copy
+mpdd,deberta_finetuned,46.34,21.25,0.0,0.4634,0.2125,0.0,0.5366,861,861,0,183,462,399,0,0,462,399,0,0,adaptive filtered: drop len<20 or exact source copy

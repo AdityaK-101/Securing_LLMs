@@ -230,8 +230,15 @@ def _merge_metrics(existing: pd.DataFrame, new_rows: list[dict]) -> pd.DataFrame
     return _macro_micro_average(merged)
 
 
+_ADAPTIVE_MIN_CHARS = 20
+
+
 def _load_adaptive_prompts(fold: str) -> list[str]:
-    """Flatten adaptive attack variants for one fold."""
+    """Flatten quality-filtered adaptive variants for one fold.
+
+    Same rule as ``robustness.py`` / mentor disclosure: drop strip-length
+    ``< 20`` and exact copies of the source injection (not nonempty-only).
+    """
     paths = [
         OUT / fold / "adaptive_attacks.jsonl",
         RESULTS_DIR / "loo" / fold / "adaptive_attacks.jsonl",
@@ -246,10 +253,12 @@ def _load_adaptive_prompts(fold: str) -> list[str]:
             if not line:
                 continue
             row = json.loads(line)
+            source = str(row.get("source_prompt") or "").strip()
             for var in row.get("variants") or []:
                 text = str(var.get("prompt") or "").strip()
-                if text:
-                    prompts.append(text)
+                if len(text) < _ADAPTIVE_MIN_CHARS or text == source:
+                    continue
+                prompts.append(text)
     return prompts
 
 
