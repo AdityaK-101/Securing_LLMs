@@ -66,7 +66,7 @@ All defenses use **Block**: `blocked=True` → `llm_output = "[BLOCKED]"` (no ta
 Securing_LLMs/
 ├── data/                  ← raw / cleaned / mixed splits / source_holdout / Neuralchemy
 ├── data_cards/            ← dataset license + card
-├── notebooks/             ← preprocess, EDA, build_source_holdout.ipynb
+├── notebooks/             ← EDA + build_source_holdout.ipynb (v2.0 preprocess in archive/)
 ├── scripts/               ← see scripts/README.md  ★ run_paper.py = one-shot paper
 ├── src/                   ← sanitizers, evaluation, run_experiments.py CLI
 ├── results/
