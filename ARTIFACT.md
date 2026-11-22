@@ -24,7 +24,7 @@ This repository is the code / data / results companion for the paper
 | DeBERTa fine-tuned | same ProtectAI checkpoint + our train | Fair baseline (`deberta_finetuned`) |
 | Prompt Guard 2 | `meta-llama/Llama-Prompt-Guard-2-86M` | Gated HF access may require `HF_TOKEN` |
 
-## Environment (paper §Experimental setup)
+## Environment (paper Section Experimental setup)
 
 | Item | Value |
 |------|-------|
@@ -38,7 +38,7 @@ This repository is the code / data / results companion for the paper
 
 Auxiliaries and portable gates run on **CPU**; target and judge on **GPU** when available.
 
-## Runtime overhead (paper §Runtime overhead)
+## Runtime overhead (paper Section Runtime overhead)
 
 Mean ms/prompt on CPU, 50 prompts (`results/suite_b/runtime_overhead.csv`):
 
@@ -88,6 +88,6 @@ python scripts/run_paper.py              # core paper holdout
 python scripts/run_paper.py --mode full  # + suites / ablations / judge HV
 ```
 
-Also: `README.md` §9–§10, `scripts/README.md`, `results/PAPER.md`.  
+Also: `README.md` Section 9–Section 10, `scripts/README.md`, `results/PAPER.md`.  
 Gate-only smoke (not paper): `scripts/reproduce.ps1`.  
 AAAI draft (local, gitignored): `report/aaai/` - see `report/README.md`.

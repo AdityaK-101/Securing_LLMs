@@ -1,7 +1,7 @@
 """
 Drop broken adaptive rewrites and recompute LOO matched-FPR adaptive metrics.
 
-Filter (mentor / NeurIPS-style disclosure):
+Quality filter (paper disclosure):
   - rewrite strip length < 20 characters, OR
   - rewrite is an exact copy of the source injection
 

@@ -9,7 +9,7 @@
 python -m src.run_experiments --loo
 ```
 
-Protocol tables: root `README.md` **§6.0b**. Splits: `data/splits/source_holdout/`.
+Protocol tables: root `README.md` **Section 6.0b**. Splits: `data/splits/source_holdout/`.
 
 ## Folds
 

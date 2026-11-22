@@ -236,7 +236,7 @@ _ADAPTIVE_MIN_CHARS = 20
 def _load_adaptive_prompts(fold: str) -> list[str]:
     """Flatten quality-filtered adaptive variants for one fold.
 
-    Same rule as ``robustness.py`` / mentor disclosure: drop strip-length
+    Same rule as ``robustness.py`` / paper adaptive filter: drop strip-length
     ``< 20`` and exact copies of the source injection (not nonempty-only).
     """
     paths = [

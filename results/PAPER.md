@@ -59,4 +59,4 @@ python scripts/build_loo_matched_fpr_paper_tables.py
 3. ProtectAI / Prompt Guard rows in `loo_matched_fpr/`  
 4. `loo_matched_fpr/PAPER_TABLES.md` (+ `paper_headline.csv`, `metrics_with_wilson.csv`)
 
-See also: root [`README.md`](../README.md) §6 / §9 / §10, [`ARTIFACT.md`](../ARTIFACT.md).
+See also: root [`README.md`](../README.md) Section 6 / Section 9 / Section 10, [`ARTIFACT.md`](../ARTIFACT.md).

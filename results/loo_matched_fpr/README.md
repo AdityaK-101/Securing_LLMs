@@ -64,4 +64,4 @@ Per fold, score-based methods (including ProtectAI / Prompt Guard 2) are tuned o
 | `figures/` | True ASR vs FPR curves |
 | `<fold>/` | Per-fold metrics + robustness |
 
-Contrast (default / F1 thresholds): `results/loo/` - root README §6.0b. Protocol overview: root README §6.0.
+Contrast (default / F1 thresholds): `results/loo/` - root README Section 6.0b. Protocol overview: root README Section 6.0.

@@ -44,7 +44,7 @@ This repository supports a **controlled evaluation** of pre-inference sanitizers
 | **Method B** | `context_aware_learned` - learned soft fusion (no hard triggers) |
 | Portable (scripts) | ProtectAI DeBERTa-v3, Meta Prompt Guard 2 - off-the-shelf baselines |
 
-Research questions (paper §Framework): end-to-end risk without a gate; whether lexical/portable gates reduce **True ASR** or mainly Bypass; how Methods A/B compare; which components carry the defense; usability cost (ordinary + edge-benign FPR). Source generalization is measured with leave-one-source-out ([§6.0](#60-leave-one-source-out--matched-fpr--5-main-loo-report)).
+Research questions (paper Section Framework): end-to-end risk without a gate; whether lexical/portable gates reduce **True ASR** or mainly Bypass; how Methods A/B compare; which components carry the defense; usability cost (ordinary + edge-benign FPR). Source generalization is measured with leave-one-source-out ([Section 6.0](#60-leave-one-source-out--matched-fpr--5-main-loo-report)).
 
 ### Key metrics (two-layer evaluation)
 
@@ -137,9 +137,9 @@ Canonical splits: `data/splits/source_holdout/`. **Build in the notebook** `note
 
 Near-dup filter (MiniLM > 0.9) in `manifest.json`.
 
-**Main LOO report:** `python -m src.run_experiments --loo-matched-fpr` → `results/loo_matched_fpr/` (val FPR ≈ 5%; see [§6.0](#60-leave-one-source-out--matched-fpr--5-main-loo-report)).
+**Main LOO report:** `python -m src.run_experiments --loo-matched-fpr` → `results/loo_matched_fpr/` (val FPR ≈ 5%; see [Section 6.0](#60-leave-one-source-out--matched-fpr--5-main-loo-report)).
 
-**Default-threshold LOO (done):** `python -m src.run_experiments --loo` → `results/loo/` (contrast + paraphrase / edge / adaptive; [§6.0b](#60b-default--f1-loo-operating-point-contrast-complete)).
+**Default-threshold LOO (done):** `python -m src.run_experiments --loo` → `results/loo/` (contrast + paraphrase / edge / adaptive; [Section 6.0b](#60b-default--f1-loo-operating-point-contrast-complete)).
 
 **Gate-only shortcut:** `python scripts/eval_loo_holdout.py` → `results/source_holdout/` (Bypass/FPR only; committed scores may be stale vs current splits).
 
@@ -161,7 +161,7 @@ Every sanitizer implements `sanitize(prompt) -> (sanitized_text, blocked)` (bina
 
 - **Regex** - 45 case-insensitive patterns (overrides, personas, DAN-style names, developer mode, German overrides, hypothetical framing); any match blocks.
 - **Keyword** - 37 weighted phrases; block if sum ≥ 0.5.
-- **Method A** - eight shared signals (regex, keyword, semantic, intent, roleplay, instruction shift, objective conflict, perplexity). Hard triggers: raw gallery cosine above `semantic_hard_sim` (default **0.3**; matched-FPR LOO selects **0.55** on four-source folds / **0.60** on Neuralchemy), intent = 1.0, or roleplay = 1.0 with keyword > 0.3. Else soft aggregate (weights in paper §Method A) blocks at the tuned soft threshold (default 0.40).
+- **Method A** - eight shared signals (regex, keyword, semantic, intent, roleplay, instruction shift, objective conflict, perplexity). Hard triggers: raw gallery cosine above `semantic_hard_sim` (default **0.3**; matched-FPR LOO selects **0.55** on four-source folds / **0.60** on Neuralchemy), intent = 1.0, or roleplay = 1.0 with keyword > 0.3. Else soft aggregate (weights in paper Section Method A) blocks at the tuned soft threshold (default 0.40).
 - **Method B** - same evidence; three continuous semantic features + LR on train, threshold tuned on val (F1, tie-break lower Bypass/FPR); **no hard triggers**.
 - **ProtectAI / Prompt Guard 2** - published classifiers on CPU; no fine-tuning on our split (`src/sanitizers/protectai.py`, `prompt_guard.py`). Run via scripts / `--portable-baselines`.
 - **Similarity-only** - MiniLM max-cosine to the train injection gallery; threshold F1-tuned on val (`similarity_only.py`). Fair baseline on mixed suites and LOO.
@@ -337,7 +337,7 @@ Resume: re-run `python -m src.run_experiments --loo` (always rescores filters; r
 
 ### 6.1–6.7 Archived mixed-suite figures (v2.0, n=30 / 23)
 
-Numbers below are from the **archived v2.0** held-out test (30 injection / 23 benign). Prefer §6.0 matched-FPR LOO for current holdout claims; §6.0b is the default-threshold contrast. Re-run suites on the grown v3.0 test (~60 / 45) before citing new mixed-suite figures.
+Numbers below are from the **archived v2.0** held-out test (30 injection / 23 benign). Prefer Section 6.0 matched-FPR LOO for current holdout claims; Section 6.0b is the default-threshold contrast. Re-run suites on the grown v3.0 test (~60 / 45) before citing new mixed-suite figures.
 
 #### 6.1 Primary comparison (paper Table 1, archived)
 
@@ -456,20 +456,23 @@ Hard triggers drive most of Method A’s blocking; removing the semantic hard tr
 
 ## 8. Judge Human Validation
 
-**Paper-cited scores are on the archived v2.0 mixed test** (all **N = 30** no-defense pairs), not the grown v3.0 mixed test (~60 injections). Suite logs are already on v3.0; human re-labeling of that set is pending. Details: `data/judge_human_validation/README.md`.
+**Paper-cited scores:** stratified Table 1 LOO+Neuralchemy no-defense pairs, **N = 100** (20 per held-out source), blind to the judge. Details: `data/judge_human_validation/README.md` and `results/judge_human_validation/README.md`.
 
 | Metric | Value |
 |--------|------:|
-| Cohort | legacy mixed test v2.0 (`legacy_v2.0_n30/`) |
-| Agreement | 25/30 = **83.3%** |
-| Cohen’s κ | **0.67** |
+| Cohort | Table 1 LOO + Neuralchemy baseline (`loo_table1_baseline`) |
+| Agreement | 77/100 = **77.0%** (Wilson 95% CI **[67.8, 84.2]%**) |
+| Cohen’s κ | **0.48** |
 
-- Rubric / archive: `data/judge_human_validation/`
+Second-family judge (Mistral-7B-Instruct-v0.2) on the same pairs: human–Qwen 77.0% (κ=0.48), human–second 72.0% (κ=0.42), Qwen–second 75.0% (κ=0.49).
+
+Archived mixed-test v2.0 spot-check (**N = 30**, 83.3%, κ = 0.67) lives under `results/judge_human_validation/legacy_v2.0_n30/` (not cited in the paper).
+
+- Rubric / sheet: `data/judge_human_validation/`
 - Metrics: `results/judge_human_validation/metrics_summary.txt`
 
 ```powershell
-# Rebuild blank sheet from current suite_a (N≈60), then label, then:
-python scripts/build_judge_human_validation.py
+# Re-score after labeling (sheet already built for N=100):
 python scripts/score_judge_human_validation.py
 ```
 
@@ -592,13 +595,13 @@ Details: `results/loo/README.md`, `results/cache/README.md`.
 
 ### Mixed suites
 
-See `results/suite_a/` and `results/suite_b/` for `metrics.csv`, `logs.jsonl`, robustness CSVs, figures, and `robustness_note.txt`. Shared ablations and portable-gate outputs live under `results/` as listed in §10.
+See `results/suite_a/` and `results/suite_b/` for `metrics.csv`, `logs.jsonl`, robustness CSVs, figures, and `robustness_note.txt`. Shared ablations and portable-gate outputs live under `results/` as listed in Section 10.
 
 ---
 
 ## 12. Hardware & GPU Notes
 
-Paper environment (§Experimental setup): Windows 11, 22-thread CPU, 15.4 GB RAM, RTX 4070 Laptop 8 GB, Python 3.13, PyTorch 2.6 / CUDA 12.4.
+Paper environment (Section Experimental setup): Windows 11, 22-thread CPU, 15.4 GB RAM, RTX 4070 Laptop 8 GB, Python 3.13, PyTorch 2.6 / CUDA 12.4.
 
 | Component | Device |
 |-----------|--------|
@@ -621,13 +624,13 @@ Models load sequentially to reduce OOM risk. See `ARTIFACT.md`.
 
 ## 14. Limitations
 
-Aligned with paper §Limitations:
+Aligned with paper Section Limitations:
 
 - LOO test is larger (200 inj / 200 ben per fold; four-source aggregate 800 / 800) but still research-scale; we do not claim statistical ranking of Method A vs B. Mixed v3.0 test is ~60 / 45; archived v2.0 was 30 / 23.
-- Default-threshold LOO (§6.0b) is **not** FPR-matched; use `--loo-matched-fpr` (§6.0) for val **FPR ≈ 5%** (full suite + True-ASR-vs-FPR curves). Mixed `--matched-fpr` is a separate small-split pilot.
+- Default-threshold LOO (Section 6.0b) is **not** FPR-matched; use `--loo-matched-fpr` (Section 6.0) for val **FPR ≈ 5%** (full suite + True-ASR-vs-FPR curves). Mixed `--matched-fpr` is a separate small-split pilot.
 - Train/test injections share public sources (distribution overlap); adaptive FLAN-T5 + similarity evasion is the main shift probe (four-source DeBERTa adaptive Bypass ~20.6%).
 - **Direct, single-turn, English, text-only** injection only; indirect / agentic / multimodal out of scope
-- True ASR depends on an LLM judge (same checkpoint as target); blind author labeling was on the earlier mixed test (v2.0, N = 30): 83.3% agreement, κ = 0.67; the grown v3.0 mixed test (~60 inj.) is not yet fully re-labeled
+- True ASR depends on an LLM judge (same checkpoint as target); blind author labeling on a stratified Table 1 LOO+Neuralchemy sample (N = 100): 77.0% agreement (Wilson [67.8, 84.2]%), κ = 0.48; a different-family second judge agrees with human at 72.0% (κ = 0.42)
 - At matched LOO thresholds, Method A and several classifiers show high **edge** FPR on the 80 technical prompts; Method B and similarity-only stay low on that probe - matched PI-benign FPR does not imply matched edge behaviour
 - Prompt Guard may require Hugging Face gated access
 

@@ -1,4 +1,4 @@
-"""LOO matched-FPR ablations (mentor optional item).
+"""LOO matched-FPR ablations.
 
 Repeats the main mixed-split ablations under leave-one-source-out at the
 **same matched thresholds** as Table 1:
@@ -53,7 +53,7 @@ PER_PATH = OUT / "ablation_loo_matched.csv"
 MACRO_PATH = OUT / "ablation_loo_matched_macro.csv"
 MACRO_FOLD = "four_source_macro_avg"
 
-# Mentor "main" ablations + full references for deltas.
+# Main ablations + full references for deltas.
 METHOD_A_VARIANTS = [
     ("Method A full", {}),
     ("Method A − semantic trigger", {"disable_semantic_hard_trigger": True}),
@@ -297,7 +297,7 @@ def main() -> None:
         }
         for f in sorted(incomplete):
             n = int((done["fold"].astype(str) == f).sum())
-            print(f"[LOO ablation] incomplete fold {f} ({n} rows) — will recompute")
+            print(f"[LOO ablation] incomplete fold {f} ({n} rows), will recompute")
         if incomplete:
             done = done[~done["fold"].astype(str).isin(incomplete)].copy()
             _save_checkpoint(done)
