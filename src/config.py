@@ -52,7 +52,25 @@ PROMPT_CACHE_DIR = RESULTS_DIR / "prompt_cache"
 
 # Model identifiers used by the experiment pipeline (keep display + load names aligned)
 TARGET_MODEL_NAME = "Qwen/Qwen2.5-3B-Instruct"
+# Second Table-1 target (True ASR only; gates / Bypass / FPR unchanged).
+SECOND_TARGET_MODEL_NAME = "meta-llama/Llama-3.2-3B-Instruct"
 JUDGE_MODEL_NAME = "Qwen/Qwen2.5-3B-Instruct"
 ATTACK_GENERATOR_MODEL_NAME = "google/flan-t5-base"
 # Default batch size for greedy target-LLM generation into OutcomeCache
 LLM_CACHE_BATCH_SIZE = int(os.environ.get("LLM_CACHE_BATCH_SIZE", "4"))
+
+
+def outcome_cache_filename_for_target(model_name: str) -> str:
+    """JSONL basename under ``prompt_cache/loo/`` for a target model.
+
+    Primary Qwen cache keeps the legacy name ``outcomes.jsonl``.
+    """
+    if model_name == TARGET_MODEL_NAME:
+        return "outcomes.jsonl"
+    slug = (
+        str(model_name)
+        .replace("/", "_")
+        .replace(" ", "_")
+        .replace(".", "_")
+    )
+    return f"outcomes__{slug}.jsonl"

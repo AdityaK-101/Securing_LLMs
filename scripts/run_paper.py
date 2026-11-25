@@ -68,6 +68,7 @@ def run_paper(
     rerun: bool = False,
     llm_batch_size: int | None = None,
     no_llm: bool = False,
+    second_target: bool = False,
 ) -> None:
     """Execute the paper pipeline. Raises on first failing step."""
     mode = mode.lower().strip()
@@ -181,6 +182,18 @@ def run_paper(
             except subprocess.CalledProcessError as exc:
                 print(f"[WARN] Paper figure generation failed (non-fatal): {exc}")
 
+    # Optional: second target (Llama-3.2-3B) True ASR at saved thresholds.
+    # Off by default (needs HF access to the Llama weights).
+    if second_target:
+        st_cmd = _py("scripts/eval_loo_second_target.py")
+        if llm_batch_size is not None:
+            st_cmd.extend(["--llm-batch-size", str(llm_batch_size)])
+        if skip_deberta:
+            st_cmd.append("--skip-deberta")
+        if skip_portables:
+            st_cmd.append("--skip-portables")
+        _run(st_cmd, step="Second-target True ASR (Llama-3.2-3B + Qwen judge)")
+
     # Consistency gate: fold CSVs must match aggregates; paraphrase orig ≈ Table A.
     _run(
         _py("scripts/audit_pipeline_consistency.py"),
@@ -243,6 +256,14 @@ def main() -> None:
         action="store_true",
         help="Sanitizer-only (True ASR will be 0 / missing). Fast smoke.",
     )
+    parser.add_argument(
+        "--second-target",
+        action="store_true",
+        help=(
+            "Also run Llama-3.2-3B-Instruct True ASR at saved matched thresholds "
+            "(scripts/eval_loo_second_target.py). Off by default."
+        ),
+    )
     args = parser.parse_args()
     run_paper(
         mode=args.mode,
@@ -253,6 +274,7 @@ def main() -> None:
         rerun=args.rerun,
         llm_batch_size=args.llm_batch_size,
         no_llm=args.no_llm,
+        second_target=args.second_target,
     )
 
 

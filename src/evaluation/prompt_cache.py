@@ -116,8 +116,12 @@ class OutcomeCache:
         runner,
         *,
         batch_size: int = 4,
+        meta: dict | None = None,
     ) -> None:
-        """Generate greedy replies for missing injection prompts; save as you go."""
+        """Generate greedy replies for missing injection prompts; save as you go.
+
+        ``meta`` (e.g. ``{\"target_model\": \"...\"}``) is stored on each LLM row.
+        """
         missing = self.missing_llm(prompts)
         if not missing:
             print("[OutcomeCache] LLM outcomes complete (nothing to generate).")
@@ -131,12 +135,14 @@ class OutcomeCache:
                 batch = missing[start : start + batch_size]
                 outputs = runner.run_batch(batch, batch_size=len(batch))
                 for prompt, llm_output in zip(batch, outputs):
-                    self._store_llm(prompt, llm_output)
+                    self._store_llm(prompt, llm_output, meta=meta)
         else:
             for prompt in tqdm(missing, desc="LLM cache"):
-                self._store_llm(prompt, runner.run(prompt))
+                self._store_llm(prompt, runner.run(prompt), meta=meta)
 
-    def _store_llm(self, prompt: str, llm_output: str) -> None:
+    def _store_llm(
+        self, prompt: str, llm_output: str, *, meta: dict | None = None
+    ) -> None:
         key = prompt_key(prompt)
         row = dict(self._rows.get(key) or {})
         row.update({
@@ -144,16 +150,21 @@ class OutcomeCache:
             "prompt": prompt,
             "llm_output": llm_output,
         })
+        if meta:
+            row.update(meta)
         # Keep prior judge fields if regenerating LLM only
         self._rows[key] = row
-        self._append({
+        payload = {
             "prompt_key": key,
             "prompt": prompt,
             "llm_output": llm_output,
             "judge_label": row.get("judge_label"),
             "judge_reasoning": row.get("judge_reasoning", ""),
             "stage": "llm",
-        })
+        }
+        if meta:
+            payload.update(meta)
+        self._append(payload)
 
     def ensure_judge(self, prompts: Iterable[str], judge) -> None:
         """Judge cached LLM outputs for missing labels; save as you go."""

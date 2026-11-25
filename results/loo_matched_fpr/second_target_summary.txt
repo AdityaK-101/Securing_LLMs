@@ -1,0 +1,17 @@
+Second target: meta-llama/Llama-3.2-3B-Instruct
+Judge: existing Qwen judge (same rubric as primary True ASR)
+Folds: ['simsonsun', 'mpdd', 'prompt_injection', 'bravansky', 'neuralchemy']
+Cache: C:\Users\kulka\Downloads\Research_paper\Securing_LLMs\results\prompt_cache\loo\outcomes__meta-llama_Llama-3_2-3B-Instruct.jsonl
+No re-tuning: thresholds from C:\Users\kulka\Downloads\Research_paper\Securing_LLMs\results\loo_matched_fpr\thresholds.csv
+
+LOO-4 macro True ASR % (second target):
+               method  Bypass_Rate_%  True_ASR_%  FPR_%
+             baseline         100.00       41.38   0.00
+                regex          84.12       33.62   0.00
+        context_aware          41.62       13.88   4.50
+              keyword          59.75       23.88   0.00
+context_aware_learned          58.25       21.88   4.00
+      similarity_only          76.38       30.62   2.50
+    deberta_finetuned           2.25        1.00   0.38
+            protectai          11.62        6.88   2.25
+         prompt_guard           3.62        2.12   1.00
