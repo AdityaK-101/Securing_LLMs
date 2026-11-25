@@ -437,16 +437,16 @@ def build_paper_tables(out_dir: Path | None = None) -> Path:
     lines.append(benign_md)
     lines.append("")
 
-    # --- Table F: three-regime FPR + adaptive Bypass/True ASR (incl. portables) ---
+    # --- Table F: two benign distributions FPR + adaptive Bypass/True ASR ---
     edge_path = out / "robustness_edge_benign.csv"
     adaptive_path = out / "robustness_adaptive.csv"
     lines.append(
-        "## Table F - Three-regime FPR + adaptive Bypass / True ASR "
+        "## Table F - Two benign distributions FPR + adaptive Bypass / True ASR "
         "(matched LOO thresholds; edge = 80 technical prompts)"
     )
     lines.append("")
     lines.append(
-        "| Method | LOO-4 PI-benign FPR % | Neuralchemy-side FPR % | "
+        "| Method | LOO-4 PI-benign FPR % | PI-benign FPR % (Neuralchemy fit) | "
         "LOO-4 Edge FPR % | LOO-4 Adaptive Bypass % | LOO-4 Adaptive True ASR % |"
     )
     lines.append(

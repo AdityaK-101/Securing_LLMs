@@ -5,15 +5,23 @@ Repeats the main mixed-split ablations under leave-one-source-out at the
 
   Method A  - semantic hard trigger removed
   Method A  soft-only (all hard triggers off)
+  Method A  - all semantic (hard semantic off + soft semantic weight 0)
   Method B  - all three semantic features zeroed
 
 Plus full Method A / B reference rows for Δ Bypass.
+
+The ``Method A − all semantic`` row is the matched-LOO attribution check:
+soft-only still carries semantic weight 0.20, so removing the hard trigger
+alone does not test whether residual defense is semantic-backed.
 
 Cheap path: gate decisions + OutcomeCache judge lookup (no new Qwen/judge).
 Four source folds only (LOO-4); reports per-fold + macro average.
 
 Resume-safe: after each fold, writes ``ablation_loo_matched.csv`` and skips
-folds that already have a complete variant set. Use ``--fresh`` to recompute.
+folds that already have a complete variant set. Adding a new variant marks
+old folds incomplete so they recompute. Use ``--fresh`` to wipe the CSV.
+
+Wired into ``scripts/run_paper.py --mode full`` with the other ablations.
 
   python scripts/run_loo_matched_ablations.py
   python scripts/run_loo_matched_ablations.py --fresh
@@ -58,6 +66,15 @@ METHOD_A_VARIANTS = [
     ("Method A full", {}),
     ("Method A − semantic trigger", {"disable_semantic_hard_trigger": True}),
     ("Method A soft-only", {"disable_hard_triggers": True}),
+    # Semantic removed everywhere: no hard semantic veto, soft weight W3 = 0.
+    # Other hard triggers (intent / role-play+keyword) stay enabled.
+    (
+        "Method A − all semantic",
+        {
+            "disable_semantic": True,
+            "disable_semantic_hard_trigger": True,
+        },
+    ),
 ]
 METHOD_B_VARIANTS = [
     ("Method B full", []),

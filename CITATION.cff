@@ -7,13 +7,16 @@ authors:
 type: software
 license: MIT
 version: "1.0.0"
-date-released: "2026-08-26"
+date-released: "2026-11-25"
 abstract: >
   Controlled evaluation of two context-aware pre-inference sanitizers (Method A:
   hybrid hard triggers; Method B: learned fusion) against lexical baselines and
   off-the-shelf portable classifiers for direct prompt injection. Two-layer
-  protocol (Bypass Rate, True ASR), dual false-positive reporting, ablations,
-  and robustness on a frozen 350-prompt corpus (53-prompt test partition).
+  protocol (Bypass Rate, True ASR) with leave-one-source-out evaluation at matched
+  validation FPR ≈ 5%, dual false-positive reporting, ablations, and robustness.
+  Mixed-split secondary corpus: about 700 prompts (test split of 60 injections and
+  45 benign). Headline results use LOO source holdouts (200 injections / 200
+  PI-benign per fold) plus a Neuralchemy external holdout.
 keywords:
   - prompt injection
   - direct prompt injection

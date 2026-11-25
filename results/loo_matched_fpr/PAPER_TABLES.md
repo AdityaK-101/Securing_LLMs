@@ -121,9 +121,9 @@ LOO-4 **macro** = equal weight per held-out source. LOO-4 **pooled** = micro (80
 
 Each fold fits Method B / similarity / DeBERTa on **300** Alpaca instruction prompts (train=200, val=100). **PI-benign is test-only** (never in train/val). Shared test benign = **200** PI-benign prompts, identical across **all** folds including Neuralchemy.
 
-## Table F - Three-regime FPR + adaptive Bypass / True ASR (matched LOO thresholds; edge = 80 technical prompts)
+## Table F - Two benign distributions FPR + adaptive Bypass / True ASR (matched LOO thresholds; edge = 80 technical prompts)
 
-| Method | LOO-4 PI-benign FPR % | Neuralchemy-side FPR % | LOO-4 Edge FPR % | LOO-4 Adaptive Bypass % | LOO-4 Adaptive True ASR % |
+| Method | LOO-4 PI-benign FPR % | PI-benign FPR % (Neuralchemy fit) | LOO-4 Edge FPR % | LOO-4 Adaptive Bypass % | LOO-4 Adaptive True ASR % |
 |--------|----------------------:|-----------------------:|-----------------:|-------------------------:|--------------------------:|
 | No sanitizer (baseline) | 0.00 | 0.00 | 0.00 | 100.00 | 53.77 |
 | Regex-only | 0.00 | 0.00 | 2.50 | 95.94 | 51.39 |

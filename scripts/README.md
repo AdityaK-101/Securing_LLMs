@@ -9,6 +9,7 @@ Grouped by job. Prefer the **paper one-shot** unless you need a single piece.
 | **`run_paper.py`** | **One-shot** core (or `--mode full`) paper pipeline + consistency gate |
 | `build_loo_matched_fpr_paper_tables.py` | Rebuild `PAPER_TABLES.md` from existing CSVs |
 | `eval_loo_matched_fpr_portables.py` | ProtectAI + Prompt Guard 2 on LOO at matched FPR |
+| `run_loo_matched_ablations.py` | Matched-FPR LOO-4 Method A/B semantic ablations (incl. A − all semantic); also via `run_paper.py --mode full` |
 | `rerun_loo_matched_fpr_paraphrase.py` | Re-score paraphrase at saved matched thresholds |
 | `rerun_loo_matched_fpr_edge.py` | Re-score edge FPR at saved matched thresholds |
 | `audit_pipeline_consistency.py` | Consistency gate (fold↔agg, paraphrase↔metrics) |

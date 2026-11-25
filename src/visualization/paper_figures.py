@@ -114,28 +114,33 @@ def _neurips_axes(ax, *, grid_y: bool = True, grid_x: bool = False) -> None:
 def _annotate_bars(
     bars,
     *,
-    min_h: float = 6.0,
+    min_h: float = 0.0,
     fontsize: float = 8.0,
     dy: float = 1.0,
     rotation: float = 0.0,
-    fmt: str = "{:.1f}",
+    fmt: str | None = None,
 ) -> None:
-    """Value labels above bars; skip short bars; optional rotation avoids overlap."""
+    """Value labels above bars. ``min_h=0`` labels every finite bar (incl. short FPR)."""
     for bar in bars:
         v = float(bar.get_height())
         if not np.isfinite(v) or v < min_h:
             continue
         ax = bar.axes
+        if fmt is None:
+            lab = f"{v:.1f}" if v < 10 else f"{v:.0f}"
+        else:
+            lab = fmt.format(v)
         ax.text(
             bar.get_x() + bar.get_width() / 2,
             v + dy,
-            fmt.format(v),
+            lab,
             ha="center",
             va="bottom",
             fontsize=fontsize,
             color=TEXT,
             rotation=rotation,
             clip_on=False,
+            zorder=5,
         )
 
 
@@ -706,7 +711,8 @@ def plot_loo_headline_bars(out: Path | None = None) -> Path:
             linewidth=0.5,
             zorder=3,
         )
-        _annotate_bars(bars, min_h=5.0, fontsize=9, dy=1.0, rotation=90)
+        # Label every bar (DeBERTa / PG2 / all FPR were skipped at min_h=5).
+        _annotate_bars(bars, min_h=0.0, fontsize=8, dy=1.2, rotation=90)
     ax.set_xticks(x)
     ax.set_xticklabels(labels, rotation=28, ha="right", fontsize=10)
     ax.set_ylabel("Rate (%)", fontsize=13)

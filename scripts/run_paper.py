@@ -9,8 +9,9 @@ Default (``core``) builds everything needed for the main holdout report:
   4. ProtectAI + Prompt Guard 2 on LOO at matched thresholds
   5. Paper tables (Wilson CIs, Neuralchemy, ID, dedup, train-benign)
 
-``full`` also runs: default-thr LOO contrast, mixed suites A/B, ablations,
-portable static baselines, judge human-validation score.
+``full`` also runs: default-thr LOO contrast, mixed suites A/B, ablations
+(including LOO matched-FPR Method A/B re-ablations), portable static
+baselines, judge human-validation score.
 
 Usage:
   python scripts/run_paper.py
@@ -153,6 +154,13 @@ def run_paper(
             if no_llm:
                 abl.append("--no-llm")
             _run(abl, step=label)
+
+        # Matched-FPR LOO-4 Method A/B semantic removals (same thresholds as
+        # Table 1), including Method A − all semantic. Gate + OutcomeCache only.
+        _run(
+            _py("scripts/run_loo_matched_ablations.py"),
+            step="LOO matched-FPR Method A/B ablations",
+        )
 
         _run(
             _py("-m", "src.run_experiments", "--portable-baselines"),

@@ -450,6 +450,34 @@ class ContextAwareSanitizer:
             return True
         return False
 
+    def soft_total_from_signals(self, signals: dict) -> float:
+        """Recompute soft aggregate from components, honouring disable_* flags.
+
+        Needed when ablations reuse a full-model ``score()`` cache: zeroing a
+        signal must drop its weight from ``total``, not only the hard path.
+        """
+        r = 0.0 if self._disable_regex else float(signals.get("regex", 0.0))
+        k = 0.0 if self._disable_keyword else float(signals.get("keyword", 0.0))
+        s = 0.0 if self._disable_semantic else float(signals.get("semantic", 0.0))
+        i = 0.0 if self._disable_intent else float(signals.get("intent", 0.0))
+        rp = 0.0 if self._disable_roleplay else float(signals.get("roleplay", 0.0))
+        sh = (
+            0.0
+            if self._disable_instruction_shift
+            else float(signals.get("shift", 0.0))
+        )
+        obj = (
+            0.0
+            if self._disable_objective_conflict
+            else float(signals.get("objective_conflict", 0.0))
+        )
+        ppl = (
+            0.0
+            if self._disable_perplexity
+            else float(signals.get("perplexity", 0.0))
+        )
+        return float(W1 * r + W2 * k + W3 * s + W4 * i + W5 * rp + W6 * sh + W7 * obj + W8 * ppl)
+
     def decide_blocked(
         self,
         signals: dict,
@@ -488,7 +516,8 @@ class ContextAwareSanitizer:
                 and signals["keyword"] > 0.3
             ):
                 hard = True
-        return bool(hard or float(signals["total"]) >= thr)
+        soft = self.soft_total_from_signals(signals)
+        return bool(hard or soft >= thr)
 
     def injection_score(self, prompt: str) -> float:
         """Soft aggregate score (no hard triggers) for matched-FPR retuning."""
