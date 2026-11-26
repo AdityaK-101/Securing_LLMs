@@ -76,9 +76,9 @@ Committed `results/` tables match the paper. Re-run full LLM suites only if you 
 | Mixed suite matched-FPR (**ID** column) | `results/matched_fpr/metrics.csv` |
 | Default-thr LOO (contrast) | `results/loo/` |
 | Mixed suite (archived v2.0) | `results/suite_a/`, `results/suite_b/`, `results/protectai/`, `results/prompt_guard/` |
-| Ablation (Table 4, mixed/default block) | `results/hard_trigger_ablation.csv`, `learned_ablation_metrics.csv`, `weighted_ablation_metrics.csv` |
-| Ablation (Table 4, matched-FPR LOO-4 block) | `results/loo_matched_fpr/ablation_loo_matched.csv`, `ablation_loo_matched_macro.csv` (`python scripts/run_loo_matched_ablations.py`) |
-| Two benign FPRs (Table 5) | `results/loo_matched_fpr/metrics.csv` (PI-benign LOO-4 / Neuralchemy FPR); `robustness_edge_benign.csv` / `robustness_edge_benign_summary.csv` (Edge FPR) |
+| Ablation (Table 3, mixed/default block) | `results/hard_trigger_ablation.csv`, `learned_ablation_metrics.csv`, `weighted_ablation_metrics.csv` |
+| Ablation (Table 3, matched-FPR LOO-4 block) | `results/loo_matched_fpr/ablation_loo_matched.csv`, `ablation_loo_matched_macro.csv` (`python scripts/run_loo_matched_ablations.py`) |
+| Two benign FPRs (Table 4) | `results/loo_matched_fpr/metrics.csv` (PI-benign LOO-4 / Neuralchemy FPR); `robustness_edge_benign.csv` / `robustness_edge_benign_summary.csv` (Edge FPR) |
 | Adaptive (LOO) | `results/loo_matched_fpr/robustness_adaptive_summary.csv` (main); `results/loo/` (contrast) |
 | Judge human validation (N=100) | `results/judge_human_validation/metrics_summary.txt`, `metrics.csv`, `agreement_report.csv`, `judge_key.csv`; second judge: `second_judge_summary.txt`, `second_judge_agreement.csv`, `second_judge_meta.json`; labeling pool: `data/judge_human_validation/` |
 | Second target True ASR (optional) | `results/loo_matched_fpr/metrics_second_target.csv`, `true_asr_by_target.csv`, `second_target_summary.txt`; cache: `results/prompt_cache/loo/outcomes__meta-llama_Llama-3_2-3B-Instruct.jsonl` (`scripts/eval_loo_second_target.py`) |
